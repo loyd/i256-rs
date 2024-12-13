@@ -1,0 +1,47 @@
+[package]
+name = "i256"
+version = "0.1.0"
+authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
+description = "Half-precision floating point f16 and bf16 types for Rust implementing the IEEE 754-2008 standard binary16 and bfloat16 types."
+repository = "https://github.com/starkat99/half-rs"
+readme = "README.md"
+keywords = ["i256", "u256", "no_std", "bignum", "int", "math", "uint"]
+license = "MIT OR Apache-2.0"
+categories = ["no-std", "data-structures", "encoding"]
+edition = "2021"
+rust-version = "1.56"
+exclude = [
+    "assets/*",
+    "docs/*",
+    "etc/*",
+    "cargo-timing*.html",
+    ".git*",
+    ".editorconfig",
+]
+
+[dev-dependencies]
+# FIXME: Replace back to "1.0.4" once the PR is merged.
+#  There's an issue in quickcheck due to an infinitely repeating shrinker.
+#  Issue:   https://github.com/BurntSushi/quickcheck/issues/295
+#  Fix:     https://github.com/BurntSushi/quickcheck/pull/296
+quickcheck = { git = "https://github.com/Alexhuszagh/quickcheck/", branch = "i32min-shrink-bound-legacy" }
+proptest = ">=1.5.0"
+
+[features]
+default = ["std"]
+std = []
+
+# Internal only features.
+# Enable the lint checks.
+lint = []
+
+[profile.dev]
+opt-level = 0
+debug = true
+lto = false
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+lto = true
