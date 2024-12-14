@@ -753,7 +753,9 @@ macro_rules! overflowing_mul_signed_impl {
         /// Const implementation of `Mul` for internal algorithm use.
         ///
         /// This uses checked behavior, and is much slower than wrapping
-        /// multiplication.
+        /// multiplication. When the overflow check is skipped, it's still
+        /// slower (it requires 2 additional jumps and 1 extra add), but it's
+        /// mostly comparable to the wrapping implementation.
         ///
         /// * `x0` - The lower half of x.
         /// * `x1` - The upper half of x.

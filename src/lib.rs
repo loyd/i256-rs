@@ -18,8 +18,5 @@ mod math;
 mod numtypes;
 mod ints;
 
-// TODO: Add intrinsics if we can here
-// This might help a lot on x86 and arm64
-
 pub use ints::i256::i256;
 pub use ints::u256::u256;

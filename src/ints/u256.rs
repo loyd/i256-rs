@@ -392,7 +392,7 @@ impl u256 {
     ///
     /// This function will panic if `self` is zero.
     #[inline(always)]
-    pub const fn ilog10(self) -> u32 {
+    pub fn ilog10(self) -> u32 {
         if let Some(log) = self.checked_ilog10() {
             log
         } else {
@@ -428,10 +428,25 @@ impl u256 {
     ///
     /// Returns `None` if the number is zero.
     #[inline(always)]
-    pub const fn checked_ilog10(self) -> Option<u32> {
+    pub fn checked_ilog10(self) -> Option<u32> {
         match eq(self, Self::from_u8(0)) {
             true => None,
-            false => Some(todo!()),
+            false => {
+                // NOTE: The `ilog10` implementations for small
+                // numbers are quite efficient, so we use those
+                // when available. We want to get this to
+                // a 128-bit integer in as few multiplications
+                // as we can.
+                let mut log = 0;
+                let mut value = self;
+                const E16: u64 = 10_000_000_000_000_000;
+                while value.hi > 0 {
+                    value.div_rem_small(E16);
+                    log += 16;
+                }
+                let value: u128 = value.as_u128();
+                Some(value.ilog10() + log)
+            },
         }
     }
 
@@ -684,7 +699,26 @@ impl u256 {
     /// wrapping around at the boundary of the type.
     #[inline]
     pub const fn wrapping_pow(self, mut exp: u32) -> Self {
-        todo!();
+        if exp == 0 {
+            return Self::from_u8(1);
+        }
+        let mut base = self;
+        let mut acc = Self::from_u8(1);
+
+        // NOTE: The exponent can never go to 0.
+        loop {
+            if (exp & 1) == 1 {
+                acc = acc.wrapping_mul(base);
+                // since exp!=0, finally the exp must be 1.
+                if exp == 1 {
+                    return acc;
+                }
+            }
+            exp /= 2;
+            base = base.wrapping_mul(base);
+            debug_assert!(exp != 0, "logic error in exponentiation, will infinitely loop");
+        }
+        unreachable!();
     }
 
     /// Calculates `self` + `rhs`.
@@ -814,13 +848,39 @@ impl u256 {
     /// whether an overflow happened.
     #[inline]
     pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {
-        todo!();
+        if exp == 0 {
+            return (Self::from_u8(1), false);
+        }
+        let mut base = self;
+        let mut acc = Self::from_u8(1);
+        let mut overflown = false;
+        let mut r: (Self, bool);
+
+        // NOTE: The exponent can never go to 0.
+        loop {
+            if (exp & 1) == 1 {
+                r = acc.overflowing_mul(base);
+                // since exp!=0, finally the exp must be 1.
+                if exp == 1 {
+                    r.1 |= overflown;
+                    return r;
+                }
+            }
+            exp /= 2;
+            r = base.overflowing_mul(base);
+            base = r.0;
+            overflown |= r.1;
+            debug_assert!(exp != 0, "logic error in exponentiation, will infinitely loop");
+        }
+        unreachable!();
     }
 
     /// Raises self to the power of `exp`, using exponentiation by squaring.
     #[inline]
     pub const fn pow(self, mut exp: u32) -> Self {
-        todo!();
+        // FIXME: If #111466 is stabilized, we can use that
+        // and determine if overflow checks are enabled.
+        self.wrapping_pow(exp)
     }
 
     /// Returns the square root of the number, rounded down.

@@ -1061,7 +1061,7 @@ impl i256 {
     ///
     /// This function will panic if `self` is less than or equal to zero.
     #[inline(always)]
-    pub const fn ilog10(self) -> u32 {
+    pub fn ilog10(self) -> u32 {
         if let Some(log) = self.checked_ilog10() {
             log
         } else {
@@ -1100,7 +1100,7 @@ impl i256 {
     ///
     /// Returns `None` if the number is negative or zero.
     #[inline]
-    pub const fn checked_ilog10(self) -> Option<u32> {
+    pub fn checked_ilog10(self) -> Option<u32> {
         match le(self, Self::from_u8(0)) {
             true => None,
             false => Some(self.as_u256().ilog10()),
