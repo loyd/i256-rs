@@ -1,0 +1,41 @@
+name: Rust
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        target: [x86_64, aarch64]
+        rust:
+          - nightly
+          - stable
+          - 1.59.0
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: clippy,rustfmt
+
+    - name: Test
+      run: cargo test
+
+    - name: Format Check
+      if: ${{ matrix.target == 'nightly' }}
+      run: |
+        cargo +nightly fmt -- --check
+        cargo +nightly clippy --all-features -- --deny warnings
+
+    - name: Run Quickcheck Tests
+      if: ${{ matrix.rust != '1.59.0' }}
+      run: |
+        cd devel
+        cargo test
