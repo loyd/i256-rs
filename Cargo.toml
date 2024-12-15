@@ -16,7 +16,11 @@ exclude = [
     "etc/*",
     "cargo-timing*.html",
     ".git*",
-    ".editorconfig",
+    "clippy.toml",
+    "rustfmt.toml",
+    "devel/*",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md"
 ]
 
 [features]
