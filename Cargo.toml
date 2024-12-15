@@ -9,7 +9,7 @@ keywords = ["i256", "u256", "no_std", "bignum", "int", "math", "uint"]
 license = "MIT OR Apache-2.0"
 categories = ["no-std", "data-structures", "encoding"]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.59"
 exclude = [
     "assets/*",
     "docs/*",
@@ -18,14 +18,6 @@ exclude = [
     ".git*",
     ".editorconfig",
 ]
-
-[dev-dependencies]
-# FIXME: Replace back to "1.0.4" once the PR is merged.
-#  There's an issue in quickcheck due to an infinitely repeating shrinker.
-#  Issue:   https://github.com/BurntSushi/quickcheck/issues/295
-#  Fix:     https://github.com/BurntSushi/quickcheck/pull/296
-quickcheck = { git = "https://github.com/Alexhuszagh/quickcheck/", branch = "i32min-shrink-bound-legacy" }
-proptest = ">=1.5.0"
 
 [features]
 default = ["std"]

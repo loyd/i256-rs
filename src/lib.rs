@@ -13,9 +13,10 @@
 )]
 
 pub mod error;
+// exposed only for testing
+pub mod math;
 
 mod ints;
-mod math;
 mod numtypes;
 
 pub use ints::i256::i256;
