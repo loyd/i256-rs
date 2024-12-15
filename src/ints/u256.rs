@@ -418,19 +418,20 @@ impl u256 {
         }
     }
 
-    /// Returns the base 10 logarithm of the number, rounded down.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if `self` is zero.
-    #[inline(always)]
-    pub fn ilog10(self) -> u32 {
-        if let Some(log) = self.checked_ilog10() {
-            log
-        } else {
-            panic!("argument of integer logarithm must be positive")
-        }
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.67.0+`.
+    // /// Returns the base 10 logarithm of the number, rounded down.
+    // ///
+    // /// # Panics
+    // ///
+    // /// This function will panic if `self` is zero.
+    // #[inline(always)]
+    // pub fn ilog10(self) -> u32 {
+    //     if let Some(log) = self.checked_ilog10() {
+    //         log
+    //     } else {
+    //         panic!("argument of integer logarithm must be positive")
+    //     }
+    // }
 
     /// Returns the logarithm of the number with respect to an arbitrary base,
     /// rounded down.
@@ -483,33 +484,32 @@ impl u256 {
         }
     }
 
-    /// Returns the base 10 logarithm of the number, rounded down.
-    ///
-    /// Returns `None` if the number is zero.
-    #[inline(always)]
-    pub fn checked_ilog10(self) -> Option<u32> {
-        match eq(self, Self::from_u8(0)) {
-            true => None,
-            false => {
-                // NOTE: The `ilog10` implementations for small
-                // numbers are quite efficient, so we use those
-                // when available. We want to get this to
-                // a 128-bit integer in as few multiplications
-                // as we can.
-                let mut log = 0;
-                let mut value = self;
-                const E16: u64 = 10_000_000_000_000_000;
-                while value.hi > 0 {
-                    value = value.div_small(E16);
-                    log += 16;
-                }
-                let value: u128 = value.as_u128();
-                // TODO: Ahh is this 1.65.0+
-                // TODO: Fix, also we need proptest out of here
-                Some(value.ilog10() + log)
-            },
-        }
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.67.0+`.
+    // /// Returns the base 10 logarithm of the number, rounded down.
+    // ///
+    // /// Returns `None` if the number is zero.
+    // #[inline(always)]
+    // pub fn checked_ilog10(self) -> Option<u32> {
+    //     match eq(self, Self::from_u8(0)) {
+    //         true => None,
+    //         false => {
+    //             // NOTE: The `ilog10` implementations for small
+    //             // numbers are quite efficient, so we use those
+    //             // when available. We want to get this to
+    //             // a 128-bit integer in as few multiplications
+    //             // as we can.
+    //             let mut log = 0;
+    //             let mut value = self;
+    //             const E16: u64 = 10_000_000_000_000_000;
+    //             while value.hi > 0 {
+    //                 value = value.div_small(E16);
+    //                 log += 16;
+    //             }
+    //             let value: u128 = value.as_u128();
+    //             Some(value.ilog10() + log)
+    //         },
+    //     }
+    // }
 
     /// Checked negation. Computes `-self`, returning `None` unless `self ==
     /// 0`.

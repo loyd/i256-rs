@@ -1183,19 +1183,20 @@ impl i256 {
         }
     }
 
-    /// Returns the base 10 logarithm of the number, rounded down.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if `self` is less than or equal to zero.
-    #[inline(always)]
-    pub fn ilog10(self) -> u32 {
-        if let Some(log) = self.checked_ilog10() {
-            log
-        } else {
-            panic!("argument of integer logarithm must be positive")
-        }
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.67.0+`.
+    // /// Returns the base 10 logarithm of the number, rounded down.
+    // ///
+    // /// # Panics
+    // ///
+    // /// This function will panic if `self` is less than or equal to zero.
+    // #[inline(always)]
+    // pub fn ilog10(self) -> u32 {
+    //     if let Some(log) = self.checked_ilog10() {
+    //         log
+    //     } else {
+    //         panic!("argument of integer logarithm must be positive")
+    //     }
+    // }
 
     /// Returns the logarithm of the number with respect to an arbitrary base,
     /// rounded down.
@@ -1225,16 +1226,17 @@ impl i256 {
         }
     }
 
-    /// Returns the base 10 logarithm of the number, rounded down.
-    ///
-    /// Returns `None` if the number is negative or zero.
-    #[inline]
-    pub fn checked_ilog10(self) -> Option<u32> {
-        match le(self, Self::from_u8(0)) {
-            true => None,
-            false => Some(self.as_u256().ilog10()),
-        }
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.67.0+`.
+    // /// Returns the base 10 logarithm of the number, rounded down.
+    // ///
+    // /// Returns `None` if the number is negative or zero.
+    // #[inline]
+    // pub fn checked_ilog10(self) -> Option<u32> {
+    //     match le(self, Self::from_u8(0)) {
+    //         true => None,
+    //         false => Some(self.as_u256().ilog10()),
+    //     }
+    // }
 
     /// Computes the absolute value of `self`.
     #[inline(always)]
