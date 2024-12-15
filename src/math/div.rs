@@ -25,18 +25,21 @@ use core::ops::{Deref, DerefMut};
 use core::slice;
 
 // NOTE: This cannot be made `const`, nor should it be attempted to be made so.
-// We had a Knuth division algorithm previously in lexical, but it was removed for
-// a few reasons, so we prioritize this. It used extensive unchecked indexing and
-// the array sizes were not known at compile time, so it was a refactor away from
-// potential memory unsafety. It also assumed big endian order, and on most systems
-// our data is in little endian order.
+// We had a Knuth division algorithm previously in lexical, but it was removed
+// for a few reasons, so we prioritize this. It used extensive unchecked
+// indexing and the array sizes were not known at compile time, so it was a
+// refactor away from potential memory unsafety. It also assumed big endian
+// order, and on most systems our data is in little endian order.
 
 /// Unsigned, little-endian, n-digit division with remainder
 ///
 /// # Panics
 ///
 /// Panics if divisor is zero
-pub fn div_rem_big<const N: usize>(numerator: &[u64; N], divisor: &[u64; N]) -> ([u64; N], [u64; N]) {
+pub fn div_rem_big<const N: usize>(
+    numerator: &[u64; N],
+    divisor: &[u64; N],
+) -> ([u64; N], [u64; N]) {
     let numerator_bits = bits(numerator);
     let divisor_bits = bits(divisor);
     assert_ne!(divisor_bits, 0, "division by zero");
@@ -70,7 +73,10 @@ fn bits(arr: &[u64]) -> usize {
 
 /// Division of numerator by a u64 divisor
 #[inline]
-pub fn div_rem_small_padded<const N: usize>(numerator: &[u64; N], divisor: u64) -> ([u64; N], [u64; N]) {
+pub fn div_rem_small_padded<const N: usize>(
+    numerator: &[u64; N],
+    divisor: u64,
+) -> ([u64; N], [u64; N]) {
     let (numerator, rem) = div_rem_small(numerator, divisor);
     let mut rem_padded = [0; N];
     rem_padded[0] = rem;
@@ -95,8 +101,8 @@ pub fn div_rem_small<const N: usize>(numerator: &[u64; N], divisor: u64) -> ([u6
 /// quotient and remainder
 ///
 /// `n` is the number of non-zero 64-bit words in `divisor`
-/// `m` is the number of non-zero 64-bit words present in `numerator` beyond `divisor`, and
-/// therefore the number of words in the quotient
+/// `m` is the number of non-zero 64-bit words present in `numerator` beyond
+/// `divisor`, and therefore the number of words in the quotient
 ///
 /// A good explanation of the algorithm can be found [here](https://ridiculousfish.com/blog/posts/labor-of-division-episode-iv.html)
 fn div_rem_knuth<const N: usize>(
@@ -107,8 +113,8 @@ fn div_rem_knuth<const N: usize>(
 ) -> ([u64; N], [u64; N]) {
     assert!(n + m <= N);
 
-    // The algorithm works by incrementally generating guesses `q_hat`, for the next digit
-    // of the quotient, starting from the most significant digit.
+    // The algorithm works by incrementally generating guesses `q_hat`, for the next
+    // digit of the quotient, starting from the most significant digit.
     //
     // This relies on the property that for any `q_hat` where
     //
@@ -122,12 +128,14 @@ fn div_rem_knuth<const N: usize>(
     // And then iterate until `numerator < divisor`
 
     // We normalize the divisor so that the highest bit in the highest digit of the
-    // divisor is set, this ensures our initial guess of `q_hat` is at most 2 off from
-    // the correct value for q[j]
+    // divisor is set, this ensures our initial guess of `q_hat` is at most 2 off
+    // from the correct value for q[j]
     let shift = divisor[n - 1].leading_zeros();
-    // As the shift is computed based on leading zeros, don't need to perform full_shl
+    // As the shift is computed based on leading zeros, don't need to perform
+    // full_shl
     let divisor = shl_word(divisor, shift);
-    // numerator may have fewer leading zeros than divisor, so must add another digit
+    // numerator may have fewer leading zeros than divisor, so must add another
+    // digit
     let mut numerator = full_shl(numerator, shift);
 
     // The two most significant digits of the divisor
@@ -193,15 +201,17 @@ fn div_rem_knuth<const N: usize>(
         q[j] = q_hat;
     }
 
-    // The remainder is what is left in numerator, with the initial normalization shl reversed
+    // The remainder is what is left in numerator, with the initial normalization
+    // shl reversed
     let remainder = full_shr(&numerator, shift);
     (q, remainder)
 }
 
-/// Perform narrowing division of a u128 by a u64 divisor, returning the quotient and remainder
+/// Perform narrowing division of a u128 by a u64 divisor, returning the
+/// quotient and remainder
 ///
-/// This method may trap or panic if hi >= divisor, i.e. the quotient would not fit
-/// into a 64-bit integer
+/// This method may trap or panic if hi >= divisor, i.e. the quotient would not
+/// fit into a 64-bit integer
 fn div_rem_word(hi: u64, lo: u64, divisor: u64) -> (u64, u64) {
     debug_assert!(hi < divisor);
     debug_assert_ne!(divisor, 0);
@@ -279,7 +289,7 @@ fn full_shl<const N: usize>(v: &[u64; N], shift: u32) -> ArrayPlusOne<u64, N> {
     let mut out = [0u64; N];
     out[0] = v[0] << shift;
     for i in 1..N {
-        out[i] = v[i - 1] >> (64 - shift) | v[i] << shift
+        out[i] = v[i - 1] >> (64 - shift) | v[i] << shift;
     }
     let carry = v[N - 1] >> (64 - shift);
     ArrayPlusOne(out, carry)
@@ -293,7 +303,7 @@ fn full_shr<const N: usize>(a: &ArrayPlusOne<u64, N>, shift: u32) -> [u64; N] {
     }
     let mut out = [0; N];
     for i in 0..N - 1 {
-        out[i] = a[i] >> shift | a[i + 1] << (64 - shift)
+        out[i] = a[i] >> shift | a[i + 1] << (64 - shift);
     }
     out[N - 1] = a[N - 1] >> shift;
     out

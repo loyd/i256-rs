@@ -10,5 +10,5 @@
 
 mod div;
 mod native;
-pub use self::native::*;
 pub use self::div::{div_rem_big, div_rem_small};
+pub use self::native::*;

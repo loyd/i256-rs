@@ -14,9 +14,9 @@
 
 pub mod error;
 
+mod ints;
 mod math;
 mod numtypes;
-mod ints;
 
 pub use ints::i256::i256;
 pub use ints::u256::u256;

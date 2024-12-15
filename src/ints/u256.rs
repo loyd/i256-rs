@@ -3,17 +3,27 @@
 //! This aims to have feature parity with Rust's unsigned
 //! integer types, such as [u32][core::u32]. The documentation
 //! is based off of [u32][core::u32] for each method/member.
+//!
+//! A large portion of the implementation for helper functions
+//! are based off of the Rust core implementation, such as for
+//! [`checked_pow`][u128::checked_pow], [`isqrt`][u128::isqrt],
+//! and more. Any non-performance critical functions, or those
+//! crucial to parsing or serialization ([`add`][`u256::add`],
+//! [`mul`][`u256::mul`], [`div`][`u256::div`], and
+//! [`sub`][`u256::sub`]), as well as their `wrapping_*`,
+//! `checked_*`, `overflowing_*` and `*_small` variants are
+//! likely based on the core implementations.
 
 use core::cmp::Ordering;
-use core::{fmt, mem, str};
-use core::ops::*;
 use core::num::ParseIntError;
+use core::ops::*;
 use core::str::{FromStr, Utf8Error};
+use core::{fmt, mem, str};
 
 use crate::error::TryFromIntError;
 use crate::i256;
-use crate::numtypes::*;
 use crate::math;
+use crate::numtypes::*;
 
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
@@ -66,11 +76,17 @@ pub struct u256 {
 
 impl u256 {
     /// The smallest value that can be represented by this integer type.
-    pub const MIN: Self = Self { lo: 0, hi: 0 };
+    pub const MIN: Self = Self {
+        lo: 0,
+        hi: 0,
+    };
 
     /// The largest value that can be represented by this integer type
     /// (2<sup>256</sup> - 1).
-    pub const MAX: Self = Self { lo: u128::MAX, hi: u128::MAX };
+    pub const MAX: Self = Self {
+        lo: u128::MAX,
+        hi: u128::MAX,
+    };
 
     /// The size of this integer type in bits.
     ///
@@ -94,7 +110,8 @@ impl u256 {
         not(self).count_ones()
     }
 
-    /// Returns the number of leading zeros in the binary representation of `self`.
+    /// Returns the number of leading zeros in the binary representation of
+    /// `self`.
     ///
     /// Depending on what you're doing with the value, you might also be
     /// interested in the `ilog2` function which returns a consistent
@@ -117,31 +134,34 @@ impl u256 {
     pub const fn leading_zeros(self) -> u32 {
         let mut leading = self.hi.leading_zeros();
         if leading == u128::BITS {
-            leading += self.lo.leading_zeros()
+            leading += self.lo.leading_zeros();
         }
         leading
     }
 
-    /// Returns the number of trailing zeros in the binary representation of `self`.
+    /// Returns the number of trailing zeros in the binary representation of
+    /// `self`.
     #[inline(always)]
     pub const fn trailing_zeros(self) -> u32 {
         let mut trailing = self.hi.trailing_zeros();
         if trailing == u128::BITS {
-            trailing += self.lo.trailing_zeros()
+            trailing += self.lo.trailing_zeros();
         }
         trailing
     }
 
-    /// Returns the number of leading ones in the binary representation of `self`.
+    /// Returns the number of leading ones in the binary representation of
+    /// `self`.
     #[inline(always)]
     pub const fn leading_ones(self) -> u32 {
-       not(self).leading_zeros()
+        not(self).leading_zeros()
     }
 
-    /// Returns the number of trailing ones in the binary representation of `self`.
+    /// Returns the number of trailing ones in the binary representation of
+    /// `self`.
     #[inline(always)]
     pub const fn trailing_ones(self) -> u32 {
-       not(self).trailing_zeros()
+        not(self).trailing_zeros()
     }
 
     /// Shifts the bits to the left by a specified amount, `n`,
@@ -151,7 +171,10 @@ impl u256 {
     #[inline(always)]
     pub const fn rotate_left(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_left_u128(self.lo, self.hi, n);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
     /// Shifts the bits to the right by a specified amount, `n`,
@@ -162,14 +185,20 @@ impl u256 {
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_right_u128(self.lo, self.hi, n);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
     /// Reverses the byte order of the integer.
     #[inline(always)]
     pub const fn swap_bytes(self) -> Self {
         let (lo, hi) = math::swap_bytes_u128(self.lo, self.hi);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
     /// Reverses the order of bits in the integer. The least significant
@@ -178,7 +207,10 @@ impl u256 {
     #[inline(always)]
     pub const fn reverse_bits(self) -> Self {
         let (lo, hi) = math::reverse_bits_u128(self.lo, self.hi);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
     /// Converts an integer from big endian to the target's endianness.
@@ -364,7 +396,7 @@ impl u256 {
     ///
     /// This function will panic if `self` is zero, or if `base` is less than 2.
     #[inline(always)]
-    pub const fn ilog(self, base: Self) -> u32 {
+    pub fn ilog(self, base: Self) -> u32 {
         if let Some(log) = self.checked_ilog(base) {
             log
         } else {
@@ -409,8 +441,35 @@ impl u256 {
     /// `checked_ilog2` can produce results more efficiently for base 2, and
     /// `checked_ilog10` can produce results more efficiently for base 10.
     #[inline(always)]
-    pub const fn checked_ilog(self, base: Self) -> Option<u32> {
-        todo!();
+    pub fn checked_ilog(self, base: Self) -> Option<u32> {
+        let zero = Self::from_u8(0);
+        if self == zero || base <= zero || lt(self, base) {
+            return None;
+        }
+
+        // Since base >= self, n >= 1
+        let mut n = 1;
+        let mut r = base;
+
+        // Optimization for 128+ bit wide integers.
+        if Self::BITS >= 128 {
+            // The following is a correct lower bound for ⌊log(base,self)⌋ because
+            //
+            // log(base,self) = log(2,self) / log(2,base)
+            //                ≥ ⌊log(2,self)⌋ / (⌊log(2,base)⌋ + 1)
+            //
+            // hence
+            //
+            // ⌊log(base,self)⌋ ≥ ⌊ ⌊log(2,self)⌋ / (⌊log(2,base)⌋ + 1) ⌋ .
+            n = self.ilog2() / (base.ilog2() + 1);
+            r = base.pow(n);
+        }
+
+        while r <= self / base {
+            n += 1;
+            r *= base;
+        }
+        Some(n)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -441,10 +500,12 @@ impl u256 {
                 let mut value = self;
                 const E16: u64 = 10_000_000_000_000_000;
                 while value.hi > 0 {
-                    value.div_rem_small(E16);
+                    value = value.div_small(E16);
                     log += 16;
                 }
                 let value: u128 = value.as_u128();
+                // TODO: Ahh is this 1.65.0+
+                // TODO: Fix, also we need proptest out of here
                 Some(value.ilog10() + log)
             },
         }
@@ -489,7 +550,10 @@ impl u256 {
     /// if overflow occurred.
     #[inline(always)]
     pub const fn checked_pow(self, base: u32) -> Option<Self> {
-        todo!();
+        match self.overflowing_pow(base) {
+            (value, false) => Some(value),
+            _ => None,
+        }
     }
 
     /// Saturating integer addition. Computes `self + rhs`, saturating at
@@ -676,7 +740,10 @@ impl u256 {
     #[inline(always)]
     pub const fn wrapping_shl(self, rhs: u32) -> Self {
         let (lo, hi) = math::shl_u128(self.lo, self.hi, rhs % 256);
-        Self { hi, lo }
+        Self {
+            hi,
+            lo,
+        }
     }
 
     /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`,
@@ -692,7 +759,10 @@ impl u256 {
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
         let (lo, hi) = math::shr_u128(self.lo, self.hi, rhs % 256);
-        Self { hi, lo }
+        Self {
+            hi,
+            lo,
+        }
     }
 
     /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
@@ -718,7 +788,6 @@ impl u256 {
             base = base.wrapping_mul(base);
             debug_assert!(exp != 0, "logic error in exponentiation, will infinitely loop");
         }
-        unreachable!();
     }
 
     /// Calculates `self` + `rhs`.
@@ -729,7 +798,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) = math::add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Calculates `self` + `rhs` with a signed `rhs`.
@@ -752,7 +827,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) = math::sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Computes the absolute difference between `self` and `other`.
@@ -773,7 +854,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) = math::mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Calculates the divisor when `self` is divided by `rhs`.
@@ -824,7 +911,8 @@ impl u256 {
         (rem(self, rhs), false)
     }
 
-    /// Calculates the remainder `self.rem_euclid(rhs)` as if by Euclidean division.
+    /// Calculates the remainder `self.rem_euclid(rhs)` as if by Euclidean
+    /// division.
     ///
     /// Returns a tuple of the modulo after dividing along with a boolean
     /// indicating whether an arithmetic overflow would occur. Note that for
@@ -865,6 +953,8 @@ impl u256 {
                     r.1 |= overflown;
                     return r;
                 }
+                acc = r.0;
+                overflown |= r.1;
             }
             exp /= 2;
             r = base.overflowing_mul(base);
@@ -872,12 +962,11 @@ impl u256 {
             overflown |= r.1;
             debug_assert!(exp != 0, "logic error in exponentiation, will infinitely loop");
         }
-        unreachable!();
     }
 
     /// Raises self to the power of `exp`, using exponentiation by squaring.
     #[inline]
-    pub const fn pow(self, mut exp: u32) -> Self {
+    pub const fn pow(self, exp: u32) -> Self {
         // FIXME: If #111466 is stabilized, we can use that
         // and determine if overflow checks are enabled.
         self.wrapping_pow(exp)
@@ -886,10 +975,37 @@ impl u256 {
     /// Returns the square root of the number, rounded down.
     #[inline]
     pub const fn isqrt(self) -> Self {
+        //#[inline]
+        //const fn u128_stages(n: u128) -> u128 {
+        //    let (s, r) = first_stage!(128, n);
+        //    let (s, r) = middle_stage!(128, u16, n, s, r);
+        //    let (s, r) = middle_stage!(128, u32, n, s, r);
+        //    let (s, r) = middle_stage!(128, u64, n, s, r);
+        //    last_stage!(u128, n, s, r)
+        //}
+        //let result = crate::num::int_sqrt::$ActualT(self as $ActualT) as $SelfT;
+        //
+        //// Inform the optimizer what the range of outputs is. If testing
+        //// `core` crashes with no panic message and a `num::int_sqrt::u*`
+        //// test failed, it's because your edits caused these assertions or
+        //// the assertions in `fn isqrt` of `nonzero.rs` to become false.
+        ////
+        //// SAFETY: Integer square root is a monotonically nondecreasing
+        //// function, which means that increasing the input will never
+        //// cause the output to decrease. Thus, since the input for unsigned
+        //// integers is bounded by `[0, <$ActualT>::MAX]`, sqrt(n) will be
+        //// bounded by `[sqrt(0), sqrt(<$ActualT>::MAX)]`.
+        //unsafe {
+        //    const MAX_RESULT: $SelfT = crate::num::int_sqrt::$ActualT(<$ActualT>::MAX)
+        // as $SelfT;    crate::hint::assert_unchecked(result <= MAX_RESULT);
+        //}
+        //
+        //result
         todo!();
     }
 
-    /// Calculates the quotient of `self` and `rhs`, rounding the result towards negative infinity.
+    /// Calculates the quotient of `self` and `rhs`, rounding the result towards
+    /// negative infinity.
     ///
     /// This is the same as performing `self / rhs` for all unsigned integers.
     ///
@@ -901,7 +1017,8 @@ impl u256 {
         div(self, rhs)
     }
 
-    /// Calculates the quotient of `self` and `rhs`, rounding the result towards positive infinity.
+    /// Calculates the quotient of `self` and `rhs`, rounding the result towards
+    /// positive infinity.
     ///
     /// # Panics
     ///
@@ -912,7 +1029,10 @@ impl u256 {
         let r = rem(self, rhs);
         if r.lo > 0 || r.hi > 0 {
             let (lo, hi, _) = math::add_u128(d.lo, d.hi, 1, 0);
-            u256 { lo, hi }
+            u256 {
+                lo,
+                hi,
+            }
         } else {
             d
         }
@@ -927,8 +1047,9 @@ impl u256 {
     ///
     /// ## Overflow behavior
     ///
-    /// On overflow, this function will panic if overflow checks are enabled (default in debug
-    /// mode) and wrap if overflow checks are disabled (default in release mode).
+    /// On overflow, this function will panic if overflow checks are enabled
+    /// (default in debug mode) and wrap if overflow checks are disabled
+    /// (default in release mode).
     #[inline]
     pub fn next_multiple_of(self, rhs: Self) -> Self {
         match rem(self, rhs) {
@@ -950,11 +1071,12 @@ impl u256 {
         }
     }
 
-    /// Returns `true` if `self` is an integer multiple of `rhs`, and false otherwise.
+    /// Returns `true` if `self` is an integer multiple of `rhs`, and false
+    /// otherwise.
     ///
-    /// This function is equivalent to `self % rhs == 0`, except that it will not panic
-    /// for `rhs == 0`. Instead, `0.is_multiple_of(0) == true`, and for any non-zero `n`,
-    /// `n.is_multiple_of(0) == false`.
+    /// This function is equivalent to `self % rhs == 0`, except that it will
+    /// not panic for `rhs == 0`. Instead, `0.is_multiple_of(0) == true`,
+    /// and for any non-zero `n`, `n.is_multiple_of(0) == false`.
     #[inline]
     pub fn is_multiple_of(self, rhs: Self) -> bool {
         match rhs {
@@ -1090,11 +1212,15 @@ impl u256 {
         Self::from_u128(value as u128)
     }
 
-    /// Create the 256-bit unsigned integer from a `u128`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from a `u128`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_u128(value: u128) -> Self {
         let (lo, hi) = math::as_uwide_u128(value);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
     /// Create the 256-bit unsigned integer to an `i8`, as if by an `as` cast.
@@ -1103,32 +1229,40 @@ impl u256 {
         Self::from_i128(value as i128)
     }
 
-    /// Create the 256-bit unsigned integer from an `i16`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from an `i16`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_i16(value: i16) -> Self {
         Self::from_i128(value as i128)
     }
 
-    /// Create the 256-bit unsigned integer from an `i32`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from an `i32`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_i32(value: i32) -> Self {
         Self::from_i128(value as i128)
     }
 
-    /// Create the 256-bit unsigned integer from an `i64`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from an `i64`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_i64(value: i64) -> Self {
         Self::from_i128(value as i128)
     }
 
-    /// Create the 256-bit unsigned integer from an `i128`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from an `i128`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_i128(value: i128) -> Self {
         let (lo, hi) = math::as_iwide_u128(value);
-        Self { lo, hi }
+        Self {
+            lo,
+            hi,
+        }
     }
 
-    /// Create the 256-bit unsigned integer from an `i256`, as if by an `as` cast.
+    /// Create the 256-bit unsigned integer from an `i256`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn from_i256(value: i256) -> Self {
         value.as_u256()
@@ -1158,13 +1292,15 @@ impl u256 {
         self.lo as u64
     }
 
-    /// Convert the 256-bit unsigned integer to an `u128`, as if by an `as` cast.
+    /// Convert the 256-bit unsigned integer to an `u128`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn as_u128(&self) -> u128 {
         math::as_unarrow_u128(self.lo, self.hi)
     }
 
-    /// Convert the 256-bit unsigned integer to an `u256`, as if by an `as` cast.
+    /// Convert the 256-bit unsigned integer to an `u256`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn as_u256(&self) -> Self {
         *self
@@ -1194,17 +1330,22 @@ impl u256 {
         self.as_i128() as i64
     }
 
-    /// Convert the 256-bit unsigned integer to an `i128`, as if by an `as` cast.
+    /// Convert the 256-bit unsigned integer to an `i128`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn as_i128(&self) -> i128 {
         math::as_inarrow_u128(self.lo, self.hi)
     }
 
-    /// Convert the 256-bit unsigned integer to an `i256`, as if by an `as` cast.
+    /// Convert the 256-bit unsigned integer to an `i256`, as if by an `as`
+    /// cast.
     #[inline(always)]
     pub const fn as_i256(&self) -> i256 {
         let (lo, hi) = math::wide_cast_u128(self.lo, self.hi);
-        i256 { lo, hi }
+        i256 {
+            lo,
+            hi,
+        }
     }
 
     /// Add the 256-bit integer by a small, 128-bit unsigned factor.
@@ -1226,7 +1367,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_add_small(self, n: u128) -> (Self, bool) {
         let (lo, hi, overflowed) = math::add_small_u128(self.lo, self.hi, n);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Add the 256-bit integer by a small, 128-bit unsigned factor.
@@ -1260,7 +1407,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_sub_small(self, n: u128) -> (Self, bool) {
         let (lo, hi, overflowed) = math::sub_small_u128(self.lo, self.hi, n);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Subtract the 256-bit integer by a small, 128-bit unsigned factor.
@@ -1294,7 +1447,13 @@ impl u256 {
     #[inline(always)]
     pub const fn overflowing_mul_small(self, n: u128) -> (Self, bool) {
         let (lo, hi, overflowed) = math::mul_small_u128(self.lo, self.hi, n);
-        (Self { lo, hi }, overflowed)
+        (
+            Self {
+                lo,
+                hi,
+            },
+            overflowed,
+        )
     }
 
     /// Multiply the 256-bit integer by a small, 128-bit unsigned factor.
@@ -1388,7 +1547,7 @@ impl Add for u256 {
         if cfg!(not(debug_assertions)) {
             add(self, rhs)
         } else {
-            self.checked_add(rhs).unwrap()
+            self.checked_add(rhs).expect("attempt to add with overflow")
         }
     }
 }
@@ -1450,14 +1609,14 @@ impl fmt::Debug for u256 {
 
 impl fmt::Display for u256 {
     #[inline(always)]
+    #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
             return fmt::Display::fmt(&self.hi, f);
         }
 
         let mut buffer = [0u8; 78];
-        let formatted= to_string(*self, &mut buffer)
-            .or_else(|_| Err(fmt::Error::default()))?;
+        let formatted = to_string(*self, &mut buffer).or_else(|_| Err(fmt::Error))?;
         write!(f, "{}", formatted)
     }
 }
@@ -1470,7 +1629,7 @@ impl Div for u256 {
         if cfg!(not(debug_assertions)) {
             div(self, rhs)
         } else {
-            self.checked_div(rhs).unwrap()
+            self.checked_div(rhs).expect("attempt to divide by zero")
         }
     }
 }
@@ -1480,14 +1639,20 @@ op_impl!(u256, Div, DivAssign, div, div_assign);
 impl From<bool> for u256 {
     #[inline(always)]
     fn from(small: bool) -> Self {
-        Self { lo: small as u128, hi: 0 }
+        Self {
+            lo: small as u128,
+            hi: 0,
+        }
     }
 }
 
 impl From<char> for u256 {
     #[inline(always)]
     fn from(c: char) -> Self {
-        Self { lo: c as u128, hi: 0 }
+        Self {
+            lo: c as u128,
+            hi: 0,
+        }
     }
 }
 
@@ -1506,22 +1671,26 @@ impl FromStr for u256 {
     /// the lexical implementation.
     #[inline(always)]
     fn from_str(src: &str) -> Result<u256, ParseIntError> {
+        // up to 39 digits can be stored in a `u128`, so less is always valid
+        if src.len() < 39 {
+            return Ok(u256::from_u128(u128::from_str(src)?));
+        }
         todo!();
     }
 }
 
 impl fmt::LowerExp for u256 {
     #[inline(always)]
+    #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
             return fmt::LowerExp::fmt(&self.hi, f);
         }
 
         let mut buffer = [0u8; 78];
-        let buffer= to_bytes(*self, &mut buffer);
+        let buffer = to_bytes(*self, &mut buffer);
         let first = buffer[0] as char;
-        let formatted = str::from_utf8(&buffer[1..])
-            .or_else(|_| Err(fmt::Error::default()))?;
+        let formatted = str::from_utf8(&buffer[1..]).or_else(|_| Err(fmt::Error))?;
         write!(f, "{}.{}e{}", first, formatted, buffer.len() - 1)
     }
 }
@@ -1547,7 +1716,7 @@ impl Mul for u256 {
         if cfg!(not(debug_assertions)) {
             mul(self, rhs)
         } else {
-            self.checked_mul(rhs).unwrap()
+            self.checked_mul(rhs).expect("attempt to multiply with overflow")
         }
     }
 }
@@ -1576,7 +1745,7 @@ impl fmt::Octal for u256 {
         let lo0 = self.lo as u64;
 
         let alternate = f.alternate();
-        let mut write = | x: u64, alt: bool | {
+        let mut write = |x: u64, alt: bool| {
             if alt {
                 write!(f, "{:#o}", x)
             } else {
@@ -1644,7 +1813,8 @@ impl Rem for u256 {
         if cfg!(not(debug_assertions)) {
             rem(self, rhs)
         } else {
-            self.checked_rem(rhs).unwrap()
+            self.checked_rem(rhs)
+                .expect("attempt to calculate the remainder with a divisor of zero")
         }
     }
 }
@@ -1746,6 +1916,7 @@ impl Shl for u256 {
     type Output = Self;
 
     #[inline(always)]
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn shl(self, other: Self) -> Self::Output {
         let shift = other.lo & (u32::MAX as u128);
         shift_const_impl!(@shl self, shift)
@@ -1759,6 +1930,7 @@ impl Shr for u256 {
     type Output = Self;
 
     #[inline(always)]
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn shr(self, other: Self) -> Self::Output {
         let shift = other.lo & (u32::MAX as u128);
         shift_const_impl!(@shr self, shift)
@@ -1774,6 +1946,7 @@ macro_rules! shift_impl {
             type Output = Self;
 
             #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
             fn shl(self, other: $t) -> Self::Output {
                 let shift = other % 256;
                 shift_const_impl!(@shl self, shift)
@@ -1784,6 +1957,7 @@ macro_rules! shift_impl {
             type Output = Self;
 
             #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
             fn shr(self, other: $t) -> Self::Output {
                 let shift = other % 256;
                 shift_const_impl!(@shr self, shift)
@@ -1816,6 +1990,7 @@ macro_rules! shift_impl {
             type Output = Self;
 
             #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
             fn shl(self, other: $t) -> Self::Output {
                 let shift = other % i256::from_u16(256);
                 let shift = shift.as_u32();
@@ -1827,6 +2002,7 @@ macro_rules! shift_impl {
             type Output = Self;
 
             #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
             fn shr(self, other: $t) -> Self::Output {
                 let shift = other % i256::from_u16(256);
                 let shift = shift.as_u32();
@@ -1897,7 +2073,7 @@ impl Sub for u256 {
         if cfg!(not(debug_assertions)) {
             sub(self, rhs)
         } else {
-            self.checked_sub(rhs).unwrap()
+            self.checked_sub(rhs).expect("attempt to subtract with overflow")
         }
     }
 }
@@ -1938,16 +2114,16 @@ impl TryFrom<i256> for u256 {
 
 impl fmt::UpperExp for u256 {
     #[inline(always)]
+    #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
             return fmt::UpperExp::fmt(&self.hi, f);
         }
 
         let mut buffer = [0u8; 78];
-        let buffer= to_bytes(*self, &mut buffer);
+        let buffer = to_bytes(*self, &mut buffer);
         let first = buffer[0] as char;
-        let formatted = str::from_utf8(&buffer[1..])
-            .or_else(|_| Err(fmt::Error::default()))?;
+        let formatted = str::from_utf8(&buffer[1..]).or_else(|_| Err(fmt::Error))?;
         write!(f, "{}.{}E{}", first, formatted, buffer.len() - 1)
     }
 }
@@ -1969,7 +2145,10 @@ impl fmt::UpperHex for u256 {
 #[inline(always)]
 const fn add(lhs: u256, rhs: u256) -> u256 {
     let (lo, hi, _) = math::add_u128(lhs.lo, lhs.hi, rhs.lo, rhs.hi);
-    u256 { lo, hi }
+    u256 {
+        lo,
+        hi,
+    }
 }
 
 // NOTE: Our algorithm assumes little-endian order, which we might not have.
@@ -1979,12 +2158,12 @@ const fn add(lhs: u256, rhs: u256) -> u256 {
 fn div_rem(lhs: u256, rhs: u256) -> (u256, u256) {
     // SAFETY: Safe since these are plain old data.
     unsafe {
-        let x: [u64; 4] = mem::transmute(lhs.to_le_bytes());
-        let y: [u64; 4] = mem::transmute(rhs.to_le_bytes());
+        let x: [u64; 4] = mem::transmute::<[u8; 32], [u64; 4]>(lhs.to_le_bytes());
+        let y: [u64; 4] = mem::transmute::<[u8; 32], [u64; 4]>(rhs.to_le_bytes());
 
         let (div, rem) = math::div_rem_big(&x, &y);
-        let div = u256::from_le_bytes(mem::transmute(div));
-        let rem = u256::from_le_bytes(mem::transmute(rem));
+        let div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div));
+        let rem = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(rem));
 
         (div, rem)
     }
@@ -2000,8 +2179,8 @@ fn div_rem_small(lhs: u256, rhs: u64) -> (u256, u64) {
     // SAFETY: Safe since these are plain old data.
     unsafe {
         let x: [u64; 4] = mem::transmute(lhs.to_le_bytes());
-        let (div, rem) = math::div_rem_small(&x,  rhs);
-        let div = u256::from_le_bytes(mem::transmute(div));
+        let (div, rem) = math::div_rem_small(&x, rhs);
+        let div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div));
         (div, rem)
     }
 }
@@ -2010,7 +2189,10 @@ fn div_rem_small(lhs: u256, rhs: u64) -> (u256, u64) {
 #[inline(always)]
 const fn mul(lhs: u256, rhs: u256) -> u256 {
     let (lo, hi, _) = math::mul_u128(lhs.lo, lhs.hi, rhs.lo, rhs.hi);
-    u256 { lo, hi }
+    u256 {
+        lo,
+        hi,
+    }
 }
 
 /// Const implementation of `Rem` for internal algorithm use.
@@ -2023,31 +2205,46 @@ fn rem(lhs: u256, rhs: u256) -> u256 {
 #[inline(always)]
 const fn sub(lhs: u256, rhs: u256) -> u256 {
     let (lo, hi, _) = math::sub_u128(lhs.lo, lhs.hi, rhs.lo, rhs.hi);
-    u256 { lo, hi }
+    u256 {
+        lo,
+        hi,
+    }
 }
 
 /// Const implementation of `BitAnd` for internal algorithm use.
 #[inline(always)]
 const fn bitand(lhs: u256, rhs: u256) -> u256 {
-    u256 { hi: lhs.hi & rhs.hi, lo: lhs.lo & rhs.lo }
+    u256 {
+        hi: lhs.hi & rhs.hi,
+        lo: lhs.lo & rhs.lo,
+    }
 }
 
 /// Const implementation of `BitOr` for internal algorithm use.
 #[inline(always)]
 const fn bitor(lhs: u256, rhs: u256) -> u256 {
-    u256 { hi: lhs.hi | rhs.hi, lo: lhs.lo | rhs.lo }
+    u256 {
+        hi: lhs.hi | rhs.hi,
+        lo: lhs.lo | rhs.lo,
+    }
 }
 
 /// Const implementation of `BitXor` for internal algorithm use.
 #[inline(always)]
 const fn bitxor(lhs: u256, rhs: u256) -> u256 {
-    u256 { hi: lhs.hi ^ rhs.hi, lo: lhs.lo ^ rhs.lo }
+    u256 {
+        hi: lhs.hi ^ rhs.hi,
+        lo: lhs.lo ^ rhs.lo,
+    }
 }
 
 /// Const implementation of `Not` for internal algorithm use.
 #[inline(always)]
 const fn not(n: u256) -> u256 {
-    u256 { lo: !n.lo, hi: !n.hi }
+    u256 {
+        lo: !n.lo,
+        hi: !n.hi,
+    }
 }
 
 /// Const implementation of `Eq` for internal algorithm use.
@@ -2128,16 +2325,25 @@ mod tests {
     fn add_test() {
         // NOTE: This is mostly covered elsewhere
         assert_eq!(add(u256::from_u8(1), u256::from_u8(1)), u256::from_u8(2));
-        assert_eq!(add(u256::MAX, u256::MAX), u256 { hi: u128::MAX, lo: u128::MAX - 1 });
+        assert_eq!(add(u256::MAX, u256::MAX), u256 {
+            hi: u128::MAX,
+            lo: u128::MAX - 1
+        });
     }
 
     #[test]
     fn display_test() {
         let max = u256::MAX;
         let result = max.to_string();
-        assert_eq!("115792089237316195423570985008687907853269984665640564039457584007913129639935", result);
+        assert_eq!(
+            "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            result
+        );
 
-        let value = u256 { lo: 0, hi: 1 };
+        let value = u256 {
+            lo: 0,
+            hi: 1,
+        };
         let result = value.to_string();
         assert_eq!("340282366920938463463374607431768211456", result);
     }
@@ -2146,9 +2352,15 @@ mod tests {
     fn lower_exp_test() {
         let max = u256::MAX;
         let result = format!("{:e}", max);
-        assert_eq!("1.15792089237316195423570985008687907853269984665640564039457584007913129639935e77", result);
+        assert_eq!(
+            "1.15792089237316195423570985008687907853269984665640564039457584007913129639935e77",
+            result
+        );
 
-        let value = u256 { lo: 0, hi: 1 };
+        let value = u256 {
+            lo: 0,
+            hi: 1,
+        };
         let result = format!("{:e}", value);
         assert_eq!("3.40282366920938463463374607431768211456e38", result);
     }
@@ -2157,9 +2369,15 @@ mod tests {
     fn upper_exp_test() {
         let max = u256::MAX;
         let result = format!("{:E}", max);
-        assert_eq!("1.15792089237316195423570985008687907853269984665640564039457584007913129639935E77", result);
+        assert_eq!(
+            "1.15792089237316195423570985008687907853269984665640564039457584007913129639935E77",
+            result
+        );
 
-        let value = u256 { lo: 0, hi: 1 };
+        let value = u256 {
+            lo: 0,
+            hi: 1,
+        };
         let result = format!("{:E}", value);
         assert_eq!("3.40282366920938463463374607431768211456E38", result);
     }

@@ -9,8 +9,8 @@
 // traits because for non-primitive types, if we ever want to
 // use this for wider types, then we don't have to rewrite this all.
 
-// NOTE: Division and remainders aren't supported due to the difficulty in implementation.
-// See `div.rs` for the implementation.
+// NOTE: Division and remainders aren't supported due to the difficulty in
+// implementation. See `div.rs` for the implementation.
 
 macro_rules! add_unsigned_impl {
     ($($u:ty => $full:ident, $small:ident,)*) => ($(
@@ -432,9 +432,7 @@ rotate_unsigned_impl! {
 // Widening and narrowing conversions for primitive types.
 macro_rules! unsigned_primitive_cast {
     (
-        // The unsigned type for the low bits.
         $u:ty,
-        // The signed type for the high bits.
         $s:ty,as_uwide =>
         $as_uwide:ident,as_unarrow =>
         $as_unarrow:ident,as_iwide =>
@@ -444,7 +442,7 @@ macro_rules! unsigned_primitive_cast {
     ) => {
         /// Convert an unsigned, narrow type to the wide type.
         #[inline(always)]
-        pub const fn $as_uwide(x:$u) -> ($u, $u) {
+        pub const fn $as_uwide(x: $u) -> ($u, $u) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             (x, 0)
         }
@@ -455,7 +453,7 @@ macro_rules! unsigned_primitive_cast {
         /// for signed types, just we keep it as an unsigned type
         /// for `hi`.
         #[inline(always)]
-        pub const fn $as_iwide(x:$s) -> ($u, $u) {
+        pub const fn $as_iwide(x: $s) -> ($u, $u) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let hi = <$u>::MIN.wrapping_sub(x.is_negative() as $u);
             (x as $u, hi)
@@ -463,7 +461,7 @@ macro_rules! unsigned_primitive_cast {
 
         /// Convert the wide value to a narrow, unsigned type.
         #[inline(always)]
-        pub const fn $as_unarrow(x0:$u, x1: $u) -> $u {
+        pub const fn $as_unarrow(x0: $u, x1: $u) -> $u {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let _ = x1;
             x0
@@ -471,7 +469,7 @@ macro_rules! unsigned_primitive_cast {
 
         /// Convert the wide value to a narrow, signed type.
         #[inline(always)]
-        pub const fn $as_inarrow(x0:$u, x1: $u) -> $s {
+        pub const fn $as_inarrow(x0: $u, x1: $u) -> $s {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let _ = x1;
             x0 as $s
@@ -479,7 +477,7 @@ macro_rules! unsigned_primitive_cast {
 
         /// Do a wide cast from unsigned to signed.
         #[inline(always)]
-        pub const fn $wide_cast(x0:$u, x1: $u) -> ($u, $s) {
+        pub const fn $wide_cast(x0: $u, x1: $u) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             (x0, x1 as $s)
         }
@@ -853,7 +851,6 @@ overflowing_mul_signed_impl! {
     usize, isize => overflowing_mul_isize, mul_narrow_usize, add_isize, overflowing_mul_usmall_isize, overflowing_mul_ismall_isize,
 }
 
-
 macro_rules! shift_signed_impl {
     ($($u:ty, $s:ty => $shl:ident, $shr:ident,)*) => ($(
         /// Const implementation of `Shl` for internal algorithm use.
@@ -1065,9 +1062,7 @@ rotate_signed_impl! {
 // Widening and narrowing conversions for primitive types.
 macro_rules! signed_primitive_cast {
     (
-        // The unsigned type for the low bits.
         $u:ty,
-        // The signed type for the high bits.
         $s:ty,as_uwide =>
         $as_uwide:ident,as_unarrow =>
         $as_unarrow:ident,as_iwide =>
@@ -1106,7 +1101,7 @@ macro_rules! signed_primitive_cast {
         /// }
         /// ```
         #[inline(always)]
-        pub const fn $as_uwide(x:$u) -> ($u, $s) {
+        pub const fn $as_uwide(x: $u) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             (x, 0)
         }
@@ -1148,13 +1143,13 @@ macro_rules! signed_primitive_cast {
         /// }
         /// ```
         ///
-        /// This is way more efficient than using naive approaches, like checking `< 0` which brings
-        /// in a `test` instruction.
+        /// This is way more efficient than using naive approaches, like checking `< 0`
+        /// which brings in a `test` instruction.
         #[inline(always)]
-        pub const fn $as_iwide(x:$s) -> ($u, $s) {
+        pub const fn $as_iwide(x: $s) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
-            // NOTE: This optimizes somewhat poorly for primitive types but it's not **TOO BAD**.
-            // On x86_64, the output is as follows:
+            // NOTE: This optimizes somewhat poorly for primitive types but it's not **TOO
+            // BAD**. On x86_64, the output is as follows:
             // as_iwide_hard
             //     movsxd  rax, edi
             //     ret
@@ -1187,7 +1182,7 @@ macro_rules! signed_primitive_cast {
         /// }
         /// ```
         #[inline(always)]
-        pub const fn $as_unarrow(x0:$u, x1: $s) -> $u {
+        pub const fn $as_unarrow(x0: $u, x1: $s) -> $u {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             x0 as $u
         }
@@ -1210,14 +1205,14 @@ macro_rules! signed_primitive_cast {
         /// }
         /// ```
         #[inline(always)]
-        pub const fn $as_inarrow(x0:$u, x1: $s) -> $s {
+        pub const fn $as_inarrow(x0: $u, x1: $s) -> $s {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             x0 as $s
         }
 
         /// Do a wide cast from signed to unsigned.
         #[inline(always)]
-        pub const fn $wide_cast(x0:$u, x1: $s) -> ($u, $u) {
+        pub const fn $wide_cast(x0: $u, x1: $s) -> ($u, $u) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             (x0, x1 as $u)
         }
@@ -1282,6 +1277,7 @@ signed_primitive_cast!(
 #[cfg(test)]
 mod tests {
     use quickcheck::quickcheck;
+
     use super::*;
 
     const LO32: u64 = u32::MAX as u64;
