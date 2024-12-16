@@ -14,8 +14,36 @@ default-features = false
 features = []
 
 [dev-dependencies]
+criterion = { version = "0.5.0", features = ["html_reports"] }
+fastrand = "2.1.0"
 # FIXME: Replace back to "1.0.4" once the PR is merged.
 #  There's an issue in quickcheck due to an infinitely repeating shrinker.
 #  Issue:   https://github.com/BurntSushi/quickcheck/issues/295
 #  Fix:     https://github.com/BurntSushi/quickcheck/pull/296
 quickcheck = { git = "https://github.com/Alexhuszagh/quickcheck/", branch = "i32min-shrink-bound-legacy" }
+
+[profile.bench]
+opt-level = 3
+debug = false
+debug-assertions = false
+lto = true
+
+[[bench]]
+name = "add"
+path = "benches/add.rs"
+harness = false
+
+[[bench]]
+name = "div"
+path = "benches/div.rs"
+harness = false
+
+[[bench]]
+name = "mul"
+path = "benches/mul.rs"
+harness = false
+
+[[bench]]
+name = "sub"
+path = "benches/sub.rs"
+harness = false

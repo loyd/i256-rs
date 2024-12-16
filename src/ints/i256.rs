@@ -20,12 +20,11 @@
 //! likely based on the core implementations.
 
 use core::cmp::Ordering;
-use core::num::ParseIntError;
 use core::ops::*;
 use core::str::FromStr;
 use core::{fmt, mem};
 
-use crate::error::TryFromIntError;
+use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::ints::u256::lt as u256_lt;
 use crate::math;
 use crate::numtypes::*;
@@ -438,13 +437,14 @@ impl i256 {
         }
     }
 
-    /// Returns the square root of the number, rounded down.
-    ///
-    /// Returns `None` if `self` is negative.
-    #[inline]
-    pub const fn checked_isqrt(self) -> Option<Self> {
-        todo!();
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.84.0+`.
+    // /// Returns the square root of the number, rounded down.
+    // ///
+    // /// Returns `None` if `self` is negative.
+    // #[inline]
+    // pub const fn checked_isqrt(self) -> Option<Self> {
+    //     todo!();
+    // }
 
     /// Saturating integer addition. Computes `self + rhs`, saturating at the
     /// numeric bounds instead of overflowing.
@@ -961,18 +961,19 @@ impl i256 {
         }
     }
 
-    /// Returns the square root of the number, rounded down.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if `self` is negative.
-    #[inline]
-    pub const fn isqrt(self) -> Self {
-        match self.checked_isqrt() {
-            Some(sqrt) => sqrt,
-            None => panic!("argument of integer square root cannot be negative"),
-        }
-    }
+    // FIXME: Stabilize when our MSRV goes to `1.84.0+`.
+    // /// Returns the square root of the number, rounded down.
+    // ///
+    // /// # Panics
+    // ///
+    // /// This function will panic if `self` is negative.
+    // #[inline]
+    // pub const fn isqrt(self) -> Self {
+    //     match self.checked_isqrt() {
+    //         Some(sqrt) => sqrt,
+    //         None => panic!("argument of integer square root cannot be negative"),
+    //     }
+    // }
 
     /// Calculates the quotient of Euclidean division of `self` by `rhs`.
     ///
@@ -1344,6 +1345,29 @@ impl i256 {
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
         // SAFETY: integers are plain old datatypes so we can always transmute to them
         unsafe { mem::transmute(bytes) }
+    }
+
+    /// Converts a string slice in a given base to an integer.
+    ///
+    /// The string is expected to be an optional `+` or `-`
+    /// sign followed by only digits. Leading and trailing non-digit characters
+    /// (including whitespace) represent an error. Underscores (which are
+    /// accepted in rust literals) also represent an error.
+    ///
+    /// Digits are a subset of these characters, depending on `radix`:
+    /// * `0-9`
+    /// * `a-z`
+    /// * `A-Z`
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `radix` is not in the range from 2 to 36.
+    #[inline]
+    pub const fn from_str_radix(src: &str, radix: u32) -> Result<Self, ParseIntError> {
+        if radix < 2 || radix > 36 {
+            panic!("from_str_radix_int: must lie in the range `[2, 36]`");
+        }
+        todo!();
     }
 }
 
@@ -2082,10 +2106,17 @@ impl FromStr for i256 {
     #[inline(always)]
     fn from_str(src: &str) -> Result<i256, ParseIntError> {
         // up to 39 digits can be stored in a `u128`, so less is always valid
-        if src.len() < 39 {
-            return Ok(i256::from_i128(i128::from_str(src)?));
+        // meanwhile, 78 is good for all 256-bit integers. 32-bit architectures
+        // on average have poor support for 128-bit operations so we try to use `u64`.
+        if (cfg!(target_pointer_width = "16") || cfg!(target_pointer_width = "32"))
+            && src.len() < 19
+        {
+            Ok(i256::from_i64(i64::from_str(src)?))
+        } else if src.len() < 39 {
+            Ok(i256::from_i128(i128::from_str(src)?))
+        } else {
+            i256::from_str_radix(src, 10)
         }
-        todo!();
     }
 }
 

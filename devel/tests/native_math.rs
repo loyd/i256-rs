@@ -1,5 +1,5 @@
-use quickcheck::quickcheck;
 use i256::math::*;
+use quickcheck::quickcheck;
 
 const LO32: u64 = u32::MAX as u64;
 
