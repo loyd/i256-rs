@@ -1,38 +1,14 @@
+#[macro_use]
+mod input;
+
 use core::time::Duration;
 
+use bnum::types::U256;
 use criterion::{criterion_group, criterion_main, Criterion};
 use i256::math::{div_rem_big, div_rem_small};
+use i256::u256;
 
 const COUNT: usize = 10000;
-
-macro_rules! gen_numbers {
-    ($n:ident, $d:ident, $count:expr, $seed:ident) => {{
-        let mut rng = fastrand::Rng::with_seed($seed);
-        let mut vec: Vec<($n, $d)> = Vec::with_capacity($count);
-        // TODO: Fix, this is wayyyy too likely to overflow
-        // Going to need strategies
-        while vec.len() < $count {
-            let num = rng.$n(<$n>::MIN..<$n>::MAX);
-            let den = rng.$d(<$d>::MIN..<$d>::MAX);
-            if den != 0 {
-                vec.push((num, den));
-            }
-        }
-        vec
-    }};
-}
-
-macro_rules! op_generator {
-    ($group:ident, $name:expr, $func:ident, $iter:expr) => {{
-        $group.bench_function($name, |bench| {
-            bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x.0, x.1));
-                })
-            })
-        });
-    }};
-}
 
 #[inline]
 fn u128_div(num: u128, den: u128) -> (u128, u128) {
@@ -82,18 +58,41 @@ fn u128_small_native(num: u128, den: u64) -> (u128, u64) {
     (div, rem as u64)
 }
 
+#[inline]
+fn i256_div(num: u256, den: u256) -> (u256, u256) {
+    let div = num / den;
+    let rem = num % den;
+    (div, rem)
+}
+
+#[inline]
+fn bnum_div(num: U256, den: U256) -> (U256, U256) {
+    let div = num / den;
+    let rem = num % den;
+    (div, rem)
+}
+
 fn div_random(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("div");
     group.measurement_time(Duration::from_secs(5));
 
     let seed = fastrand::u64(..);
-    let big_data = gen_numbers!(u128, u128, COUNT, seed);
-    let small_data = gen_numbers!(u128, u64, COUNT, seed);
+    let big_data = gen_numbers!(@2 u128, u128, COUNT, seed);
+    let small_data = gen_numbers!(@2 u128, u64, COUNT, seed);
+    let u128_data = gen_numbers!(@4 u128, COUNT, seed);
+    let i256_data: Vec<(u256, u256)> =
+        u128_data.iter().map(|x| (u256::new(x.0, x.1), u256::new(x.2, x.3))).collect();
+    let bnum_data: Vec<(U256, U256)> = u128_data
+        .iter()
+        .map(|x| (input::bnum_from_u128(x.0, x.1), input::bnum_from_u128(x.2, x.3)))
+        .collect();
 
-    op_generator!(group, "u128-big-i256", u128_div, big_data.iter());
-    op_generator!(group, "u128-small-i256", u128_div_small, small_data.iter());
-    op_generator!(group, "u128-big-native", u128_native, big_data.iter());
-    op_generator!(group, "u128-small-native", u128_small_native, small_data.iter());
+    op_generator!(@2 group, "u128-big-i256", u128_div, big_data.iter());
+    op_generator!(@2 group, "u128-small-i256", u128_div_small, small_data.iter());
+    op_generator!(@2 group, "u128-big-native", u128_native, big_data.iter());
+    op_generator!(@2 group, "u128-small-native", u128_small_native, small_data.iter());
+    op_generator!(@2 group, "u256-i256", i256_div, i256_data.iter());
+    op_generator!(@2 group, "u256-bnum", bnum_div, bnum_data.iter());
 }
 
 criterion_group!(div_random_benches, div_random);
