@@ -14,6 +14,7 @@ default-features = false
 features = []
 
 [dev-dependencies]
+bnum = "0.12.0"
 criterion = { version = "0.5.0", features = ["html_reports"] }
 fastrand = "2.1.0"
 # FIXME: Replace back to "1.0.4" once the PR is merged.
