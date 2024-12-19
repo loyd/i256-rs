@@ -29,24 +29,29 @@ use crate::numtypes::*;
 
 /// The 256-bit unsigned integer type.
 ///
-/// This has a stable binary representation for C, but the
-/// high and low words depend on the target endianness.
+/// The high and low words depend on the target endianness.
 /// Conversion to and from big endian should be done via
-/// [`to_le_bytes`] and [`to_be_bytes`], or using [`get_high`]
-/// and [`get_low`].
+/// [`to_le_bytes`] and [`to_be_bytes`]. or using
+/// [`get_high`] and [`get_low`]. This is stored
+/// as if it were a native, unsigned integer.
 ///
 /// Our formatting specifications are limited: we ignore a
 /// lot of settings, and only respect [`alternate`] among the
 /// formatter flags. So, we implement all the main formatters
 /// ([`Binary`], etc.), but ignore all flags like `width`.
 ///
-/// [`to_le_bytes`]: [u256::to_le_bytes]
-/// [`to_be_bytes`]: [u256::to_be_bytes]
-/// [`get_high`]: [u256::get_high]
-/// [`get_low`]: [u256::get_low]
+/// Note that this type is **NOT** safe in FFIs, since it uses
+/// [`128-bit`] integers under the hood which are implementation-
+/// defined and not FFI-safe. If you would like to use convert
+/// this to an FFI, use [`to_le_bytes`] and [`to_be_bytes`].
+///
+/// [`to_le_bytes`]: [i256::to_le_bytes]
+/// [`to_be_bytes`]: [i256::to_be_bytes]
+/// [`get_high`]: [i256::get_high]
+/// [`get_low`]: [i256::get_low]
 /// ['alternate`]: [fmt::Formatter::alternate]
 /// [`Binary`]: [fmt::Binary]
-#[repr(C)]
+/// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
 #[cfg(target_endian = "little")]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
@@ -57,14 +62,29 @@ pub struct u256 {
 
 /// The 256-bit unsigned integer type.
 ///
-/// This has a stable binary representation for C, but the
-/// high and low words depend on the target endianness.
+/// The high and low words depend on the target endianness.
 /// Conversion to and from big endian should be done via
-/// [`to_le_bytes`] and [`to_be_bytes`].
+/// [`to_le_bytes`] and [`to_be_bytes`]. or using
+/// [`get_high`] and [`get_low`]. This is stored
+/// as if it were a native, unsigned integer.
 ///
-/// [`to_le_bytes`]: [u256::to_le_bytes]
-/// [`to_be_bytes`]: [u256::to_be_bytes]
-#[repr(C)]
+/// Our formatting specifications are limited: we ignore a
+/// lot of settings, and only respect [`alternate`] among the
+/// formatter flags. So, we implement all the main formatters
+/// ([`Binary`], etc.), but ignore all flags like `width`.
+///
+/// Note that this type is **NOT** safe in FFIs, since it uses
+/// [`128-bit`] integers under the hood which are implementation-
+/// defined and not FFI-safe. If you would like to use convert
+/// this to an FFI, use [`to_le_bytes`] and [`to_be_bytes`].
+///
+/// [`to_le_bytes`]: [i256::to_le_bytes]
+/// [`to_be_bytes`]: [i256::to_be_bytes]
+/// [`get_high`]: [i256::get_high]
+/// [`get_low`]: [i256::get_low]
+/// ['alternate`]: [fmt::Formatter::alternate]
+/// [`Binary`]: [fmt::Binary]
+/// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
 #[cfg(target_endian = "big")]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
@@ -1169,7 +1189,9 @@ impl u256 {
             panic!("from_str_radix_int: must lie in the range `[2, 36]`");
         }
         if src.is_empty() {
-            return Err(ParseIntError{ kind: IntErrorKind::Empty });
+            return Err(ParseIntError {
+                kind: IntErrorKind::Empty,
+            });
         }
         todo!();
     }

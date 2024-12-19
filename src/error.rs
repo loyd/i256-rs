@@ -18,7 +18,8 @@ pub struct ParseIntError {
     pub kind: IntErrorKind,
 }
 
-/// Enum to store the various types of errors that can cause parsing an integer to fail.
+/// Enum to store the various types of errors that can cause parsing an integer
+/// to fail.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum IntErrorKind {
@@ -74,6 +75,8 @@ impl From<num::ParseIntError> for ParseIntError {
             num::IntErrorKind::Zero => IntErrorKind::Zero,
             _ => IntErrorKind::Unknown,
         };
-        ParseIntError { kind }
+        ParseIntError {
+            kind,
+        }
     }
 }
