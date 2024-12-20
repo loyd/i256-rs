@@ -16,7 +16,10 @@ macro_rules! add_unsigned_impl {
     ($($u:ty => $full:ident, $small:ident,)*) => ($(
         /// Const implementation of `Add` for internal algorithm use.
         ///
-        /// Returns the value and if the add overflowed.
+        /// Returns the value and if the add overflowed. In practice,
+        /// the nightly (carrying) and the overflowing add variants
+        /// have the same ASM generated, but this might not be the
+        /// case in the future or for different architectures.
         ///
         /// * `x0` - The lower half of x.
         /// * `x1` - The upper half of x.
@@ -27,9 +30,27 @@ macro_rules! add_unsigned_impl {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             // This is super efficient, it becomes an `add` and an `adc` (add carry).
             let (v0, c0) = x0.overflowing_add(y0);
-            let (v1, c1) = x1.overflowing_add(y1);
-            let (v1, c2) = v1.overflowing_add(c0 as $u);
-            (v0, v1, c1 || c2)
+            let v1: $u;
+            let c: bool;
+
+            #[cfg(is_nightly)]
+            {
+                (v1, c) = x1.carrying_add(y1, c0);
+            }
+
+            #[cfg(not(is_nightly))]
+            {
+                let (mut r, c1) = x1.overflowing_add(y1);
+                let (r, c2) = if c0 {
+                    r.overflowing_add(1)
+                } else {
+                    (r, false)
+                };
+                v1 = r;
+                c = c1 | c2;
+            }
+
+            (v0, v1, c)
         }
 
         /// Const implementation to add a small number to the wider type.
@@ -73,9 +94,27 @@ macro_rules! sub_unsigned_impl {
         pub const fn $full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             let (v0, c0) = x0.overflowing_sub(y0);
-            let (v1, c1) = x1.overflowing_sub(y1);
-            let (v1, c2) = v1.overflowing_sub(c0 as $u);
-            (v0, v1, c1 || c2)
+            let v1: $u;
+            let c: bool;
+
+            #[cfg(is_nightly)]
+            {
+                (v1, c) = x1.borrowing_sub(y1, c0);
+            }
+
+            #[cfg(not(is_nightly))]
+            {
+                let (mut r, c1) = x1.overflowing_sub(y1);
+                let (r, c2) = if c0 {
+                    r.overflowing_sub(1)
+                } else {
+                    (r, false)
+                };
+                v1 = r;
+                c = c1 | c2;
+            }
+
+            (v0, v1, c)
         }
 
         /// Const implementation to subtract a small number from the wider type.
@@ -127,7 +166,7 @@ macro_rules! mul_unsigned_impl {
             let (x1_y0, c2) = x1.overflowing_mul(y0);
             let (hi, c3) = hi.overflowing_add(x0_y1);
             let (hi, c4) = hi.overflowing_add(x1_y0);
-            (lo, hi, c1 | c2 | c3 | c4 | (x1 != 0 && y1 != 0))
+            (lo, hi, c1 | c2 | c3 | c4 | ((x1 != 0) & (y1 != 0)))
         }
 
         /// Const implementation of `Mul` for internal algorithm use.
@@ -554,9 +593,27 @@ macro_rules! add_signed_impl {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_add(y0);
-            let (v1, c1) = x1.overflowing_add(y1);
-            let (v1, c2) = v1.overflowing_add(c0 as $s);
-            (v0, v1, c1 || c2)
+            let v1: $s;
+            let c: bool;
+
+            #[cfg(is_nightly)]
+            {
+                (v1, c) = x1.carrying_add(y1, c0);
+            }
+
+            #[cfg(not(is_nightly))]
+            {
+                let (mut r, c1) = x1.overflowing_add(y1);
+                let (r, c2) = if c0 {
+                    r.overflowing_add(1)
+                } else {
+                    (r, false)
+                };
+                v1 = r;
+                c = c1 | c2;
+            }
+
+            (v0, v1, c)
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
@@ -628,9 +685,27 @@ macro_rules! sub_signed_impl {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_sub(y0);
-            let (v1, c1) = x1.overflowing_sub(y1);
-            let (v1, c2) = v1.overflowing_sub(c0 as $s);
-            (v0, v1, c1 || c2)
+            let v1: $s;
+            let c: bool;
+
+            #[cfg(is_nightly)]
+            {
+                (v1, c) = x1.borrowing_sub(y1, c0);
+            }
+
+            #[cfg(not(is_nightly))]
+            {
+                let (mut r, c1) = x1.overflowing_sub(y1);
+                let (r, c2) = if c0 {
+                    r.overflowing_sub(1)
+                } else {
+                    (r, false)
+                };
+                v1 = r;
+                c = c1 | c2;
+            }
+
+            (v0, v1, c)
         }
 
         /// Const implementation to subtract a small, unsigned number to the wider type.
@@ -769,9 +844,9 @@ macro_rules! overflowing_mul_signed_impl {
             // the bit pattern if negative, otherwise 0, then it zeros
             // out everything if both are the same sign.
             let mask = ((x1 >> MAX_SHIFT) ^ (y1 >> MAX_SHIFT)) as $u;
-            let is_zero = (x0 == 0 && x1 == 0) || (y0 == 0 && y1 == 0);
+            let is_zero = ((x0 == 0) & (x1 == 0)) | ((y0 == 0) & (y1 == 0));
             let should_be_positive = (x1 < 0) ^ (y1 < 0);
-            let always_overflows = x1 != 0 && y1 != 0;
+            let always_overflows = (x1 != 0) & (y1 != 0);
 
             // now need to get our absolute values. two's complement so this is easy
             let (xa0, xa1, _) = if x1 < 0 {
@@ -797,7 +872,7 @@ macro_rules! overflowing_mul_signed_impl {
 
             let swapped_sign = should_be_positive ^ (hi < 0);
             let overflowed = c0 | c1 | c2 | c3 | swapped_sign | always_overflows;
-            (lo, hi, !is_zero && overflowed)
+            (lo, hi, !is_zero & overflowed)
         }
 
         /// Const implementation of `Mul` for internal algorithm use.
