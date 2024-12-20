@@ -336,7 +336,7 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn div_euclid(self, rhs: Self) -> Self {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_euclid(rhs)
         } else {
             self.checked_div_euclid(rhs).expect("attempt to divide with overflow")
@@ -376,7 +376,11 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn rem_euclid(self, rhs: Self) -> Self {
-        self.wrapping_rem(rhs)
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_rem(rhs)
+        } else {
+            self.checked_rem_euclid(rhs).expect("attempt to divide by zero")
+        }
     }
 
     /// Checked Euclidean modulo. Computes `self.rem_euclid(rhs)`,
@@ -1340,7 +1344,7 @@ impl u256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn add_small(self, n: u128) -> Self {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_add_small(n)
         } else {
             match self.checked_add_small(n) {
@@ -1382,7 +1386,7 @@ impl u256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn sub_small(self, n: u128) -> Self {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_sub_small(n)
         } else {
             match self.checked_sub_small(n) {
@@ -1425,7 +1429,7 @@ impl u256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn mul_small(self, n: u128) -> Self {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_mul_small(n)
         } else {
             match self.checked_mul_small(n) {
@@ -1472,7 +1476,7 @@ impl u256 {
     /// This panics if the divisor is 0.
     #[inline(always)]
     pub fn div_rem_small(self, n: u64) -> (Self, u64) {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_small(n)
         } else {
             self.checked_div_rem_small(n).expect("attempt to divide with overflow")
@@ -1523,7 +1527,11 @@ impl u256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn div_small(self, n: u64) -> Self {
-        self.div_rem_small(n).0
+        if cfg!(not(have_overflow_checks)) {
+            self.div_rem_small(n).0
+        } else {
+            self.checked_div_small(n).expect("attempt to divide by zero")
+        }
     }
 
     /// Div the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1556,7 +1564,11 @@ impl u256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn rem_small(self, n: u64) -> u64 {
-        self.div_rem_small(n).1
+        if cfg!(not(have_overflow_checks)) {
+            self.div_rem_small(n).1
+        } else {
+            self.checked_rem_small(n).expect("attempt to divide by zero")
+        }
     }
 
     /// Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1590,7 +1602,7 @@ impl Add for u256 {
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_add(rhs)
         } else {
             self.checked_add(rhs).expect("attempt to add with overflow")
@@ -1672,7 +1684,7 @@ impl Div for u256 {
 
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_div(rhs)
         } else {
             self.checked_div(rhs).expect("attempt to divide by zero")
@@ -1760,7 +1772,7 @@ impl Mul for u256 {
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_mul(rhs)
         } else {
             self.checked_mul(rhs).expect("attempt to multiply with overflow")
@@ -1857,7 +1869,7 @@ impl Rem for u256 {
 
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_rem(rhs)
         } else {
             self.checked_rem(rhs)
@@ -2117,7 +2129,7 @@ impl Sub for u256 {
 
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(have_overflow_checks)) {
             self.wrapping_sub(rhs)
         } else {
             self.checked_sub(rhs).expect("attempt to subtract with overflow")
