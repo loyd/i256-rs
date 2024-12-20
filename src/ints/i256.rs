@@ -1878,7 +1878,11 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_div_rem_usmall(self, n: u64) -> ((Self, u64), bool) {
-        (self.wrapping_div_rem_usmall(n), false)
+        if n == 0 {
+            ((Self::MAX, 0), true)
+        } else {
+            (self.wrapping_div_rem_usmall(n), false)
+        }
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
@@ -1935,7 +1939,11 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_div_rem_ismall(self, n: i64) -> ((Self, i64), bool) {
-        (self.wrapping_div_rem_ismall(n), false)
+        if n == 0 {
+            ((Self::MAX, 0), true)
+        } else {
+            (self.wrapping_div_rem_ismall(n), false)
+        }
     }
 
     /// Div the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1943,11 +1951,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn div_usmall(self, n: u64) -> Self {
-        if cfg!(not(debug_assertions)) {
-            self.wrapping_div_usmall(n)
-        } else {
-            self.checked_div_usmall(n).expect("attempt to divide by zero")
-        }
+        self.div_rem_usmall(n).0
     }
 
     /// Div the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1963,11 +1967,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn checked_div_usmall(self, n: u64) -> Option<Self> {
-        if n == 0 {
-            None
-        } else {
-            Some(self.wrapping_div_usmall(n))
-        }
+        Some(self.checked_div_rem_usmall(n)?.0)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1975,11 +1975,8 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_div_usmall(self, n: u64) -> (Self, bool) {
-        if n == 0 {
-            (Self::MAX, true)
-        } else {
-            (self.wrapping_div_usmall(n), false)
-        }
+        let (value, overflowed) = self.overflowing_div_rem_usmall(n);
+        (value.0, overflowed)
     }
 
     /// Div the 256-bit integer by a small, 64-bit signed factor.
@@ -1987,11 +1984,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn div_ismall(self, n: i64) -> Self {
-        if cfg!(not(debug_assertions)) {
-            self.div_rem_ismall(n).0
-        } else {
-            self.checked_div_ismall(n).expect("attempt to divide by zero")
-        }
+        self.div_rem_ismall(n).0
     }
 
     /// Div the 256-bit integer by a small, 64-bit signed factor.
@@ -2006,11 +1999,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn checked_div_ismall(self, n: i64) -> Option<Self> {
-        if n == 0 {
-            None
-        } else {
-            Some(self.wrapping_div_ismall(n))
-        }
+        Some(self.checked_div_rem_ismall(n)?.0)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
@@ -2018,11 +2007,8 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_div_ismall(self, n: i64) -> (Self, bool) {
-        if n == 0 {
-            (Self::MAX, true)
-        } else {
-            (self.wrapping_div_ismall(n), false)
-        }
+        let (value, overflowed) = self.overflowing_div_rem_ismall(n);
+        (value.0, overflowed)
     }
 
     /// Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -2030,11 +2016,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn rem_usmall(self, n: u64) -> u64 {
-        if cfg!(not(debug_assertions)) {
-            self.wrapping_rem_usmall(n)
-        } else {
-            self.checked_rem_usmall(n).expect("attempt to divide by zero")
-        }
+        self.wrapping_div_rem_usmall(n).1
     }
 
     /// Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -2050,11 +2032,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn checked_rem_usmall(self, n: u64) -> Option<u64> {
-        if n == 0 {
-            None
-        } else {
-            Some(self.wrapping_rem_usmall(n))
-        }
+        Some(self.checked_div_rem_usmall(n)?.1)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -2062,11 +2040,8 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_rem_usmall(self, n: u64) -> (u64, bool) {
-        if n == 0 {
-            (0, true)
-        } else {
-            (self.wrapping_rem_usmall(n), false)
-        }
+        let (value, overflowed) = self.overflowing_div_rem_usmall(n);
+        (value.1, overflowed)
     }
 
     /// Rem the 256-bit integer by a small, 64-bit signed factor.
@@ -2074,11 +2049,7 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn rem_ismall(self, n: i64) -> i64 {
-        if cfg!(not(debug_assertions)) {
-            self.wrapping_rem_ismall(n)
-        } else {
-            self.checked_rem_ismall(n).expect("attempt to divide by zero")
-        }
+        self.div_rem_ismall(n).1
     }
 
     /// Rem the 256-bit integer by a small, 64-bit signed factor.
@@ -2093,22 +2064,15 @@ impl i256 {
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn checked_rem_ismall(self, n: i64) -> Option<i64> {
-        if n == 0 {
-            None
-        } else {
-            Some(self.wrapping_rem_ismall(n))
-        }
+        Some(self.checked_div_rem_ismall(n)?.1)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
     pub fn overflowing_rem_ismall(self, n: i64) -> (i64, bool) {
-        if n == 0 {
-            (0, true)
-        } else {
-            (self.wrapping_rem_ismall(n), false)
-        }
+        let (value, overflowed) = self.overflowing_div_rem_ismall(n);
+        (value.1, overflowed)
     }
 }
 
