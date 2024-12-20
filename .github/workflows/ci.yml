@@ -39,3 +39,23 @@ jobs:
       run: |
         cd devel
         cargo test
+
+  doc:
+    name: Docs
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Check
+      run: cargo check
+
+    - name: Docs
+      run: RUSTFLAGS="-D warnings" cargo doc
+
+    - name: Doc All Features
+      run: RUSTFLAGS="-D warnings" cargo doc --all-features

@@ -45,12 +45,12 @@ use crate::numtypes::*;
 /// defined and not FFI-safe. If you would like to use convert
 /// this to an FFI, use [`to_le_bytes`] and [`to_be_bytes`].
 ///
-/// [`to_le_bytes`]: [i256::to_le_bytes]
-/// [`to_be_bytes`]: [i256::to_be_bytes]
-/// [`get_high`]: [i256::get_high]
-/// [`get_low`]: [i256::get_low]
-/// ['alternate`]: [fmt::Formatter::alternate]
-/// [`Binary`]: [fmt::Binary]
+/// [`to_le_bytes`]: i256::to_le_bytes
+/// [`to_be_bytes`]: i256::to_be_bytes
+/// [`get_high`]: i256::get_high
+/// [`get_low`]: i256::get_low
+/// [`alternate`]: fmt::Formatter::alternate
+/// [`Binary`]: fmt::Binary
 /// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
 #[cfg(target_endian = "little")]
 #[allow(non_camel_case_types)]
@@ -78,12 +78,12 @@ pub struct u256 {
 /// defined and not FFI-safe. If you would like to use convert
 /// this to an FFI, use [`to_le_bytes`] and [`to_be_bytes`].
 ///
-/// [`to_le_bytes`]: [i256::to_le_bytes]
-/// [`to_be_bytes`]: [i256::to_be_bytes]
-/// [`get_high`]: [i256::get_high]
-/// [`get_low`]: [i256::get_low]
-/// ['alternate`]: [fmt::Formatter::alternate]
-/// [`Binary`]: [fmt::Binary]
+/// [`to_le_bytes`]: i256::to_le_bytes
+/// [`to_be_bytes`]: i256::to_be_bytes
+/// [`get_high`]: i256::get_high
+/// [`get_low`]: i256::get_low
+/// ['alternate`]: fmt::Formatter::alternate
+/// [`Binary`]: fmt::Binary
 /// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
 #[cfg(target_endian = "big")]
 #[allow(non_camel_case_types)]
@@ -1133,6 +1133,9 @@ impl u256 {
     /// As the target platform's native endianness is used, portable code
     /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
     /// instead.
+    ///
+    /// [`to_be_bytes`]: Self::to_be_bytes
+    /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
     pub const fn to_ne_bytes(self) -> [u8; 32] {
         // SAFETY: integers are plain old datatypes so we can always transmute them to
