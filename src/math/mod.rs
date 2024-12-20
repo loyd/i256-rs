@@ -7,6 +7,7 @@
 
 // NOTE: This mostly exists for testing and is exposed for that reason.
 #![allow(unused)]
+#![doc(hidden)]
 
 mod div;
 mod native;
