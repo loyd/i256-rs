@@ -37,5 +37,5 @@ mod ints;
 mod numtypes;
 
 pub use error::{IntErrorKind, ParseIntError, TryFromIntError};
-pub use ints::i256::i256;
-pub use ints::u256::u256;
+pub use ints::i256::{i256, i256 as I256};
+pub use ints::u256::{u256, u256 as U256};
