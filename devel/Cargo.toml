@@ -7,11 +7,11 @@ publish = false
 
 [features]
 std = ["i256/std"]
+default = ["std"]
 
 [dependencies.i256]
 path = ".."
 default-features = false
-features = []
 
 [dev-dependencies]
 bnum = "0.12.0"
@@ -47,4 +47,16 @@ harness = false
 [[bench]]
 name = "sub"
 path = "benches/sub.rs"
+harness = false
+
+# Raw algorithm benchmarks
+
+[[bench]]
+name = "mul_algos"
+path = "benches/mul_algos.rs"
+harness = false
+
+[[bench]]
+name = "shift_algos"
+path = "benches/shift_algos.rs"
 harness = false
