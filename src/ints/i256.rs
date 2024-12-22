@@ -2512,6 +2512,10 @@ impl i256 {
     /// # Safety
     ///
     /// This results in undefined behavior when the value overflows.
+    ///
+    /// [`checked_add`]: [Self::checked_add]
+    /// [`wrapping_add`]: [Self::wrapping_add]
+    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_add(self, rhs: Self) -> Self {
@@ -2534,6 +2538,10 @@ impl i256 {
     /// # Safety
     ///
     /// This results in undefined behavior when the value overflows.
+    ///
+    /// [`checked_sub`]: [Self::checked_sub]
+    /// [`wrapping_sub`]: [Self::wrapping_sub]
+    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_sub(self, rhs: Self) -> Self {
@@ -2556,6 +2564,10 @@ impl i256 {
     /// # Safety
     ///
     /// This results in undefined behavior when the value overflows.
+    ///
+    /// [`checked_mul`]: [Self::checked_mul]
+    /// [`wrapping_mul`]: [Self::wrapping_mul]
+    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_mul(self, rhs: Self) -> Self {
@@ -2589,6 +2601,8 @@ impl i256 {
     /// This results in undefined behavior if `rhs` is larger than
     /// or equal to the number of bits in `self`,
     /// i.e. when [`checked_shl`] would return `None`.
+    ///
+    /// [`checked_shl`]: [Self::checked_shl]
     #[must_use]
     #[inline(always)]
     pub const unsafe fn unchecked_shl(self, rhs: u32) -> Self {
@@ -2607,6 +2621,8 @@ impl i256 {
     /// This results in undefined behavior if `rhs` is larger than
     /// or equal to the number of bits in `self`,
     /// i.e. when [`checked_shr`] would return `None`.
+    ///
+    /// [`checked_shr`]: [Self::checked_shr]
     #[must_use]
     #[inline(always)]
     pub const unsafe fn unchecked_shr(self, rhs: u32) -> Self {
