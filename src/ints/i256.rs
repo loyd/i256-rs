@@ -556,7 +556,7 @@ impl i256 {
     /// the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi, _) = math::add_i128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_add_i128(self.lo, self.hi, rhs.lo, rhs.hi);
         i256::new(lo, hi)
     }
 
@@ -564,7 +564,7 @@ impl i256 {
     /// at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi, _) = math::sub_i128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_sub_i128(self.lo, self.hi, rhs.lo, rhs.hi);
         i256::new(lo, hi)
     }
 
@@ -579,7 +579,7 @@ impl i256 {
     /// around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
-        let (lo, hi) = math::mul_i128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_mul_i128(self.lo, self.hi, rhs.lo, rhs.hi);
         i256::new(lo, hi)
     }
 
@@ -749,7 +749,7 @@ impl i256 {
     /// occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::add_i128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) = math::overflowing_add_i128(self.lo, self.hi, rhs.lo, rhs.hi);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -772,7 +772,7 @@ impl i256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::sub_i128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) = math::overflowing_sub_i128(self.lo, self.hi, rhs.lo, rhs.hi);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1592,7 +1592,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub fn wrapping_add_usmall(self, n: u128) -> Self {
-        let (lo, hi, _) = math::add_usmall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_add_usmall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1601,7 +1601,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn overflowing_add_usmall(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::add_usmall_i128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_add_usmall_i128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1635,7 +1635,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub fn wrapping_add_ismall(self, n: i128) -> Self {
-        let (lo, hi, _) = math::add_ismall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_add_ismall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1644,7 +1644,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn overflowing_add_ismall(self, n: i128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::add_ismall_i128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_add_ismall_i128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1678,7 +1678,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub fn wrapping_sub_usmall(self, n: u128) -> Self {
-        let (lo, hi, _) = math::sub_usmall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_sub_usmall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1687,7 +1687,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn overflowing_sub_usmall(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::sub_usmall_i128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_sub_usmall_i128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1721,7 +1721,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub fn wrapping_sub_ismall(self, n: i128) -> Self {
-        let (lo, hi, _) = math::sub_ismall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_sub_ismall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1730,7 +1730,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn overflowing_sub_ismall(self, n: i128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::sub_ismall_i128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_sub_ismall_i128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1764,7 +1764,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_usmall(self, n: u128) -> Self {
-        let (lo, hi) = math::mul_usmall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_mul_usmall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1807,7 +1807,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_ismall(self, n: i128) -> Self {
-        let (lo, hi) = math::mul_ismall_i128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_mul_ismall_i128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1826,6 +1826,92 @@ impl i256 {
     #[inline(always)]
     pub const fn checked_mul_ismall(self, n: i128) -> Option<Self> {
         let (value, overflowed) = self.overflowing_mul_ismall(n);
+        if overflowed {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub fn mul_uhalf(self, n: u64) -> Self {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_mul_uhalf(n)
+        } else {
+            self.checked_mul_uhalf(n).expect("attempt to multiply with overflow")
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub fn wrapping_mul_uhalf(self, n: u64) -> Self {
+        let (lo, hi) = math::wrapping_mul_uhalf_i128(self.lo, self.hi, n);
+        Self::new(lo, hi)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn overflowing_mul_uhalf(self, n: u64) -> (Self, bool) {
+        let (lo, hi, overflowed) = math::overflowing_mul_uhalf_i128(self.lo, self.hi, n);
+        (Self::new(lo, hi), overflowed)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn checked_mul_uhalf(self, n: u64) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_mul_uhalf(n);
+        if overflowed {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub fn mul_ihalf(self, n: i64) -> Self {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_mul_ihalf(n)
+        } else {
+            self.checked_mul_ihalf(n).expect("attempt to multiply with overflow")
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub fn wrapping_mul_ihalf(self, n: i64) -> Self {
+        let (lo, hi) = math::wrapping_mul_ihalf_i128(self.lo, self.hi, n);
+        Self::new(lo, hi)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn overflowing_mul_ihalf(self, n: i64) -> (Self, bool) {
+        let (lo, hi, overflowed) = math::overflowing_mul_ihalf_i128(self.lo, self.hi, n);
+        (Self::new(lo, hi), overflowed)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn checked_mul_ihalf(self, n: i64) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_mul_ihalf(n);
         if overflowed {
             None
         } else {
@@ -2656,9 +2742,11 @@ fn div_rem(lhs: i256, rhs: i256) -> (i256, i256) {
 #[inline(always)]
 const fn neg(x: i256) -> i256 {
     // NOTE: This is identical to `add(not(x), 1i256)`
-    let twos_neg = not(x).wrapping_add(i256::from_u8(1));
-    debug_assert!(eq(i256::from_u8(0).wrapping_sub(x), twos_neg));
-    i256::from_u8(0).wrapping_sub(x)
+    let (lo, hi) = math::neg_i128(x.lo, x.hi);
+    let actual = i256::new(lo, hi);
+    let expected = i256::from_u8(0).wrapping_sub(x);
+    debug_assert!(eq(actual, expected));
+    actual
 }
 
 /// Const implementation of `BitAnd` for internal algorithm use.
@@ -2682,7 +2770,8 @@ const fn bitxor(lhs: i256, rhs: i256) -> i256 {
 /// Const implementation of `Not` for internal algorithm use.
 #[inline(always)]
 const fn not(n: i256) -> i256 {
-    i256::new(!n.lo, !n.hi)
+    let (lo, hi) = math::not_i128(n.lo, n.hi);
+    i256::new(lo, hi)
 }
 
 /// Const implementation of `Eq` for internal algorithm use.

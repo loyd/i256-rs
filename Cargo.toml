@@ -22,10 +22,6 @@ exclude = [
     "CODE_OF_CONDUCT.md",
     "SECURITY.md"
 ]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.2"
 
 [features]
 default = ["std"]
@@ -38,7 +34,6 @@ lint = []
 [lints.rust.unexpected_cfgs]
 level = "warn"
 check-cfg = [
-    'cfg(is_nightly)',
     'cfg(have_overflow_checks)',
 ]
 

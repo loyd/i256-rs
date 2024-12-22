@@ -16,7 +16,6 @@
 #![allow(unused_unsafe)]
 #![cfg_attr(feature = "lint", warn(unsafe_op_in_unsafe_fn))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(is_nightly, feature(bigint_helper_methods))]
 #![deny(
     clippy::doc_markdown,
     clippy::unnecessary_safety_comment,
