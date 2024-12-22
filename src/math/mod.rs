@@ -11,6 +11,6 @@
 mod div;
 mod native;
 mod types;
-pub use self::div::{div_rem_big, div_rem_small};
+pub use self::div::{div_rem_full, div_rem_half, div_rem_small};
 pub use self::native::*;
-pub use self::types::{ILimb, ULimb};
+pub use self::types::{ILimb, IWide, ULimb, UWide};

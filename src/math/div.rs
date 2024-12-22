@@ -32,25 +32,26 @@ use super::types::{ULimb, UWide};
 // refactor away from potential memory unsafety. It also assumed big endian
 // order, and on most systems our data is in little endian order.
 
-/// Unsigned, little-endian, n-digit division with remainder
+/// Unsigned, little-endian, n-digit division with remainder.
 ///
 /// # Panics
 ///
-/// Panics if divisor is zero
+/// Panics if divisor is zero.
 #[inline]
-pub fn div_rem_big<const N: usize>(
-    numerator: &[ULimb; N],
+pub fn div_rem_full<const M: usize, const N: usize>(
+    numerator: &[ULimb; M],
     divisor: &[ULimb; N],
-) -> ([ULimb; N], [ULimb; N]) {
+) -> ([ULimb; M], [ULimb; N]) {
     if is_zero(numerator, 0) {
-        return ([0; N], [0; N]);
+        return ([0; M], [0; N]);
+    } else if N == 1 {
+        return div_rem_small_padded(numerator, divisor[0]);
     }
 
-    // TODO: Make it M/N for the sizes
     match cmp(numerator, divisor) {
-        Ordering::Less => ([0; N], *numerator),
+        Ordering::Less => ([0; M], truncate(*numerator)),
         Ordering::Equal => {
-            let mut quo = [0; N];
+            let mut quo = [0; M];
             quo[0] = 1;
             (quo, [0; N])
         },
@@ -64,6 +65,38 @@ pub fn div_rem_big<const N: usize>(
             }
         },
     }
+}
+
+/// Division of a numerator by a u128 divisor.
+#[inline]
+pub fn div_rem_small<const M: usize>(
+    numerator: &[ULimb; M],
+    divisor: UWide,
+) -> ([ULimb; M], UWide) {
+    let lo = divisor as ULimb;
+    let hi = (divisor >> ULimb::BITS) as ULimb;
+    let divisor = [lo, hi];
+    let (quo, rem) = div_rem_full(numerator, &divisor);
+    let rem = (rem[0] as UWide) | ((rem[1] as UWide) << ULimb::BITS);
+
+    (quo, rem)
+}
+
+/// Division of numerator by a u64 divisor
+#[inline]
+pub fn div_rem_half<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
+    let mut numerator = *numerator;
+    let mut r = 0;
+    let mut i = M;
+    while i > 0 {
+        i -= 1;
+        let d = numerator[i];
+        let (q, ri) = div_rem_word(r, d, divisor);
+        numerator[i] = q;
+        r = ri;
+    }
+
+    (numerator, r)
 }
 
 /// Efficiently, const comparison of M to N sized arrays.
@@ -129,30 +162,10 @@ pub fn div_rem_small_padded<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: ULimb,
 ) -> ([ULimb; M], [ULimb; N]) {
-    let (numerator, rem) = div_rem_small(numerator, divisor);
+    let (numerator, rem) = div_rem_half(numerator, divisor);
     let mut rem_padded = [0; N];
     rem_padded[0] = rem;
     (numerator, rem_padded)
-}
-
-/// Division of numerator by a u64 divisor
-#[inline]
-pub fn div_rem_small<const M: usize>(
-    numerator: &[ULimb; M],
-    divisor: ULimb,
-) -> ([ULimb; M], ULimb) {
-    let mut numerator = *numerator;
-    let mut r = 0;
-    let mut i = M;
-    while i > 0 {
-        i -= 1;
-        let d = numerator[i];
-        let (q, ri) = div_rem_word(r, d, divisor);
-        numerator[i] = q;
-        r = ri;
-    }
-
-    (numerator, r)
 }
 
 /// Use Knuth Algorithm D to compute `numerator / divisor` returning the
@@ -164,15 +177,13 @@ pub fn div_rem_small<const M: usize>(
 ///
 /// A good explanation of the algorithm can be found [here](https://ridiculousfish.com/blog/posts/labor-of-division-episode-iv.html)
 #[inline]
-fn div_rem_knuth<const N: usize>(
-    numerator: &[ULimb; N],
+fn div_rem_knuth<const M: usize, const N: usize>(
+    numerator: &[ULimb; M],
     divisor: &[ULimb; N],
     n: usize,
     m: usize,
-) -> ([ULimb; N], [ULimb; N]) {
-    assert!(n + m <= N);
-
-    // TODO: FIXME, see if we can make it M/N
+) -> ([ULimb; M], [ULimb; N]) {
+    assert!(n + m <= M);
 
     // The algorithm works by incrementally generating guesses `q_hat`, for the next
     // digit of the quotient, starting from the most significant digit.
@@ -203,7 +214,7 @@ fn div_rem_knuth<const N: usize>(
     let b0 = divisor[n - 1];
     let b1 = divisor[n - 2];
 
-    let mut q = [0; N];
+    let mut q = [0; M];
 
     let mut j = m + 1;
     while j > 0 {
@@ -257,7 +268,7 @@ fn div_rem_knuth<const N: usize>(
             let (res2, overflow2) = x.overflowing_sub(res1);
             numerator.set(i + j, res2);
             c = overflow1 || overflow2;
-            i += 1
+            i += 1;
         }
 
         // If underflow, q_hat was too large by 1
@@ -275,7 +286,7 @@ fn div_rem_knuth<const N: usize>(
                 let (res2, overflow2) = x.overflowing_add(res1);
                 numerator.set(i + j, res2);
                 c = overflow1 || overflow2;
-                i += 1
+                i += 1;
             }
             let value = numerator.get(j + n).wrapping_add(c as ULimb);
             numerator.set(j + n, value);
@@ -287,7 +298,7 @@ fn div_rem_knuth<const N: usize>(
 
     // The remainder is what is left in numerator, with the initial normalization
     // shl reversed
-    let remainder = full_shr(&numerator, shift);
+    let remainder = truncate(full_shr(&numerator, shift));
     (q, remainder)
 }
 
@@ -312,7 +323,7 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     // LLVM fails to use the div instruction as it is not able to prove
     // that hi < divisor, and therefore the result will fit into 64-bits
     // SAFETY: Safe since we've validated the parameters.
-    #[cfg(all(target_arch = "x86_64"))]
+    #[cfg(target_arch = "x86_64")]
     unsafe {
         let mut quot = lo;
         let mut rem = hi;
@@ -389,6 +400,19 @@ const fn full_shr<const N: usize>(a: &ArrayPlusOne<N>, shift: u32) -> [ULimb; N]
     }
     out[N - 1] = a.0[N - 1] >> shift;
     out
+}
+
+/// Truncate the extra digits from the top of the array.
+#[inline(always)]
+pub const fn truncate<const M: usize, const N: usize>(v: [ULimb; M]) -> [ULimb; N] {
+    assert!(M >= N);
+    let mut r = [0; N];
+    let mut i = 0;
+    while i < N {
+        r[i] = v[i];
+        i += 1;
+    }
+    r
 }
 
 /// An array of N + 1 elements
