@@ -26,7 +26,7 @@ use core::{fmt, mem};
 
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::ints::u256::lt as u256_lt;
-use crate::math;
+use crate::math::{self, ILimb, IWide, ULimb, UWide};
 use crate::numtypes::*;
 use crate::u256;
 
@@ -1923,7 +1923,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_rem_usmall(self, n: u64) -> (Self, u64) {
+    pub fn div_rem_usmall(self, n: UWide) -> (Self, UWide) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_usmall(n)
         } else {
@@ -1936,12 +1936,14 @@ impl i256 {
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
     #[inline(always)]
-    pub fn wrapping_div_rem_usmall(self, n: u64) -> (Self, u64) {
+    pub fn wrapping_div_rem_usmall(self, n: UWide) -> (Self, UWide) {
+        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
         // SAFETY: Safe since these are plain old data.
         unsafe {
-            let x: [u64; 4] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
+            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
             let (div, rem) = math::div_rem_small(&x, n);
-            let div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div)).as_i256();
+            let div =
+                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
             // rem is always positive: `-65 % 64` is 63
             (div, rem)
         }
@@ -1951,7 +1953,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_rem_usmall(self, n: u64) -> Option<(Self, u64)> {
+    pub fn checked_div_rem_usmall(self, n: UWide) -> Option<(Self, UWide)> {
         if n == 0 {
             None
         } else {
@@ -1963,7 +1965,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_rem_usmall(self, n: u64) -> ((Self, u64), bool) {
+    pub fn overflowing_div_rem_usmall(self, n: UWide) -> ((Self, UWide), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
         } else {
@@ -1975,7 +1977,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_rem_ismall(self, n: i64) -> (Self, i64) {
+    pub fn div_rem_ismall(self, n: IWide) -> (Self, IWide) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_ismall(n)
         } else {
@@ -1988,13 +1990,15 @@ impl i256 {
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
     #[inline(always)]
-    pub fn wrapping_div_rem_ismall(self, n: i64) -> (Self, i64) {
+    pub fn wrapping_div_rem_ismall(self, n: IWide) -> (Self, IWide) {
+        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
         // SAFETY: Safe since these are plain old data.
         unsafe {
-            let x: [u64; 4] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
-            let (div, rem) = math::div_rem_small(&x, n.wrapping_abs() as u64);
-            let mut div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div)).as_i256();
-            let mut rem = rem as i64;
+            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
+            let (div, rem) = math::div_rem_small(&x, n.wrapping_abs() as UWide);
+            let mut div =
+                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
+            let mut rem = rem as IWide;
 
             // convert to our correct signs, get the product
             if self.is_negative() != n.is_negative() {
@@ -2012,7 +2016,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_rem_ismall(self, n: i64) -> Option<(Self, i64)> {
+    pub fn checked_div_rem_ismall(self, n: IWide) -> Option<(Self, IWide)> {
         if n == 0 {
             None
         } else {
@@ -2024,7 +2028,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_rem_ismall(self, n: i64) -> ((Self, i64), bool) {
+    pub fn overflowing_div_rem_ismall(self, n: IWide) -> ((Self, IWide), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
         } else {
@@ -2036,7 +2040,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_usmall(self, n: u64) -> Self {
+    pub fn div_usmall(self, n: UWide) -> Self {
         self.div_rem_usmall(n).0
     }
 
@@ -2044,7 +2048,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_div_usmall(self, n: u64) -> Self {
+    pub fn wrapping_div_usmall(self, n: UWide) -> Self {
         self.wrapping_div_rem_usmall(n).0
     }
 
@@ -2052,7 +2056,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_usmall(self, n: u64) -> Option<Self> {
+    pub fn checked_div_usmall(self, n: UWide) -> Option<Self> {
         Some(self.checked_div_rem_usmall(n)?.0)
     }
 
@@ -2060,7 +2064,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_usmall(self, n: u64) -> (Self, bool) {
+    pub fn overflowing_div_usmall(self, n: UWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_usmall(n);
         (value.0, overflowed)
     }
@@ -2069,7 +2073,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_ismall(self, n: i64) -> Self {
+    pub fn div_ismall(self, n: IWide) -> Self {
         self.div_rem_ismall(n).0
     }
 
@@ -2077,14 +2081,14 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_div_ismall(self, n: i64) -> Self {
+    pub fn wrapping_div_ismall(self, n: IWide) -> Self {
         self.wrapping_div_rem_ismall(n).0
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_ismall(self, n: i64) -> Option<Self> {
+    pub fn checked_div_ismall(self, n: IWide) -> Option<Self> {
         Some(self.checked_div_rem_ismall(n)?.0)
     }
 
@@ -2092,7 +2096,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_ismall(self, n: i64) -> (Self, bool) {
+    pub fn overflowing_div_ismall(self, n: IWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_ismall(n);
         (value.0, overflowed)
     }
@@ -2101,7 +2105,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn rem_usmall(self, n: u64) -> u64 {
+    pub fn rem_usmall(self, n: UWide) -> UWide {
         self.wrapping_div_rem_usmall(n).1
     }
 
@@ -2109,7 +2113,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_rem_usmall(self, n: u64) -> u64 {
+    pub fn wrapping_rem_usmall(self, n: UWide) -> UWide {
         self.wrapping_div_rem_usmall(n).1
     }
 
@@ -2117,7 +2121,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_rem_usmall(self, n: u64) -> Option<u64> {
+    pub fn checked_rem_usmall(self, n: UWide) -> Option<UWide> {
         Some(self.checked_div_rem_usmall(n)?.1)
     }
 
@@ -2125,7 +2129,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_rem_usmall(self, n: u64) -> (u64, bool) {
+    pub fn overflowing_rem_usmall(self, n: UWide) -> (UWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_usmall(n);
         (value.1, overflowed)
     }
@@ -2134,7 +2138,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn rem_ismall(self, n: i64) -> i64 {
+    pub fn rem_ismall(self, n: IWide) -> IWide {
         self.div_rem_ismall(n).1
     }
 
@@ -2142,22 +2146,268 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_rem_ismall(self, n: i64) -> i64 {
+    pub fn wrapping_rem_ismall(self, n: IWide) -> IWide {
         self.wrapping_div_rem_ismall(n).1
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_rem_ismall(self, n: i64) -> Option<i64> {
+    pub fn checked_rem_ismall(self, n: IWide) -> Option<IWide> {
         Some(self.checked_div_rem_ismall(n)?.1)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_rem_ismall(self, n: i64) -> (i64, bool) {
+    pub fn overflowing_rem_ismall(self, n: IWide) -> (IWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_ismall(n);
+        (value.1, overflowed)
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn div_rem_uhalf(self, n: ULimb) -> (Self, ULimb) {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_div_rem_uhalf(n)
+        } else {
+            self.checked_div_rem_uhalf(n).expect("attempt to divide by zero")
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do. This always
+    /// wraps, which can never happen in practice.
+    #[inline(always)]
+    pub fn wrapping_div_rem_uhalf(self, n: ULimb) -> (Self, ULimb) {
+        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
+        // SAFETY: Safe since these are plain old data.
+        unsafe {
+            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
+            let (div, rem) = math::div_rem_half(&x, n);
+            let div =
+                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
+            // rem is always positive: `-65 % 64` is 63
+            (div, rem)
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_div_rem_uhalf(self, n: ULimb) -> Option<(Self, ULimb)> {
+        if n == 0 {
+            None
+        } else {
+            Some(self.wrapping_div_rem_uhalf(n))
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_div_rem_uhalf(self, n: ULimb) -> ((Self, ULimb), bool) {
+        if n == 0 {
+            ((Self::MAX, 0), true)
+        } else {
+            (self.wrapping_div_rem_uhalf(n), false)
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn div_rem_ihalf(self, n: ILimb) -> (Self, ILimb) {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_div_rem_ihalf(n)
+        } else {
+            self.checked_div_rem_ihalf(n).expect("attempt to divide by zero")
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do. This always
+    /// wraps, which can never happen in practice.
+    #[inline(always)]
+    pub fn wrapping_div_rem_ihalf(self, n: ILimb) -> (Self, ILimb) {
+        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
+        // SAFETY: Safe since these are plain old data.
+        unsafe {
+            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
+            let (div, rem) = math::div_rem_half(&x, n.wrapping_abs() as ULimb);
+            let mut div =
+                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
+            let mut rem = rem as ILimb;
+
+            // convert to our correct signs, get the product
+            if self.is_negative() != n.is_negative() {
+                div = div.wrapping_neg();
+            }
+            if self.is_negative() {
+                rem = rem.wrapping_neg();
+            }
+
+            (div, rem)
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_div_rem_ihalf(self, n: ILimb) -> Option<(Self, ILimb)> {
+        if n == 0 {
+            None
+        } else {
+            Some(self.wrapping_div_rem_ihalf(n))
+        }
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_div_rem_ihalf(self, n: ILimb) -> ((Self, ILimb), bool) {
+        if n == 0 {
+            ((Self::MAX, 0), true)
+        } else {
+            (self.wrapping_div_rem_ihalf(n), false)
+        }
+    }
+
+    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn div_uhalf(self, n: ULimb) -> Self {
+        self.div_rem_uhalf(n).0
+    }
+
+    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn wrapping_div_uhalf(self, n: ULimb) -> Self {
+        self.wrapping_div_rem_uhalf(n).0
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_div_uhalf(self, n: ULimb) -> Option<Self> {
+        Some(self.checked_div_rem_uhalf(n)?.0)
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_div_uhalf(self, n: ULimb) -> (Self, bool) {
+        let (value, overflowed) = self.overflowing_div_rem_uhalf(n);
+        (value.0, overflowed)
+    }
+
+    /// Div the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn div_ihalf(self, n: ILimb) -> Self {
+        self.div_rem_ihalf(n).0
+    }
+
+    /// Div the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn wrapping_div_ihalf(self, n: ILimb) -> Self {
+        self.wrapping_div_rem_ihalf(n).0
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_div_ihalf(self, n: ILimb) -> Option<Self> {
+        Some(self.checked_div_rem_ihalf(n)?.0)
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_div_ihalf(self, n: ILimb) -> (Self, bool) {
+        let (value, overflowed) = self.overflowing_div_rem_ihalf(n);
+        (value.0, overflowed)
+    }
+
+    /// Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn rem_uhalf(self, n: ULimb) -> ULimb {
+        self.wrapping_div_rem_uhalf(n).1
+    }
+
+    /// Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn wrapping_rem_uhalf(self, n: ULimb) -> ULimb {
+        self.wrapping_div_rem_uhalf(n).1
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_rem_uhalf(self, n: ULimb) -> Option<ULimb> {
+        Some(self.checked_div_rem_uhalf(n)?.1)
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_rem_uhalf(self, n: ULimb) -> (ULimb, bool) {
+        let (value, overflowed) = self.overflowing_div_rem_uhalf(n);
+        (value.1, overflowed)
+    }
+
+    /// Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn rem_ihalf(self, n: ILimb) -> ILimb {
+        self.div_rem_ihalf(n).1
+    }
+
+    /// Rem the 256-bit integer by a half, 64-bit signed factor.
+    ///
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn wrapping_rem_ihalf(self, n: ILimb) -> ILimb {
+        self.wrapping_div_rem_ihalf(n).1
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn checked_rem_ihalf(self, n: ILimb) -> Option<ILimb> {
+        Some(self.checked_div_rem_ihalf(n)?.1)
+    }
+
+    /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
+    /// This allows optimizations a full division cannot do.
+    #[inline(always)]
+    pub fn overflowing_rem_ihalf(self, n: ILimb) -> (ILimb, bool) {
+        let (value, overflowed) = self.overflowing_div_rem_ihalf(n);
         (value.1, overflowed)
     }
 }
@@ -3217,17 +3467,20 @@ impl fmt::UpperHex for i256 {
 /// `rhs == -1 && lhs == i256::MIN`.
 #[inline]
 fn div_rem(lhs: i256, rhs: i256) -> (i256, i256) {
+    const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
     // SAFETY: Safe since these are plain old data.
     unsafe {
         // Do division as positive numbers, and if `lhs.is_sign_negative() ^
         // rhs.is_sign_negative()`, then we can inver the sign
-        let x: [u64; 4] = mem::transmute(lhs.wrapping_abs().as_u256().to_le_bytes());
-        let y: [u64; 4] = mem::transmute(rhs.wrapping_abs().as_u256().to_le_bytes());
+        let x: [ULimb; BYTES] = mem::transmute(lhs.wrapping_abs().as_u256().to_le_bytes());
+        let y: [ULimb; BYTES] = mem::transmute(rhs.wrapping_abs().as_u256().to_le_bytes());
 
         // get our unsigned division product
-        let (div, rem) = math::div_rem_big(&x, &y);
-        let mut div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div)).as_i256();
-        let mut rem = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(rem)).as_i256();
+        let (div, rem) = math::div_rem_full(&x, &y);
+        let mut div =
+            u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
+        let mut rem =
+            u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(rem)).as_i256();
 
         // convert to our correct signs, get the product
         if lhs.is_negative() != rhs.is_negative() {

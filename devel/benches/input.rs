@@ -179,6 +179,16 @@ macro_rules! op_generator {
         });
     }};
 
+    (@2tup $group:ident, $name:expr, $func:ident, $iter:expr) => {{
+        $group.bench_function($name, |bench| {
+            bench.iter(|| {
+                $iter.for_each(|&x| {
+                    criterion::black_box($func(x.0, x.1));
+                })
+            })
+        });
+    }};
+
     (@3tup $group:ident, $name:expr, $func:ident, $iter:expr) => {{
         $group.bench_function($name, |bench| {
             bench.iter(|| {
