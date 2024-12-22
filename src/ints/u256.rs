@@ -22,7 +22,7 @@ use core::{ops::*, panic};
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::i256;
 use crate::ints::i256::lt as i256_lt;
-use crate::math;
+use crate::math::{self, ULimb};
 use crate::numtypes::*;
 
 // FIXME: Add support for [Saturating][core::num::Saturating] and
@@ -1544,7 +1544,7 @@ impl u256 {
     /// This allows optimizations a full division cannot do.
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn div_rem_small(self, n: u64) -> (Self, u64) {
+    pub fn div_rem_small(self, n: ULimb) -> (Self, ULimb) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_small(n)
         } else {
@@ -1557,12 +1557,13 @@ impl u256 {
     /// This allows optimizations a full division cannot do.
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn wrapping_div_rem_small(self, n: u64) -> (Self, u64) {
+    pub fn wrapping_div_rem_small(self, n: ULimb) -> (Self, ULimb) {
         // SAFETY: Safe since these are plain old data.
+        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
         unsafe {
-            let x: [u64; 4] = mem::transmute(self.to_le_bytes());
+            let x: [ULimb; BYTES] = mem::transmute(self.to_le_bytes());
             let (div, rem) = math::div_rem_small(&x, n);
-            let div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div));
+            let div = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div));
             (div, rem)
         }
     }
@@ -1571,7 +1572,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_rem_small(self, n: u64) -> Option<(Self, u64)> {
+    pub fn checked_div_rem_small(self, n: ULimb) -> Option<(Self, ULimb)> {
         if n == 0 {
             None
         } else {
@@ -1583,7 +1584,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_rem_small(self, n: u64) -> ((Self, u64), bool) {
+    pub fn overflowing_div_rem_small(self, n: ULimb) -> ((Self, ULimb), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
         } else {
@@ -1595,7 +1596,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_small(self, n: u64) -> Self {
+    pub fn div_small(self, n: ULimb) -> Self {
         if cfg!(not(have_overflow_checks)) {
             self.div_rem_small(n).0
         } else {
@@ -1607,7 +1608,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_div_small(self, n: u64) -> Self {
+    pub fn wrapping_div_small(self, n: ULimb) -> Self {
         self.wrapping_div_rem_small(n).0
     }
 
@@ -1615,7 +1616,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_small(self, n: u64) -> (Self, bool) {
+    pub fn overflowing_div_small(self, n: ULimb) -> (Self, bool) {
         let (divrem, overflow) = self.overflowing_div_rem_small(n);
         (divrem.0, overflow)
     }
@@ -1624,7 +1625,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_small(self, n: u64) -> Option<Self> {
+    pub fn checked_div_small(self, n: ULimb) -> Option<Self> {
         Some(self.checked_div_rem_small(n)?.0)
     }
 
@@ -1632,7 +1633,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn rem_small(self, n: u64) -> u64 {
+    pub fn rem_small(self, n: ULimb) -> ULimb {
         if cfg!(not(have_overflow_checks)) {
             self.div_rem_small(n).1
         } else {
@@ -1644,7 +1645,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_rem_small(self, n: u64) -> u64 {
+    pub fn wrapping_rem_small(self, n: ULimb) -> ULimb {
         self.wrapping_div_rem_small(n).1
     }
 
@@ -1652,7 +1653,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_rem_small(self, n: u64) -> (u64, bool) {
+    pub fn overflowing_rem_small(self, n: ULimb) -> (ULimb, bool) {
         let (divrem, overflow) = self.overflowing_div_rem_small(n);
         (divrem.1, overflow)
     }
@@ -1661,7 +1662,7 @@ impl u256 {
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_rem_small(self, n: u64) -> Option<u64> {
+    pub fn checked_rem_small(self, n: ULimb) -> Option<ULimb> {
         Some(self.checked_div_rem_small(n)?.1)
     }
 }
@@ -2731,14 +2732,15 @@ impl fmt::UpperHex for u256 {
 /// Large division/remainder calculation. This will panic if rhs is 0.
 #[inline]
 fn div_rem(lhs: u256, rhs: u256) -> (u256, u256) {
+    const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
     // SAFETY: Safe since these are plain old data.
     unsafe {
-        let x: [u64; 4] = mem::transmute::<[u8; 32], [u64; 4]>(lhs.to_le_bytes());
-        let y: [u64; 4] = mem::transmute::<[u8; 32], [u64; 4]>(rhs.to_le_bytes());
+        let x: [ULimb; BYTES] = mem::transmute::<[u8; 32], [ULimb; BYTES]>(lhs.to_le_bytes());
+        let y: [ULimb; BYTES] = mem::transmute::<[u8; 32], [ULimb; BYTES]>(rhs.to_le_bytes());
 
         let (div, rem) = math::div_rem_big(&x, &y);
-        let div = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(div));
-        let rem = u256::from_le_bytes(mem::transmute::<[u64; 4], [u8; 32]>(rem));
+        let div = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div));
+        let rem = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(rem));
 
         (div, rem)
     }

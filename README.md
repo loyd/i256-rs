@@ -18,14 +18,7 @@ Please report any errors compiling a supported `i256` version on a compatible Ru
 
 **Versioning**
 
-lexical uses [semantic versioning](https://semver.org/). Removing support for Rustc versions newer than the latest stable Debian or Ubuntu version is considered an incompatible API change, requiring a major version change
-
-## Details
-
-Almost all of the accessory methods in [ints](/src/ints/), such as the `checked_*`, `unchecked_*`, `strict_*`, and others, including their documentation, are taken directly from the Rust implementation, specifically, [`uint_macros`] and [`int_macros`]. The core algorithms under [math](/src/math/) for numeric operations, both their wrapping and overflowing forms, are not.
-
-[`uint_macros`]: https://github.com/rust-lang/rust/blob/master/library/core/src/num/uint_macros.rs
-[`int_macros`]: https://github.com/rust-lang/rust/blob/master/library/core/src/num/int_macros.rs
+`i256` uses [semantic versioning](https://semver.org/). Removing support for Rustc versions newer than the latest stable Debian or Ubuntu version is considered an incompatible API change, requiring a major (minor pre-1.0) version change.
 
 ## Changelog
 
@@ -33,7 +26,12 @@ All changes are documented in [CHANGELOG](https://github.com/Alexhuszagh/i256/bl
 
 ## License
 
-Lexical is dual licensed under the Apache 2.0 license as well as the MIT license.
+`i256` is dual licensed under the Apache 2.0 license as well as the MIT license.
+
+Almost all of the accessory methods in [ints](/src/ints/), such as the `checked_*`, `unchecked_*`, `strict_*`, and others, including their documentation, are taken directly from the Rust implementation, specifically, [`uint_macros`] and [`int_macros`]. The core algorithms under [math](/src/math/) for numeric operations, both their wrapping and overflowing forms, are not.
+
+[`uint_macros`]: https://github.com/rust-lang/rust/blob/master/library/core/src/num/uint_macros.rs
+[`int_macros`]: https://github.com/rust-lang/rust/blob/master/library/core/src/num/int_macros.rs
 
 ## Contributing
 

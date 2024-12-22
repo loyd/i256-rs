@@ -13,6 +13,9 @@ const COUNT: usize = 10000;
 
 #[inline]
 fn u128_div(num: u128, den: u128) -> (u128, u128) {
+    if den == 0 {
+        return (u128::MAX, 0);
+    }
     let x0 = num as u64;
     let x1 = (num >> 64) as u64;
     let y0 = den as u64;
@@ -32,6 +35,9 @@ fn u128_div(num: u128, den: u128) -> (u128, u128) {
 
 #[inline]
 fn u128_div_small(num: u128, den: u64) -> (u128, u64) {
+    if den == 0 {
+        return (u128::MAX, 0);
+    }
     let x0 = num as u64;
     let x1 = (num >> 64) as u64;
 
@@ -46,6 +52,9 @@ fn u128_div_small(num: u128, den: u64) -> (u128, u64) {
 
 #[inline]
 fn u128_native(num: u128, den: u128) -> (u128, u128) {
+    if den == 0 {
+        return (u128::MAX, 0);
+    }
     let div = num / den;
     let rem = num % den;
     (div, rem)
@@ -53,6 +62,9 @@ fn u128_native(num: u128, den: u128) -> (u128, u128) {
 
 #[inline]
 fn u128_small_native(num: u128, den: u64) -> (u128, u64) {
+    if den == 0 {
+        return (u128::MAX, 0);
+    }
     let den = den as u128;
     let div = num / den;
     let rem = num % den;
@@ -98,13 +110,13 @@ macro_rules! div_bench {
                 .map(|x| [input::bnum_from_u128(x[0], x[1]), input::bnum_from_u128(x[2], x[3])])
                 .collect();
 
-            op_generator!(@2 group, "u128-big-i256", u128_div, big_data.iter());
+            op_generator!(@2 group, concat!($prefix, "::u128-big-i256"), u128_div, big_data.iter());
             // TODO: Fix small_data
             //op_generator!(@2 group, "u128-small-i256", u128_div_small, small_data.iter());
-            op_generator!(@2 group, "u128-big-native", u128_native, big_data.iter());
+            op_generator!(@2 group, concat!($prefix, "::u128-big-native"), u128_native, big_data.iter());
             //op_generator!(@2 group, "u128-small-native", u128_small_native, small_data.iter());
-            op_generator!(@2 group, concat!($prefix, "::u128-i256"), i256_div, i256_data.iter());
-            op_generator!(@2 group, concat!($prefix, "::u128-bnum"), bnum_div, bnum_data.iter());
+            op_generator!(@2 group, concat!($prefix, "::u256-i256"), i256_div, i256_data.iter());
+            op_generator!(@2 group, concat!($prefix, "::u256-bnum"), bnum_div, bnum_data.iter());
         }
     }
 }

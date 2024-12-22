@@ -6,10 +6,11 @@
 //! components to known reference values).
 
 // NOTE: This mostly exists for testing and is exposed for that reason.
-#![allow(unused)]
 #![doc(hidden)]
 
 mod div;
 mod native;
+mod types;
 pub use self::div::{div_rem_big, div_rem_small};
 pub use self::native::*;
+pub use self::types::{ILimb, ULimb};

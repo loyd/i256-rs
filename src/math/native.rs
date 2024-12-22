@@ -3682,6 +3682,7 @@ macro_rules! signed_primitive_cast {
         #[inline(always)]
         pub const fn $as_unarrow(x0: $u, x1: $s) -> $u {
             debug_assert!(<$u>::BITS == <$s>::BITS);
+            _ = x1;
             x0 as $u
         }
 
@@ -3705,6 +3706,7 @@ macro_rules! signed_primitive_cast {
         #[inline(always)]
         pub const fn $as_inarrow(x0: $u, x1: $s) -> $s {
             debug_assert!(<$u>::BITS == <$s>::BITS);
+            _ = x1;
             x0 as $s
         }
 
