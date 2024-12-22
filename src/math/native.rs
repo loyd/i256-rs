@@ -5,9 +5,9 @@
 
 #![doc(hidden)]
 
-// NOTE: We use the `wrapping`, etc. functions instead of the op
-// traits because for non-primitive types, if we ever want to
-// use this for wider types, then we don't have to rewrite this all.
+// NOTE: These are named after the size of the types that are the
+// operands: for example, `wrapping_add_u8` takes 2x `u8`, so it's
+// a 16-bit addition.
 
 // NOTE: Division and remainders aren't supported due to the difficulty in
 // implementation. See `div.rs` for the implementation.

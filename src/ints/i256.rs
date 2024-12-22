@@ -2783,7 +2783,7 @@ const fn eq(lhs: i256, rhs: i256) -> bool {
 // NOTE: Because of two's complement, these comparisons are always normal.
 /// Const implementation of `PartialOrd::lt` for internal algorithm use.
 #[inline(always)]
-const fn lt(lhs: i256, rhs: i256) -> bool {
+pub(crate) const fn lt(lhs: i256, rhs: i256) -> bool {
     lhs.hi < rhs.hi || (lhs.hi == rhs.hi && lhs.lo < rhs.lo)
 }
 
