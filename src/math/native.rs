@@ -5,9 +5,9 @@
 
 #![doc(hidden)]
 
-// NOTE: We use the `wrapping`, etc. functions instead of the op
-// traits because for non-primitive types, if we ever want to
-// use this for wider types, then we don't have to rewrite this all.
+// NOTE: These are named after the size of the types that are the
+// operands: for example, `wrapping_add_u8` takes 2x `u8`, so it's
+// a 16-bit addition.
 
 // NOTE: Division and remainders aren't supported due to the difficulty in
 // implementation. See `div.rs` for the implementation.
@@ -296,13 +296,6 @@ add_unsigned_impl!(
     wrapping_small => wrapping_add_small_u128,
     overflowing_small => overflowing_add_small_u128
 );
-add_unsigned_impl!(
-    usize,
-    wrapping_full => wrapping_add_usize,
-    overflowing_full => overflowing_add_usize,
-    wrapping_small => wrapping_add_small_usize,
-    overflowing_small => overflowing_add_small_usize
-);
 
 macro_rules! sub_unsigned_impl {
     (
@@ -558,13 +551,6 @@ sub_unsigned_impl!(
     overflowing_full => overflowing_sub_u128,
     wrapping_small => wrapping_sub_small_u128,
     overflowing_small => overflowing_sub_small_u128
-);
-sub_unsigned_impl!(
-    usize,
-    wrapping_full => wrapping_sub_usize,
-    overflowing_full => overflowing_sub_usize,
-    wrapping_small => wrapping_sub_small_usize,
-    overflowing_small => overflowing_sub_small_usize
 );
 
 macro_rules! mul_unsigned_impl {
@@ -1377,7 +1363,6 @@ swap_unsigned_impl! {
     u32 => swap_bytes_u32, reverse_bits_u32,
     u64 => swap_bytes_u64, reverse_bits_u64,
     u128 => swap_bytes_u128, reverse_bits_u128,
-    usize => swap_bytes_usize, reverse_bits_usize,
 }
 
 macro_rules! shift_unsigned_impl {
@@ -1576,7 +1561,6 @@ shift_unsigned_impl! {
     u32 => shl_u32, shr_u32,
     u64 => shl_u64, shr_u64,
     u128 => shl_u128, shr_u128,
-    usize => shl_usize, shr_usize,
 }
 
 // UNARY OPS - UNSIGNED
@@ -1693,7 +1677,6 @@ rotate_unsigned_impl! {
     u32 => rotate_left_u32, rotate_right_u32,
     u64 => rotate_left_u64, rotate_right_u64,
     u128 => rotate_left_u128, rotate_right_u128,
-    usize => rotate_left_usize, rotate_right_usize,
 }
 
 // Widening and narrowing conversions for primitive types.
@@ -1801,15 +1784,6 @@ unsigned_primitive_cast!(
     as_iwide => as_iwide_u128,
     as_inarrow => as_inarrow_u128,
     wide_cast => wide_cast_u128
-);
-unsigned_primitive_cast!(
-    usize,
-    isize,
-    as_uwide => as_uwide_usize,
-    as_unarrow => as_unarrow_usize,
-    as_iwide => as_iwide_usize,
-    as_inarrow => as_inarrow_usize,
-    wide_cast => wide_cast_usize
 );
 
 // BINARY OPS - SIGNED
@@ -2217,16 +2191,6 @@ add_signed_impl!(
     wrapping_ismall => wrapping_add_ismall_i128,
     overflowing_ismall => overflowing_add_ismall_i128
 );
-add_signed_impl!(
-    usize,
-    isize,
-    wrapping_full => wrapping_add_isize,
-    overflowing_full => overflowing_add_isize,
-    wrapping_usmall => wrapping_add_usmall_isize,
-    overflowing_usmall => overflowing_add_usmall_isize,
-    wrapping_ismall => wrapping_add_ismall_isize,
-    overflowing_ismall => overflowing_add_ismall_isize
-);
 
 macro_rules! sub_signed_impl {
     (
@@ -2627,16 +2591,6 @@ sub_signed_impl!(
     overflowing_usmall => overflowing_sub_usmall_i128,
     wrapping_ismall => wrapping_sub_ismall_i128,
     overflowing_ismall => overflowing_sub_ismall_i128
-);
-sub_signed_impl!(
-    usize,
-    isize,
-    wrapping_full => wrapping_sub_isize,
-    overflowing_full => overflowing_sub_isize,
-    wrapping_usmall => wrapping_sub_usmall_isize,
-    overflowing_usmall => overflowing_sub_usmall_isize,
-    wrapping_ismall => wrapping_sub_ismall_isize,
-    overflowing_ismall => overflowing_sub_ismall_isize
 );
 
 macro_rules! mul_signed_impl {
@@ -3374,7 +3328,6 @@ shift_signed_impl! {
     u32, i32 => shl_i32, shr_i32,
     u64, i64 => shl_i64, shr_i64,
     u128, i128 => shl_i128, shr_i128,
-    usize, isize => shl_isize, shr_isize,
 }
 
 // UNARY OPS - SIGNED
@@ -3417,7 +3370,6 @@ swap_signed_impl! {
     u32, i32 => swap_bytes_i32, reverse_bits_i32,
     u64, i64 => swap_bytes_i64, reverse_bits_i64,
     u128, i128 => swap_bytes_i128, reverse_bits_i128,
-    usize, isize => swap_bytes_isize, reverse_bits_isize,
 }
 
 macro_rules! rotate_signed_impl {
@@ -3519,7 +3471,6 @@ rotate_signed_impl! {
     u32, i32 => rotate_left_i32, rotate_right_i32,
     u64, i64 => rotate_left_i64, rotate_right_i64,
     u128, i128 => rotate_left_i128, rotate_right_i128,
-    usize, isize => rotate_left_isize, rotate_right_isize,
 }
 
 macro_rules! not_impl {
@@ -3537,7 +3488,6 @@ not_impl!(u16, i16, not_i16);
 not_impl!(u32, i32, not_i32);
 not_impl!(u64, i64, not_i64);
 not_impl!(u128, i128, not_i128);
-not_impl!(usize, isize, not_isize);
 
 macro_rules! neg_impl {
     ($u:ty, $s:ty, $func:ident) => {
@@ -3559,7 +3509,6 @@ neg_impl!(u16, i16, neg_i16);
 neg_impl!(u32, i32, neg_i32);
 neg_impl!(u64, i64, neg_i64);
 neg_impl!(u128, i128, neg_i128);
-neg_impl!(usize, isize, neg_isize);
 
 macro_rules! wrapping_abs_impl {
     ($u:ty, $s:ty, $func:ident, $neg:ident) => {
@@ -3581,7 +3530,6 @@ wrapping_abs_impl!(u16, i16, wrapping_abs_i16, neg_i16);
 wrapping_abs_impl!(u32, i32, wrapping_abs_i32, neg_i32);
 wrapping_abs_impl!(u64, i64, wrapping_abs_i64, neg_i64);
 wrapping_abs_impl!(u128, i128, wrapping_abs_i128, neg_i128);
-wrapping_abs_impl!(usize, isize, wrapping_abs_isize, neg_isize);
 
 macro_rules! unsigned_abs_impl {
     ($u:ty, $s:ty, $func:ident, $wrapping:ident) => {
@@ -3600,7 +3548,6 @@ unsigned_abs_impl!(u16, i16, unsigned_abs_i16, wrapping_abs_i16);
 unsigned_abs_impl!(u32, i32, unsigned_abs_i32, wrapping_abs_i32);
 unsigned_abs_impl!(u64, i64, unsigned_abs_i64, wrapping_abs_i64);
 unsigned_abs_impl!(u128, i128, unsigned_abs_i128, wrapping_abs_i128);
-unsigned_abs_impl!(usize, isize, unsigned_abs_isize, wrapping_abs_isize);
 
 // Widening and narrowing conversions for primitive types.
 macro_rules! signed_primitive_cast {
@@ -3814,15 +3761,6 @@ signed_primitive_cast!(
     as_iwide => as_iwide_i128,
     as_inarrow => as_inarrow_i128,
     wide_cast => wide_cast_i128
-);
-signed_primitive_cast!(
-    usize,
-    isize,
-    as_uwide => as_uwide_isize,
-    as_unarrow => as_unarrow_isize,
-    as_iwide => as_iwide_isize,
-    as_inarrow => as_inarrow_isize,
-    wide_cast => wide_cast_isize
 );
 
 #[cfg(test)]

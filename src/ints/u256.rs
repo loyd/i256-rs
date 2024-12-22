@@ -21,6 +21,7 @@ use core::{ops::*, panic};
 
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::i256;
+use crate::ints::i256::lt as i256_lt;
 use crate::math;
 use crate::numtypes::*;
 
@@ -1076,7 +1077,14 @@ impl u256 {
     /// release mode (the only situation in which this method can return 0).
     #[inline]
     pub const fn next_power_of_two(self) -> Self {
-        self.one_less_than_next_power_of_two().wrapping_add(Self::from_u8(1))
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_next_power_of_two()
+        } else {
+            match self.checked_next_power_of_two() {
+                Some(v) => v,
+                None => panic!("attempt to add with overflow"),
+            }
+        }
     }
 
     /// Returns the smallest power of two greater than or equal to `self`. If
@@ -1085,6 +1093,14 @@ impl u256 {
     #[inline]
     pub const fn checked_next_power_of_two(self) -> Option<Self> {
         self.one_less_than_next_power_of_two().checked_add(Self::from_u8(1))
+    }
+
+    /// Returns the smallest power of two greater than or equal to `n`. If
+    /// the next power of two is greater than the type's maximum value,
+    /// the return value is wrapped to `0`.
+    #[inline]
+    pub const fn wrapping_next_power_of_two(self) -> Self {
+        self.one_less_than_next_power_of_two().wrapping_add(Self::from_u8(1))
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1647,6 +1663,447 @@ impl u256 {
     #[inline(always)]
     pub fn checked_rem_small(self, n: u64) -> Option<u64> {
         Some(self.checked_div_rem_small(n)?.1)
+    }
+}
+
+// These are implementations for nightly-only APIs.
+impl u256 {
+    /// Returns the bit pattern of `self` reinterpreted as a signed integer of
+    /// the same size.
+    ///
+    /// This produces the same result as an `as` cast, but ensures that the
+    /// bit-width remains the same.
+    #[inline(always)]
+    pub const fn cast_signed(self) -> i256 {
+        self.as_i256()
+    }
+
+    /// Calculates `self` + `rhs` + `carry` and returns a tuple containing
+    /// the sum and the output carry.
+    ///
+    /// Performs "ternary addition" of two integer operands and a carry-in
+    /// bit, and returns an output integer and a carry-out bit. This allows
+    /// chaining together multiple additions to create a wider addition, and
+    /// can be useful for bignum addition.
+    #[inline]
+    #[must_use]
+    pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+        let (a, b) = self.overflowing_add(rhs);
+        let (c, d) = a.overflowing_add(Self::from_u8(carry as u8));
+        (c, b | d)
+    }
+
+    /// Calculates `self` &minus; `rhs` &minus; `borrow` and returns a tuple
+    /// containing the difference and the output borrow.
+    ///
+    /// Performs "ternary subtraction" by subtracting both an integer
+    /// operand and a borrow-in bit from `self`, and returns an output
+    /// integer and a borrow-out bit. This allows chaining together multiple
+    /// subtractions to create a wider subtraction, and can be useful for
+    /// bignum subtraction.
+    #[inline]
+    #[must_use]
+    pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+        let (a, b) = self.overflowing_sub(rhs);
+        let (c, d) = a.overflowing_sub(Self::from_u8(borrow as u8));
+        (c, b | d)
+    }
+
+    /// Calculates `self` - `rhs` with a signed `rhs`
+    ///
+    /// Returns a tuple of the subtraction along with a boolean indicating
+    /// whether an arithmetic overflow would occur. If an overflow would
+    /// have occurred then the wrapped value is returned.
+    #[inline]
+    #[must_use]
+    pub const fn overflowing_sub_signed(self, rhs: i256) -> (Self, bool) {
+        let (res, overflow) = self.overflowing_sub(rhs.as_u256());
+        (res, overflow ^ (rhs.is_negative()))
+    }
+
+    /// Strict integer addition. Computes `self + rhs`, panicking
+    /// if overflow occurred.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_add(self, rhs: Self) -> Self {
+        match self.checked_add(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to add with overflow"),
+        }
+    }
+
+    /// Strict addition with a signed integer. Computes `self + rhs`,
+    /// panicking if overflow occurred.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_add_signed(self, rhs: i256) -> Self {
+        match self.checked_add_signed(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to add with overflow"),
+        }
+    }
+
+    /// Strict integer subtraction. Computes `self - rhs`, panicking if
+    /// overflow occurred.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_sub(self, rhs: Self) -> Self {
+        match self.checked_sub(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to subtract with overflow"),
+        }
+    }
+
+    /// Strict integer multiplication. Computes `self * rhs`, panicking if
+    /// overflow occurred.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_mul(self, rhs: Self) -> Self {
+        match self.checked_mul(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to subtract with overflow"),
+        }
+    }
+
+    /// Strict integer division. Computes `self / rhs`.
+    ///
+    /// Strict division on unsigned types is just normal division. There's no
+    /// way overflow could ever happen. This function exists so that all
+    /// operations are accounted for in the strict operations.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `rhs` is zero.
+    #[must_use]
+    #[inline(always)]
+    pub fn strict_div(self, rhs: Self) -> Self {
+        match self.checked_div(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
+    /// Strict integer remainder. Computes `self % rhs`.
+    ///
+    /// Strict remainder calculation on unsigned types is just the regular
+    /// remainder calculation. There's no way overflow could ever happen.
+    /// This function exists so that all operations are accounted for in the
+    /// strict operations.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `rhs` is zero.
+    #[must_use]
+    #[inline(always)]
+    pub fn strict_rem(self, rhs: Self) -> Self {
+        match self.checked_rem(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
+    /// Strict Euclidean division. Computes `self.div_euclid(rhs)`.
+    ///
+    /// Strict division on unsigned types is just normal division. There's no
+    /// way overflow could ever happen. This function exists so that all
+    /// operations are accounted for in the strict operations. Since, for the
+    /// positive integers, all common definitions of division are equal, this
+    /// is exactly equal to `self.strict_div(rhs)`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `rhs` is zero.
+    #[must_use]
+    #[inline(always)]
+    pub fn strict_div_euclid(self, rhs: Self) -> Self {
+        match self.checked_div_euclid(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
+    /// Strict Euclidean modulo. Computes `self.rem_euclid(rhs)`.
+    ///
+    /// Strict modulo calculation on unsigned types is just the regular
+    /// remainder calculation. There's no way overflow could ever happen.
+    /// This function exists so that all operations are accounted for in the
+    /// strict operations. Since, for the positive integers, all common
+    /// definitions of division are equal, this is exactly equal to
+    /// `self.strict_rem(rhs)`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `rhs` is zero.
+    #[must_use]
+    #[inline(always)]
+    pub fn strict_rem_euclid(self, rhs: Self) -> Self {
+        match self.checked_rem_euclid(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to divide by zero"),
+        }
+    }
+
+    /// Strict negation. Computes `-self`, panicking unless `self ==
+    /// 0`.
+    ///
+    /// Note that negating any positive integer will overflow.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_neg(self) -> Self {
+        match self.checked_neg() {
+            Some(v) => v,
+            None => panic!("attempt to negate with overflow"),
+        }
+    }
+
+    /// Strict shift left. Computes `self << rhs`, panicking if `rhs` is larger
+    /// than or equal to the number of bits in `self`.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_shl(self, rhs: u32) -> Self {
+        match self.checked_shl(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to shift left with overflow"),
+        }
+    }
+
+    /// Strict shift right. Computes `self >> rhs`, panicking `rhs` is
+    /// larger than or equal to the number of bits in `self`.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_shr(self, rhs: u32) -> Self {
+        match self.checked_shr(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to shift right with overflow"),
+        }
+    }
+
+    /// Strict exponentiation. Computes `self.pow(exp)`, panicking if
+    /// overflow occurred.
+    ///
+    /// # Panics
+    ///
+    /// ## Overflow behavior
+    ///
+    /// This function will always panic on overflow, regardless of whether
+    /// overflow checks are enabled.
+    #[inline]
+    #[must_use]
+    pub const fn strict_pow(self, rhs: u32) -> Self {
+        match self.checked_pow(rhs) {
+            Some(v) => v,
+            None => panic!("attempt to multiply with overflow"),
+        }
+    }
+
+    /// Calculates the middle point of `self` and `rhs`.
+    ///
+    /// `midpoint(a, b)` is `(a + b) / 2` as if it were performed in a
+    /// sufficiently-large unsigned integral type. This implies that the result
+    /// is always rounded towards zero and that no overflow will ever occur.
+    #[inline]
+    #[must_use]
+    pub const fn midpoint(self, rhs: Self) -> Self {
+        // Use the well known branchless algorithm from Hacker's Delight to compute
+        // `(a + b) / 2` without overflowing: `((a ^ b) >> 1) + (a & b)`.
+        let xor = bitxor(self, rhs);
+        let (lo, hi) = math::shr_u128(xor.lo, xor.hi, 1);
+        Self::new(lo, hi).wrapping_add(bitand(self, rhs))
+    }
+
+    /// Unchecked integer addition. Computes `self + rhs`, assuming overflow
+    /// cannot occur.
+    ///
+    /// Calling `x.unchecked_add(y)` is semantically equivalent to calling
+    /// `x.`[`checked_add`]`(y).`[`unwrap_unchecked`]`()`.
+    ///
+    /// If you're just trying to avoid the panic in debug mode, then **do not**
+    /// use this.  Instead, you're looking for [`wrapping_add`].
+    ///
+    /// # Safety
+    ///
+    /// This results in undefined behavior when the value overflows.
+    #[must_use]
+    #[inline(always)]
+    pub unsafe fn unchecked_add(self, rhs: Self) -> Self {
+        match self.checked_add(rhs) {
+            Some(value) => value,
+            // SAFETY: this is guaranteed to be safe by the caller.
+            None => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }
+
+    /// Unchecked integer subtraction. Computes `self - rhs`, assuming overflow
+    /// cannot occur.
+    ///
+    /// Calling `x.unchecked_sub(y)` is semantically equivalent to calling
+    /// `x.`[`checked_sub`]`(y).`[`unwrap_unchecked`]`()`.
+    ///
+    /// If you're just trying to avoid the panic in debug mode, then **do not**
+    /// use this.  Instead, you're looking for [`wrapping_sub`].
+    ///
+    /// # Safety
+    ///
+    /// This results in undefined behavior when the value overflows.
+    #[must_use]
+    #[inline(always)]
+    pub unsafe fn unchecked_sub(self, rhs: Self) -> Self {
+        match self.checked_sub(rhs) {
+            Some(value) => value,
+            // SAFETY: this is guaranteed to be safe by the caller.
+            None => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }
+
+    /// Unchecked integer multiplication. Computes `self * rhs`, assuming
+    /// overflow cannot occur.
+    ///
+    /// Calling `x.unchecked_mul(y)` is semantically equivalent to calling
+    /// `x.`[`checked_mul`]`(y).`[`unwrap_unchecked`]`()`.
+    ///
+    /// If you're just trying to avoid the panic in debug mode, then **do not**
+    /// use this.  Instead, you're looking for [`wrapping_mul`].
+    ///
+    /// # Safety
+    ///
+    /// This results in undefined behavior when the value overflows.
+    #[must_use]
+    #[inline(always)]
+    pub const unsafe fn unchecked_mul(self, rhs: Self) -> Self {
+        match self.checked_mul(rhs) {
+            Some(value) => value,
+            // SAFETY: this is guaranteed to be safe by the caller.
+            None => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }
+
+    /// Unchecked shift left. Computes `self << rhs`, assuming that
+    /// `rhs` is less than the number of bits in `self`.
+    ///
+    /// # Safety
+    ///
+    /// This results in undefined behavior if `rhs` is larger than
+    /// or equal to the number of bits in `self`,
+    /// i.e. when [`checked_shl`] would return `None`.
+    #[must_use]
+    #[inline(always)]
+    pub const unsafe fn unchecked_shl(self, rhs: u32) -> Self {
+        match self.checked_shl(rhs) {
+            Some(value) => value,
+            // SAFETY: this is guaranteed to be safe by the caller.
+            None => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }
+
+    /// Unchecked shift right. Computes `self >> rhs`, assuming that
+    /// `rhs` is less than the number of bits in `self`.
+    ///
+    /// # Safety
+    ///
+    /// This results in undefined behavior if `rhs` is larger than
+    /// or equal to the number of bits in `self`,
+    /// i.e. when [`checked_shr`] would return `None`.
+    #[must_use]
+    #[inline(always)]
+    pub const unsafe fn unchecked_shr(self, rhs: u32) -> Self {
+        match self.checked_shr(rhs) {
+            Some(value) => value,
+            // SAFETY: this is guaranteed to be safe by the caller.
+            None => unsafe { core::hint::unreachable_unchecked() },
+        }
+    }
+
+    /// Checked subtraction with a signed integer. Computes `self - rhs`,
+    /// returning `None` if overflow occurred.
+    #[inline]
+    pub const fn checked_signed_diff(self, rhs: Self) -> Option<i256> {
+        let res = self.wrapping_sub(rhs).as_i256();
+        let overflow = ge(self, rhs) == i256_lt(res, i256::from_u8(0));
+
+        if !overflow {
+            Some(res)
+        } else {
+            None
+        }
+    }
+
+    /// Unbounded shift left. Computes `self << rhs`, without bounding the value
+    /// of `rhs`.
+    ///
+    /// If `rhs` is larger or equal to the number of bits in `self`,
+    /// the entire value is shifted out, and `0` is returned.
+    #[inline]
+    #[must_use]
+    pub const fn unbounded_shl(self, rhs: u32) -> Self {
+        if rhs < Self::BITS {
+            self.wrapping_shl(rhs)
+        } else {
+            Self::from_u8(0)
+        }
+    }
+
+    /// Unbounded shift right. Computes `self >> rhs`, without bounding the
+    /// value of `rhs`.
+    ///
+    /// If `rhs` is larger or equal to the number of bits in `self`,
+    /// the entire value is shifted out, and `0` is returned.
+    #[inline]
+    #[must_use]
+    pub const fn unbounded_shr(self, rhs: u32) -> Self {
+        if rhs < Self::BITS {
+            self.wrapping_shr(rhs)
+        } else {
+            Self::from_u8(0)
+        }
     }
 }
 
