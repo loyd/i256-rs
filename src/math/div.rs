@@ -24,6 +24,8 @@
 use core::ops::{Deref, DerefMut};
 use core::slice;
 
+// TODO: Fix and optimize this, should be elsewhere
+
 // NOTE: This cannot be made `const`, nor should it be attempted to be made so.
 // We had a Knuth division algorithm previously in lexical, but it was removed
 // for a few reasons, so we prioritize this. It used extensive unchecked

@@ -4,61 +4,72 @@ use quickcheck::quickcheck;
 const LO32: u64 = u32::MAX as u64;
 
 quickcheck! {
-    fn add_u32_quickcheck(x: u64, y: u64) -> bool {
+    fn overflowing_add_u32_quickcheck(x: u64, y: u64) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = (y & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi, overflowed) = add_u32(x0, x1, y0, y1);
+        let (lo, hi, overflowed) = overflowing_add_u32(x0, x1, y0, y1);
         let expected = x.overflowing_add(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
     }
 
-    fn add_small_u32_quickcheck(x: u64, y: u32) -> bool {
+    fn overflowing_add_small_u32_quickcheck(x: u64, y: u32) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = add_small_u32(x0, x1, y);
+        let (lo, hi, overflowed) = overflowing_add_small_u32(x0, x1, y);
         let expected = x.overflowing_add(y as u64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
     }
 
-    fn sub_u32_quickcheck(x: u64, y: u64) -> bool {
+    fn overflowing_sub_u32_quickcheck(x: u64, y: u64) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = (y & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi, overflowed) = sub_u32(x0, x1, y0, y1);
+        let (lo, hi, overflowed) = overflowing_sub_u32(x0, x1, y0, y1);
         let expected = x.overflowing_sub(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
     }
 
-    fn sub_small_u32_quickcheck(x: u64, y: u32) -> bool {
+    fn overflowing_sub_small_u32_quickcheck(x: u64, y: u32) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = sub_small_u32(x0, x1, y);
+        let (lo, hi, overflowed) = overflowing_sub_small_u32(x0, x1, y);
         let expected = x.overflowing_sub(y as u64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
     }
 
-    fn mul_u32_quickcheck(x: u64, y: u64) -> bool {
+    fn wrapping_mul_u32_quickcheck(x: u64, y: u64) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = (y & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi, overflowed) = mul_u32(x0, x1, y0, y1);
+        let (lo, hi) = wrapping_mul_u32(x0, x1, y0, y1);
+        let expected = x.wrapping_mul(y);
+        let actual = lo as u64 + ((hi as u64) << 32);
+        expected == actual
+    }
+
+    fn overflowing_mul_u32_quickcheck(x: u64, y: u64) -> bool {
+        let x0 = (x & LO32) as u32;
+        let x1 = (x >> 32) as u32;
+        let y0 = (y & LO32) as u32;
+        let y1 = (y >> 32) as u32;
+        let (lo, hi, overflowed) = overflowing_mul_u32(x0, x1, y0, y1);
         let expected = x.overflowing_mul(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
     }
 
-    fn mul_small_u32_quickcheck(x: u64, y: u32) -> bool {
+    fn overflowing_mul_small_u32_quickcheck(x: u64, y: u32) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = mul_small_u32(x0, x1, y);
+        let (lo, hi, overflowed) = overflowing_mul_small_u32(x0, x1, y);
         let expected = x.overflowing_mul(y as u64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual, overflowed)
@@ -160,70 +171,70 @@ quickcheck! {
         expected == actual
     }
 
-    fn add_i32_quickcheck(x: i64, y: i64) -> bool {
+    fn overflowing_add_i32_quickcheck(x: i64, y: i64) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = ((y as u64) & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi, overflowed) = add_i32(x0, x1 as i32, y0, y1 as i32);
+        let (lo, hi, overflowed) = overflowing_add_i32(x0, x1 as i32, y0, y1 as i32);
         let expected = x.overflowing_add(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn add_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
+    fn overflowing_add_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = add_usmall_i32(x0, x1 as i32, y);
+        let (lo, hi, overflowed) = overflowing_add_usmall_i32(x0, x1 as i32, y);
         let expected = x.overflowing_add(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn add_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
+    fn overflowing_add_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
-        let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = add_ismall_i32(x0, x1 as i32, y);
+        let x1 = ((x as u64) >> 32) as u32;
+        let (lo, hi, overflowed) = overflowing_add_ismall_i32(x0, x1 as i32, y);
         let expected = x.overflowing_add(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn sub_i32_quickcheck(x: i64, y: i64) -> bool {
+    fn overflowing_sub_i32_quickcheck(x: i64, y: i64) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = ((y as u64) & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi, overflowed) = sub_i32(x0, x1 as i32, y0, y1 as i32);
+        let (lo, hi, overflowed) = overflowing_sub_i32(x0, x1 as i32, y0, y1 as i32);
         let expected = x.overflowing_sub(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn sub_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
+    fn overflowing_sub_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = sub_usmall_i32(x0, x1 as i32, y);
+        let (lo, hi, overflowed) = overflowing_sub_usmall_i32(x0, x1 as i32, y);
         let expected = x.overflowing_sub(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn sub_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
+    fn overflowing_sub_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
-        let (lo, hi, overflowed) = sub_ismall_i32(x0, x1 as i32, y);
+        let (lo, hi, overflowed) = overflowing_sub_ismall_i32(x0, x1 as i32, y);
         let expected = x.overflowing_sub(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == (actual as i64, overflowed)
     }
 
-    fn mul_i32_quickcheck(x: i64, y: i64) -> bool {
+    fn wrapping_mul_i32_quickcheck(x: i64, y: i64) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = (x >> 32) as u32;
         let y0 = ((y as u64) & LO32) as u32;
         let y1 = (y >> 32) as u32;
-        let (lo, hi) = mul_i32(x0, x1 as i32, y0, y1 as i32);
+        let (lo, hi) = wrapping_mul_i32(x0, x1 as i32, y0, y1 as i32);
         let expected = x.wrapping_mul(y);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == actual as i64
@@ -240,16 +251,16 @@ quickcheck! {
         expected == (actual as i64, overflowed)
     }
 
-    fn mul_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
+    fn wrapping_mul_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi) = mul_usmall_i32(x0, x1, y);
+        let (lo, hi) = wrapping_mul_usmall_i32(x0, x1, y);
         let expected = x.wrapping_mul(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == actual as i64
     }
 
-        fn overflowing_mul_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
+    fn overflowing_mul_usmall_i32_quickcheck(x: i64, y: u32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = ((x as u64) >> 32) as i32;
         let (lo, hi, overflowed) = overflowing_mul_usmall_i32(x0, x1, y);
@@ -258,10 +269,10 @@ quickcheck! {
         expected == (actual as i64, overflowed)
     }
 
-    fn mul_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
+    fn wrapping_mul_ismall_i32_quickcheck(x: i64, y: i32) -> bool {
         let x0 = ((x as u64) & LO32) as u32;
         let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi) = mul_ismall_i32(x0, x1, y);
+        let (lo, hi) = wrapping_mul_ismall_i32(x0, x1, y);
         let expected = x.wrapping_mul(y as i64);
         let actual = lo as u64 + ((hi as u64) << 32);
         expected == actual as i64

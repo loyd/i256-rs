@@ -636,7 +636,7 @@ impl u256 {
     /// wrapping around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi, _) = math::add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         u256::new(lo, hi)
     }
 
@@ -651,7 +651,7 @@ impl u256 {
     /// wrapping around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi, _) = math::sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         u256::new(lo, hi)
     }
 
@@ -659,7 +659,7 @@ impl u256 {
     /// rhs`, wrapping around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
-        let (lo, hi, _) = math::mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         u256::new(lo, hi)
     }
 
@@ -803,7 +803,7 @@ impl u256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) = math::overflowing_add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -826,7 +826,7 @@ impl u256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) = math::overflowing_sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -847,7 +847,7 @@ impl u256 {
     /// overflow would have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) = math::overflowing_mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -863,8 +863,11 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
-        // TODO: Fix this
-        (self.wrapping_div(rhs), false)
+        if rhs == Self::from_u8(0) {
+            (Self::MAX, true)
+        } else {
+            (self.wrapping_div(rhs), false)
+        }
     }
 
     /// Calculates the quotient of Euclidean division `self.div_euclid(rhs)`.
@@ -897,8 +900,11 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
-        // TODO: Fix this
-        (self.wrapping_rem(rhs), false)
+        if rhs == Self::from_u8(0) {
+            (Self::from_u8(0), true)
+        } else {
+            (self.wrapping_rem(rhs), false)
+        }
     }
 
     /// Calculates the remainder `self.rem_euclid(rhs)` as if by Euclidean
@@ -992,7 +998,8 @@ impl u256 {
     pub fn div_ceil(self, rhs: Self) -> Self {
         let (d, r) = div_rem(self, rhs);
         if r.lo > 0 || r.hi > 0 {
-            let (lo, hi, _) = math::add_u128(d.lo, d.hi, 1, 0);
+            // NOTE: This can't overflow
+            let (lo, hi) = math::wrapping_add_u128(d.lo, d.hi, 1, 0);
             Self::new(lo, hi)
         } else {
             d
@@ -1358,7 +1365,7 @@ impl u256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn wrapping_add_small(self, n: u128) -> Self {
-        let (lo, hi, _) = math::add_small_u128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_add_small_u128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1366,7 +1373,7 @@ impl u256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn overflowing_add_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::add_small_u128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_add_small_u128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1400,7 +1407,7 @@ impl u256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn wrapping_sub_small(self, n: u128) -> Self {
-        let (lo, hi, _) = math::sub_small_u128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_sub_small_u128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1408,7 +1415,7 @@ impl u256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn overflowing_sub_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::sub_small_u128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_sub_small_u128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1444,7 +1451,7 @@ impl u256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn wrapping_mul_small(self, n: u128) -> Self {
-        let (lo, hi, _) = math::mul_small_u128(self.lo, self.hi, n);
+        let (lo, hi) = math::wrapping_mul_small_u128(self.lo, self.hi, n);
         Self::new(lo, hi)
     }
 
@@ -1453,7 +1460,7 @@ impl u256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn overflowing_mul_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::mul_small_u128(self.lo, self.hi, n);
+        let (lo, hi, overflowed) = math::overflowing_mul_small_u128(self.lo, self.hi, n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1463,6 +1470,52 @@ impl u256 {
     #[inline(always)]
     pub const fn checked_mul_small(self, n: u128) -> Option<Self> {
         let (value, overflowed) = self.overflowing_mul_small(n);
+        if overflowed {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn mul_half(self, n: u64) -> Self {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_mul_half(n)
+        } else {
+            match self.checked_mul_half(n) {
+                Some(v) => v,
+                None => panic!("attempt to multiply with overflow"),
+            }
+        }
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn wrapping_mul_half(self, n: u64) -> Self {
+        let (lo, hi) = math::wrapping_mul_half_u128(self.lo, self.hi, n);
+        Self::new(lo, hi)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn overflowing_mul_half(self, n: u64) -> (Self, bool) {
+        let (lo, hi, overflowed) = math::overflowing_mul_half_u128(self.lo, self.hi, n);
+        (Self::new(lo, hi), overflowed)
+    }
+
+    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    ///
+    /// This allows optimizations a full multiplication cannot do.
+    #[inline(always)]
+    pub const fn checked_mul_half(self, n: u64) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_mul_half(n);
         if overflowed {
             None
         } else {
@@ -2321,6 +2374,12 @@ mod tests {
         // NOTE: This is mostly covered elsewhere
         assert_eq!(u256::from_u8(1).wrapping_add(u256::from_u8(1)), u256::from_u8(2));
         assert_eq!(u256::MAX.wrapping_add(u256::MAX), u256::new(u128::MAX - 1, u128::MAX));
+
+        assert_eq!(
+            u256::from_u8(1).overflowing_add(u256::from_u8(1)).0,
+            u256::from_u8(1).wrapping_add(u256::from_u8(1))
+        );
+        assert_eq!(u256::MAX.overflowing_add(u256::MAX).0, u256::MAX.wrapping_add(u256::MAX));
     }
 
     #[test]
