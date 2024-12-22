@@ -25,6 +25,9 @@ use crate::ints::i256::lt as i256_lt;
 use crate::math::{self, ULimb, UWide};
 use crate::numtypes::*;
 
+// The number of limbs in the integer.
+const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
+
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
 
@@ -1107,14 +1110,34 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
-        self.to_be().to_ne_bytes()
+        // NOTE: the layout of `i128` is implementation-defined.
+        let lo = self.lo.to_be_bytes();
+        let hi = self.hi.to_be_bytes();
+        let mut bytes = [0; 32];
+        let mut i = 0;
+        while i < 16 {
+            bytes[i] = hi[i];
+            bytes[i + 16] = lo[i];
+            i += 1;
+        }
+        bytes
     }
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
-        self.to_le().to_ne_bytes()
+        // NOTE: the layout of `i128` is implementation-defined.
+        let lo = self.lo.to_le_bytes();
+        let hi = self.hi.to_le_bytes();
+        let mut bytes = [0; 32];
+        let mut i = 0;
+        while i != 16 {
+            bytes[i] = lo[i];
+            bytes[i + 16] = hi[i];
+            i += 1;
+        }
+        bytes
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1128,22 +1151,74 @@ impl u256 {
     /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
     pub const fn to_ne_bytes(self) -> [u8; 32] {
-        // SAFETY: integers are plain old datatypes so we can always transmute them to
-        // arrays of bytes
-        unsafe { mem::transmute(self) }
+        if cfg!(target_endian = "big") {
+            self.to_be_bytes()
+        } else {
+            self.to_le_bytes()
+        }
+    }
+
+    /// Returns the memory representation of this as a series of limbs in
+    /// big-endian (network) byte order.
+    #[inline(always)]
+    pub const fn to_be_limbs(self) -> [ULimb; LIMBS] {
+        // SAFETY: This is plain old data
+        unsafe { mem::transmute(self.to_be_bytes()) }
+    }
+
+    /// Returns the memory representation of this as a series of limbs in
+    /// little-endian byte order.
+    #[inline(always)]
+    pub const fn to_le_limbs(self) -> [ULimb; LIMBS] {
+        // SAFETY: This is plain old data
+        unsafe { mem::transmute(self.to_le_bytes()) }
+    }
+
+    /// Returns the memory representation of this as a series of limbs.
+    ///
+    /// As the target platform's native endianness is used, portable code
+    /// should use [`to_be_limbs`] or [`to_le_limbs`], as appropriate,
+    /// instead.
+    ///
+    /// [`to_be_limbs`]: Self::to_be_limbs
+    /// [`to_le_limbs`]: Self::to_le_limbs
+    #[inline(always)]
+    pub const fn to_ne_limbs(self) -> [ULimb; LIMBS] {
+        if cfg!(target_endian = "big") {
+            self.to_be_limbs()
+        } else {
+            self.to_le_limbs()
+        }
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_be(Self::from_ne_bytes(bytes))
+        let mut lo = [0; 16];
+        let mut hi = [0; 16];
+        let mut i = 0;
+        while i < 16 {
+            hi[i] = bytes[i];
+            lo[i] = bytes[i + 16];
+            i += 1;
+        }
+        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
+    #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_le(Self::from_ne_bytes(bytes))
+        let mut lo = [0; 16];
+        let mut hi = [0; 16];
+        let mut i = 0;
+        while i < 16 {
+            lo[i] = bytes[i];
+            hi[i] = bytes[i + 16];
+            i += 1;
+        }
+        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1157,8 +1232,44 @@ impl u256 {
     /// [`from_le_bytes`]: Self::from_le_bytes
     #[inline(always)]
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
-        // SAFETY: integers are plain old datatypes so we can always transmute to them
-        unsafe { mem::transmute(bytes) }
+        if cfg!(target_endian = "big") {
+            Self::from_be_bytes(bytes)
+        } else {
+            Self::from_le_bytes(bytes)
+        }
+    }
+
+    /// Creates a native endian integer value from its representation
+    /// as limbs in big endian.
+    #[inline(always)]
+    pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        // SAFETY: This is plain old data
+        Self::from_be_bytes(unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) })
+    }
+
+    /// Creates a native endian integer value from its representation
+    /// as limbs in little endian.
+    pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        // SAFETY: This is plain old data
+        Self::from_le_bytes(unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) })
+    }
+
+    /// Creates a native endian integer value from its memory representation
+    /// as limbs in native endianness.
+    ///
+    /// As the target platform's native endianness is used, portable code
+    /// likely wants to use [`from_be_limbs`] or [`from_le_limbs`], as
+    /// appropriate instead.
+    ///
+    /// [`from_be_limbs`]: Self::from_be_limbs
+    /// [`from_le_limbs`]: Self::from_le_limbs
+    #[inline(always)]
+    pub const fn from_ne_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        if cfg!(target_endian = "big") {
+            Self::from_be_limbs(limbs)
+        } else {
+            Self::from_le_limbs(limbs)
+        }
     }
 
     /// Converts a string slice in a given base to an integer.
@@ -1558,14 +1669,10 @@ impl u256 {
     /// This panics if the divisor is 0.
     #[inline(always)]
     pub fn wrapping_div_rem_small(self, n: UWide) -> (Self, UWide) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.to_le_bytes());
-            let (div, rem) = math::div_rem_small(&x, n);
-            let div = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div));
-            (div, rem)
-        }
+        let x = self.to_le_limbs();
+        let (div, rem) = math::div_rem_small(&x, n);
+        let div = u256::from_le_limbs(div);
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a small, 128-bit unsigned factor.
@@ -1685,14 +1792,10 @@ impl u256 {
     /// This panics if the divisor is 0.
     #[inline(always)]
     pub fn wrapping_div_rem_half(self, n: ULimb) -> (Self, ULimb) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.to_le_bytes());
-            let (div, rem) = math::div_rem_half(&x, n);
-            let div = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div));
-            (div, rem)
-        }
+        let x = self.to_le_limbs();
+        let (div, rem) = math::div_rem_half(&x, n);
+        let div = u256::from_le_limbs(div);
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
@@ -2859,18 +2962,14 @@ impl fmt::UpperHex for u256 {
 /// Large division/remainder calculation. This will panic if rhs is 0.
 #[inline]
 fn div_rem(lhs: u256, rhs: u256) -> (u256, u256) {
-    const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-    // SAFETY: Safe since these are plain old data.
-    unsafe {
-        let x: [ULimb; BYTES] = mem::transmute::<[u8; 32], [ULimb; BYTES]>(lhs.to_le_bytes());
-        let y: [ULimb; BYTES] = mem::transmute::<[u8; 32], [ULimb; BYTES]>(rhs.to_le_bytes());
+    let x = lhs.to_le_limbs();
+    let y = rhs.to_le_limbs();
 
-        let (div, rem) = math::div_rem_full(&x, &y);
-        let div = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div));
-        let rem = u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(rem));
+    let (div, rem) = math::div_rem_full(&x, &y);
+    let div = u256::from_le_limbs(div);
+    let rem = u256::from_le_limbs(rem);
 
-        (div, rem)
-    }
+    (div, rem)
 }
 
 /// Const implementation of `BitAnd` for internal algorithm use.
