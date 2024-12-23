@@ -20,15 +20,18 @@
 //! likely based on the core implementations.
 
 use core::cmp::Ordering;
+use core::fmt;
 use core::ops::*;
 use core::str::FromStr;
-use core::{fmt, mem};
 
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::ints::u256::lt as u256_lt;
 use crate::math::{self, ILimb, IWide, ULimb, UWide};
 use crate::numtypes::*;
 use crate::u256;
+
+// The number of limbs in the integer.
+const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
@@ -1292,14 +1295,41 @@ impl i256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
-        self.to_be().to_ne_bytes()
+        self.as_u256().to_be_bytes()
     }
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
-        self.to_le().to_ne_bytes()
+        self.as_u256().to_le_bytes()
+    }
+
+    /// Returns the memory representation of this as a series of limbs in
+    /// big-endian (network) byte order.
+    #[inline(always)]
+    pub const fn to_be_limbs(self) -> [ULimb; LIMBS] {
+        self.as_u256().to_be_limbs()
+    }
+
+    /// Returns the memory representation of this as a series of limbs in
+    /// little-endian byte order.
+    #[inline(always)]
+    pub const fn to_le_limbs(self) -> [ULimb; LIMBS] {
+        self.as_u256().to_le_limbs()
+    }
+
+    /// Returns the memory representation of this as a series of limbs.
+    ///
+    /// As the target platform's native endianness is used, portable code
+    /// should use [`to_be_limbs`] or [`to_le_limbs`], as appropriate,
+    /// instead.
+    ///
+    /// [`to_be_limbs`]: Self::to_be_limbs
+    /// [`to_le_limbs`]: Self::to_le_limbs
+    #[inline(always)]
+    pub const fn to_ne_limbs(self) -> [ULimb; LIMBS] {
+        self.as_u256().to_ne_limbs()
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1313,22 +1343,20 @@ impl i256 {
     /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
     pub const fn to_ne_bytes(self) -> [u8; 32] {
-        // SAFETY: integers are plain old datatypes so we can always transmute them to
-        // arrays of bytes
-        unsafe { mem::transmute(self) }
+        self.as_u256().to_ne_bytes()
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_be(Self::from_ne_bytes(bytes))
+        u256::from_be_bytes(bytes).as_i256()
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_le(Self::from_ne_bytes(bytes))
+        u256::from_le_bytes(bytes).as_i256()
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1342,8 +1370,34 @@ impl i256 {
     /// [`from_le_bytes`]: Self::from_le_bytes
     #[inline(always)]
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
-        // SAFETY: integers are plain old datatypes so we can always transmute to them
-        unsafe { mem::transmute(bytes) }
+        u256::from_ne_bytes(bytes).as_i256()
+    }
+
+    /// Creates a native endian integer value from its representation
+    /// as limbs in big endian.
+    #[inline(always)]
+    pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        u256::from_be_limbs(limbs).as_i256()
+    }
+
+    /// Creates a native endian integer value from its representation
+    /// as limbs in little endian.
+    pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        u256::from_le_limbs(limbs).as_i256()
+    }
+
+    /// Creates a native endian integer value from its memory representation
+    /// as limbs in native endianness.
+    ///
+    /// As the target platform's native endianness is used, portable code
+    /// likely wants to use [`from_be_limbs`] or [`from_le_limbs`], as
+    /// appropriate instead.
+    ///
+    /// [`from_be_limbs`]: Self::from_be_limbs
+    /// [`from_le_limbs`]: Self::from_le_limbs
+    #[inline(always)]
+    pub const fn from_ne_limbs(limbs: [ULimb; LIMBS]) -> Self {
+        u256::from_ne_limbs(limbs).as_i256()
     }
 
     /// Converts a string slice in a given base to an integer.
@@ -1937,16 +1991,11 @@ impl i256 {
     /// wraps, which can never happen in practice.
     #[inline(always)]
     pub fn wrapping_div_rem_usmall(self, n: UWide) -> (Self, UWide) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
-            let (div, rem) = math::div_rem_small(&x, n);
-            let div =
-                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
-            // rem is always positive: `-65 % 64` is 63
-            (div, rem)
-        }
+        let x = self.wrapping_abs().as_u256().to_le_limbs();
+        let (div, rem) = math::div_rem_small(&x, n);
+        let div = u256::from_le_limbs(div).as_i256();
+        // rem is always positive: `-65 % 64` is 63
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
@@ -1991,25 +2040,20 @@ impl i256 {
     /// wraps, which can never happen in practice.
     #[inline(always)]
     pub fn wrapping_div_rem_ismall(self, n: IWide) -> (Self, IWide) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
-            let (div, rem) = math::div_rem_small(&x, n.wrapping_abs() as UWide);
-            let mut div =
-                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
-            let mut rem = rem as IWide;
+        let x = self.wrapping_abs().as_u256().to_le_limbs();
+        let (div, rem) = math::div_rem_small(&x, n.wrapping_abs() as UWide);
+        let mut div = u256::from_le_limbs(div).as_i256();
+        let mut rem = rem as IWide;
 
-            // convert to our correct signs, get the product
-            if self.is_negative() != n.is_negative() {
-                div = div.wrapping_neg();
-            }
-            if self.is_negative() {
-                rem = rem.wrapping_neg();
-            }
-
-            (div, rem)
+        // convert to our correct signs, get the product
+        if self.is_negative() != n.is_negative() {
+            div = div.wrapping_neg();
         }
+        if self.is_negative() {
+            rem = rem.wrapping_neg();
+        }
+
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
@@ -2183,16 +2227,11 @@ impl i256 {
     /// wraps, which can never happen in practice.
     #[inline(always)]
     pub fn wrapping_div_rem_uhalf(self, n: ULimb) -> (Self, ULimb) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
-            let (div, rem) = math::div_rem_half(&x, n);
-            let div =
-                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
-            // rem is always positive: `-65 % 64` is 63
-            (div, rem)
-        }
+        let x = self.wrapping_abs().as_u256().to_le_limbs();
+        let (div, rem) = math::div_rem_half(&x, n);
+        let div = u256::from_le_limbs(div).as_i256();
+        // rem is always positive: `-65 % 64` is 63
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
@@ -2237,25 +2276,20 @@ impl i256 {
     /// wraps, which can never happen in practice.
     #[inline(always)]
     pub fn wrapping_div_rem_ihalf(self, n: ILimb) -> (Self, ILimb) {
-        const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-        // SAFETY: Safe since these are plain old data.
-        unsafe {
-            let x: [ULimb; BYTES] = mem::transmute(self.wrapping_abs().as_u256().to_le_bytes());
-            let (div, rem) = math::div_rem_half(&x, n.wrapping_abs() as ULimb);
-            let mut div =
-                u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
-            let mut rem = rem as ILimb;
+        let x = self.wrapping_abs().as_u256().to_le_limbs();
+        let (div, rem) = math::div_rem_half(&x, n.wrapping_abs() as ULimb);
+        let mut div = u256::from_le_limbs(div).as_i256();
+        let mut rem = rem as ILimb;
 
-            // convert to our correct signs, get the product
-            if self.is_negative() != n.is_negative() {
-                div = div.wrapping_neg();
-            }
-            if self.is_negative() {
-                rem = rem.wrapping_neg();
-            }
-
-            (div, rem)
+        // convert to our correct signs, get the product
+        if self.is_negative() != n.is_negative() {
+            div = div.wrapping_neg();
         }
+        if self.is_negative() {
+            rem = rem.wrapping_neg();
+        }
+
+        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
@@ -3467,31 +3501,25 @@ impl fmt::UpperHex for i256 {
 /// `rhs == -1 && lhs == i256::MIN`.
 #[inline]
 fn div_rem(lhs: i256, rhs: i256) -> (i256, i256) {
-    const BYTES: usize = (u256::BITS / ULimb::BITS) as usize;
-    // SAFETY: Safe since these are plain old data.
-    unsafe {
-        // Do division as positive numbers, and if `lhs.is_sign_negative() ^
-        // rhs.is_sign_negative()`, then we can inver the sign
-        let x: [ULimb; BYTES] = mem::transmute(lhs.wrapping_abs().as_u256().to_le_bytes());
-        let y: [ULimb; BYTES] = mem::transmute(rhs.wrapping_abs().as_u256().to_le_bytes());
+    // Do division as positive numbers, and if `lhs.is_sign_negative() ^
+    // rhs.is_sign_negative()`, then we can inver the sign
+    let x = lhs.wrapping_abs().as_u256().to_le_limbs();
+    let y = rhs.wrapping_abs().as_u256().to_le_limbs();
 
-        // get our unsigned division product
-        let (div, rem) = math::div_rem_full(&x, &y);
-        let mut div =
-            u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(div)).as_i256();
-        let mut rem =
-            u256::from_le_bytes(mem::transmute::<[ULimb; BYTES], [u8; 32]>(rem)).as_i256();
+    // get our unsigned division product
+    let (div, rem) = math::div_rem_full(&x, &y);
+    let mut div = u256::from_le_limbs(div).as_i256();
+    let mut rem = u256::from_le_limbs(rem).as_i256();
 
-        // convert to our correct signs, get the product
-        if lhs.is_negative() != rhs.is_negative() {
-            div = div.wrapping_neg();
-        }
-        if lhs.is_negative() {
-            rem = rem.wrapping_neg();
-        }
-
-        (div, rem)
+    // convert to our correct signs, get the product
+    if lhs.is_negative() != rhs.is_negative() {
+        div = div.wrapping_neg();
     }
+    if lhs.is_negative() {
+        rem = rem.wrapping_neg();
+    }
+
+    (div, rem)
 }
 
 /// Const implementation of `Neg` for internal algorithm use.
