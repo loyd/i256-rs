@@ -43,23 +43,15 @@ pub fn div_rem_full<const M: usize, const N: usize>(
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
     if is_zero(numerator, 0) {
-        return (scalar(0), scalar(0));
+        return (scalar1(0), scalar1(0));
     } else if N == 1 {
-        return div_rem_small_padded(numerator, divisor[0]);
+        return div_rem_half_padded(numerator, divisor[0]);
     }
 
     match cmp(numerator, divisor) {
         Ordering::Less => ([0; M], truncate(*numerator)),
-        Ordering::Equal => (scalar(1), scalar(0)),
-        Ordering::Greater => {
-            let n = last_index(divisor);
-            if n == 0 {
-                div_rem_small_padded(numerator, divisor[0])
-            } else {
-                let m = last_index(numerator) - n;
-                div_rem_knuth(numerator, divisor, n + 1, m)
-            }
-        },
+        Ordering::Equal => (scalar1(1), scalar1(0)),
+        Ordering::Greater => div_rem_full_gt(numerator, divisor),
     }
 }
 
@@ -74,10 +66,27 @@ pub fn div_rem_small<const M: usize>(
     numerator: &[ULimb; M],
     divisor: UWide,
 ) -> ([ULimb; M], UWide) {
+    if M >= 2 && is_zero(numerator, 2) {
+        // Can do as a scalar operation, simple.
+        if numerator[0] == 0 && numerator[1] == 0 {
+            return (scalar1(0), 0);
+        } else {
+            let lo = numerator[0] as UWide;
+            let hi = (numerator[1] as UWide) << ULimb::BITS;
+            let numerator = lo | hi;
+            let (quo, rem) = (numerator / divisor, numerator % divisor);
+            return (scalar2(quo), rem);
+        }
+    }
+
     let lo = divisor as ULimb;
     let hi = (divisor >> ULimb::BITS) as ULimb;
     let divisor = [lo, hi];
-    let (quo, rem) = div_rem_full(numerator, &divisor);
+    let (quo, rem) = match cmp(numerator, &divisor) {
+        Ordering::Less => ([0; M], truncate(*numerator)),
+        Ordering::Equal => (scalar1(1), scalar1(0)),
+        Ordering::Greater => div_rem_full_gt(numerator, &divisor),
+    };
     let rem = (rem[0] as UWide) | ((rem[1] as UWide) << ULimb::BITS);
 
     (quo, rem)
@@ -86,6 +95,16 @@ pub fn div_rem_small<const M: usize>(
 /// Division of numerator by a u64 divisor
 #[inline]
 pub fn div_rem_half<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
+    // quick path optinmization for small values
+    if M >= 2 && is_zero(numerator, 2) {
+        let lo = numerator[0] as UWide;
+        let hi = (numerator[1] as UWide) << ULimb::BITS;
+        let numerator = lo | hi;
+        let divisor = divisor as UWide;
+        let (quo, rem) = (numerator / divisor, numerator % divisor);
+        return (scalar2(quo), rem as ULimb);
+    }
+
     let mut numerator = *numerator;
     let mut r = 0;
     let mut i = M;
@@ -98,6 +117,22 @@ pub fn div_rem_half<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> (
     }
 
     (numerator, r)
+}
+
+/// Internal variant that assumes our numerator >= divisor,
+/// and therefore removes all validation checks.
+#[inline]
+fn div_rem_full_gt<const M: usize, const N: usize>(
+    numerator: &[ULimb; M],
+    divisor: &[ULimb; N],
+) -> ([ULimb; M], [ULimb; N]) {
+    let n = last_index(divisor);
+    if n == 0 {
+        div_rem_half_padded(numerator, divisor[0])
+    } else {
+        let m = last_index(numerator) - n;
+        div_rem_knuth(numerator, divisor, n + 1, m)
+    }
 }
 
 /// Efficiently, const comparison of M to N sized arrays.
@@ -157,23 +192,33 @@ const fn last_index<const N: usize>(x: &[ULimb; N]) -> usize {
     0
 }
 
-/// Construct a single value from a scalar.
+/// Construct an array from a limb.
 #[inline(always)]
-pub const fn scalar<const N: usize>(value: ULimb) -> [ULimb; N] {
+pub const fn scalar1<const N: usize>(value: ULimb) -> [ULimb; N] {
     assert!(N > 0);
     let mut r = [0; N];
     r[0] = value;
     r
 }
 
+/// Construct an array from a wide limb.
+#[inline(always)]
+pub const fn scalar2<const N: usize>(value: UWide) -> [ULimb; N] {
+    assert!(N > 0);
+    let mut r = [0; N];
+    r[0] = value as ULimb;
+    r[1] = (value >> ULimb::BITS) as ULimb;
+    r
+}
+
 /// Division of numerator by a u64 divisor
 #[inline]
-pub fn div_rem_small_padded<const M: usize, const N: usize>(
+pub fn div_rem_half_padded<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: ULimb,
 ) -> ([ULimb; M], [ULimb; N]) {
     let (numerator, rem) = div_rem_half(numerator, divisor);
-    (numerator, scalar(rem))
+    (numerator, scalar1(rem))
 }
 
 /// Use Knuth Algorithm D to compute `numerator / divisor` returning the
