@@ -546,7 +546,7 @@ impl u256 {
 
     /// Saturating addition with a signed integer. Computes `self + rhs`,
     /// saturating at the numeric bounds instead of overflowing.
-    #[inline(always)]
+    #[inline]
     pub const fn saturating_add_signed(self, rhs: i256) -> Self {
         let is_negative = rhs.hi < 0;
         let (r, overflowed) = self.overflowing_add(Self::from_i256(rhs));
@@ -963,7 +963,7 @@ impl u256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
-    #[inline(always)]
+    #[inline]
     pub fn div_ceil(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
         if r.lo > 0 || r.hi > 0 {
@@ -1609,7 +1609,7 @@ impl u256 {
     /// # Panics
     ///
     /// This panics if the divisor is 0.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
         // NOTE: Our algorithm assumes little-endian order, which we might not have.
         // So, we transmute to LE order prior to the call.
@@ -2429,7 +2429,7 @@ impl Add for u256 {
 op_impl!(u256, Add, AddAssign, add, add_assign);
 
 impl fmt::Binary for u256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for binary, since the value as always divisible.
         if f.alternate() {
@@ -2482,7 +2482,7 @@ impl fmt::Debug for u256 {
 }
 
 impl fmt::Display for u256 {
-    #[inline(always)]
+    #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
@@ -2537,7 +2537,7 @@ impl FromStr for u256 {
     ///
     /// This is not optimized, since all optimization is done in
     /// the lexical implementation.
-    #[inline(always)]
+    #[inline]
     fn from_str(src: &str) -> Result<u256, ParseIntError> {
         // up to 39 digits can be stored in a `u128`, so less is always valid
         // meanwhile, 78 is good for all 256-bit integers. 32-bit architectures
@@ -2555,7 +2555,7 @@ impl FromStr for u256 {
 }
 
 impl fmt::LowerExp for u256 {
-    #[inline(always)]
+    #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
@@ -2571,7 +2571,7 @@ impl fmt::LowerExp for u256 {
 }
 
 impl fmt::LowerHex for u256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for hex, since the value as always divisible.
         if f.alternate() {
@@ -2610,7 +2610,7 @@ impl Not for u256 {
 ref_impl!(u256, Not, not);
 
 impl fmt::Octal for u256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This is **NOT** divisible by 8, so `log(128, 8)` is not integral.
         // So, we can break it into pairs of u64.
@@ -2988,7 +2988,7 @@ impl TryFrom<i256> for u256 {
 }
 
 impl fmt::UpperExp for u256 {
-    #[inline(always)]
+    #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.hi == 0 {
@@ -3004,7 +3004,7 @@ impl fmt::UpperExp for u256 {
 }
 
 impl fmt::UpperHex for u256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for hex, since the value as always divisible.
         if f.alternate() {
