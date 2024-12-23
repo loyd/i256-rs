@@ -41,7 +41,7 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 /// The high and low words depend on the target endianness.
 /// Conversion to and from big endian should be done via
 /// [`to_le_bytes`] and [`to_be_bytes`]. or using
-/// [`get_high`] and [`get_low`].
+/// [`high`] and [`low`].
 ///
 /// Our formatting specifications are limited: we ignore a
 /// lot of settings, and only respect [`alternate`] among the
@@ -55,8 +55,8 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 ///
 /// [`to_le_bytes`]: i256::to_le_bytes
 /// [`to_be_bytes`]: i256::to_be_bytes
-/// [`get_high`]: i256::get_high
-/// [`get_low`]: i256::get_low
+/// [`high`]: i256::high
+/// [`low`]: i256::low
 /// [`alternate`]: fmt::Formatter::alternate
 /// [`Binary`]: fmt::Binary
 /// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
@@ -88,7 +88,7 @@ impl i256 {
     /// Returns the number of ones in the binary representation of `self`.
     #[inline(always)]
     pub const fn count_ones(self) -> u32 {
-        self.get_high().count_ones() + self.get_low().count_ones()
+        self.high().count_ones() + self.low().count_ones()
     }
 
     /// Returns the number of zeros in the binary representation of `self`.
@@ -119,9 +119,9 @@ impl i256 {
     /// ```
     #[inline]
     pub const fn leading_zeros(self) -> u32 {
-        let mut leading = (self.get_high() as u128).leading_zeros();
+        let mut leading = (self.high() as u128).leading_zeros();
         if leading == u128::BITS {
-            leading += self.get_low().leading_zeros();
+            leading += self.low().leading_zeros();
         }
         leading
     }
@@ -130,9 +130,9 @@ impl i256 {
     /// `self`.
     #[inline]
     pub const fn trailing_zeros(self) -> u32 {
-        let mut trailing = self.get_high().trailing_zeros();
+        let mut trailing = self.high().trailing_zeros();
         if trailing == u128::BITS {
-            trailing += self.get_low().trailing_zeros();
+            trailing += self.low().trailing_zeros();
         }
         trailing
     }
@@ -157,7 +157,7 @@ impl i256 {
     /// Please note this isn't the same operation as the `<<` shifting operator!
     #[inline(always)]
     pub const fn rotate_left(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_left_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::rotate_left_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -168,14 +168,14 @@ impl i256 {
     /// Please note this isn't the same operation as the `>>` shifting operator!
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_right_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::rotate_right_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
     /// Reverses the byte order of the integer.
     #[inline(always)]
     pub const fn swap_bytes(self) -> Self {
-        let (lo, hi) = math::swap_bytes_i128(self.get_low(), self.get_high());
+        let (lo, hi) = math::swap_bytes_i128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -184,7 +184,7 @@ impl i256 {
     /// becomes second most-significant bit, etc.
     #[inline(always)]
     pub const fn reverse_bits(self) -> Self {
-        let (lo, hi) = math::reverse_bits_i128(self.get_low(), self.get_high());
+        let (lo, hi) = math::reverse_bits_i128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -522,7 +522,7 @@ impl i256 {
     /// the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_add_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi) = math::wrapping_add_i128(self.low(), self.high(), rhs.low(), rhs.high());
         i256::new(lo, hi)
     }
 
@@ -530,7 +530,7 @@ impl i256 {
     /// at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_sub_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi) = math::wrapping_sub_i128(self.low(), self.high(), rhs.low(), rhs.high());
         i256::new(lo, hi)
     }
 
@@ -545,7 +545,7 @@ impl i256 {
     /// around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_mul_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi) = math::wrapping_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
         i256::new(lo, hi)
     }
 
@@ -657,7 +657,7 @@ impl i256 {
     /// want instead.
     #[inline(always)]
     pub const fn wrapping_shl(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shl_i128(self.get_low(), self.get_high(), rhs % 256);
+        let (lo, hi) = math::shl_i128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
     }
 
@@ -673,7 +673,7 @@ impl i256 {
     /// want instead.
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shr_i128(self.get_low(), self.get_high(), rhs % 256);
+        let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
     }
 
@@ -715,7 +715,7 @@ impl i256 {
     /// occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi, overflowed) = math::overflowing_add_i128(self.low(), self.high(), rhs.low(), rhs.high());
         (Self::new(lo, hi), overflowed)
     }
 
@@ -738,7 +738,7 @@ impl i256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi, overflowed) = math::overflowing_sub_i128(self.low(), self.high(), rhs.low(), rhs.high());
         (Self::new(lo, hi), overflowed)
     }
 
@@ -761,7 +761,7 @@ impl i256 {
     /// overflow would have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_i128(self.get_low(), self.get_high(), rhs.get_low(), rhs.get_high());
+        let (lo, hi, overflowed) = math::overflowing_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
         (i256::new(lo, hi), overflowed)
     }
 
@@ -1243,7 +1243,7 @@ impl i256 {
     #[inline(always)]
     pub const fn is_positive(self) -> bool {
         // NOTE: Because this is 2's complement, we can optimize like this.
-        self.get_high() > 0 || (self.get_high() == 0 && self.get_low() > 0)
+        self.high() > 0 || (self.high() == 0 && self.low() > 0)
     }
 
     /// Returns `true` if `self` is negative and `false` if the number is zero
@@ -1251,7 +1251,7 @@ impl i256 {
     #[inline(always)]
     pub const fn is_negative(self) -> bool {
         // NOTE: Because this is 2's complement, we can optimize like this.
-        self.get_high() < 0
+        self.high() < 0
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1443,13 +1443,13 @@ impl i256 {
 
     /// Get the high 128 bits of the signed integer.
     #[inline(always)]
-    pub const fn get_high(self) -> i128 {
+    pub const fn high(self) -> i128 {
         self.hi
     }
 
     /// Get the low 128 bits of the signed integer.
     #[inline(always)]
-    pub const fn get_low(self) -> u128 {
+    pub const fn low(self) -> u128 {
         self.lo
     }
 
@@ -1548,13 +1548,13 @@ impl i256 {
     /// Convert the 256-bit signed integer to an `u128`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u128(&self) -> u128 {
-        math::as_unarrow_i128(self.get_low(), self.get_high())
+        math::as_unarrow_i128(self.low(), self.high())
     }
 
     /// Convert the 256-bit signed integer to an `u256`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u256(&self) -> u256 {
-        let (lo, hi) = math::wide_cast_i128(self.get_low(), self.get_high());
+        let (lo, hi) = math::wide_cast_i128(self.low(), self.high());
         u256::new(lo, hi)
     }
 
@@ -1585,7 +1585,7 @@ impl i256 {
     /// Convert the 256-bit signed integer to an `i128`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_i128(&self) -> i128 {
-        math::as_inarrow_i128(self.get_low(), self.get_high())
+        math::as_inarrow_i128(self.low(), self.high())
     }
 
     /// Convert the 256-bit signed integer to an `i256`, as if by an `as` cast.
@@ -1611,7 +1611,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub fn wrapping_add_usmall(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_add_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_add_usmall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1620,7 +1620,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn overflowing_add_usmall(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_add_usmall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1654,7 +1654,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub fn wrapping_add_ismall(self, n: i128) -> Self {
-        let (lo, hi) = math::wrapping_add_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_add_ismall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1663,7 +1663,7 @@ impl i256 {
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
     pub const fn overflowing_add_ismall(self, n: i128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_add_ismall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1697,7 +1697,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub fn wrapping_sub_usmall(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_sub_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_sub_usmall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1706,7 +1706,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn overflowing_sub_usmall(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_sub_usmall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1740,7 +1740,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub fn wrapping_sub_ismall(self, n: i128) -> Self {
-        let (lo, hi) = math::wrapping_sub_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_sub_ismall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1749,7 +1749,7 @@ impl i256 {
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
     pub const fn overflowing_sub_ismall(self, n: i128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_sub_ismall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1783,7 +1783,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_usmall(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_mul_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_mul_usmall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1792,7 +1792,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn overflowing_mul_usmall(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_usmall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_mul_usmall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1826,7 +1826,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_ismall(self, n: i128) -> Self {
-        let (lo, hi) = math::wrapping_mul_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_mul_ismall_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1835,7 +1835,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn overflowing_mul_ismall(self, n: i128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_ismall_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_mul_ismall_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1869,7 +1869,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_uhalf(self, n: u64) -> Self {
-        let (lo, hi) = math::wrapping_mul_uhalf_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_mul_uhalf_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1878,7 +1878,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn overflowing_mul_uhalf(self, n: u64) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_uhalf_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_mul_uhalf_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -1912,7 +1912,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub fn wrapping_mul_ihalf(self, n: i64) -> Self {
-        let (lo, hi) = math::wrapping_mul_ihalf_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi) = math::wrapping_mul_ihalf_i128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -1921,7 +1921,7 @@ impl i256 {
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
     pub const fn overflowing_mul_ihalf(self, n: i64) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_ihalf_i128(self.get_low(), self.get_high(), n);
+        let (lo, hi, overflowed) = math::overflowing_mul_ihalf_i128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
@@ -2916,7 +2916,7 @@ impl i256 {
         // Use the well known branchless algorithm from Hacker's Delight to compute
         // `(a + b) / 2` without overflowing: `((a ^ b) >> 1) + (a & b)`.
         let xor = bitxor(self, rhs);
-        let (lo, hi) = math::shr_i128(xor.get_low(), xor.get_high(), 1);
+        let (lo, hi) = math::shr_i128(xor.low(), xor.high(), 1);
         let t = Self::new(lo, hi).wrapping_add(bitand(self, rhs));
         // Except that it fails for integers whose sum is an odd negative number as
         // their floor is one less than their average. So we adjust the result.
@@ -3345,12 +3345,12 @@ op_impl!(i256, Rem, RemAssign, rem, rem_assign);
 
 macro_rules! shift_const_impl {
     (@shl $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shl_i128($value.get_low(), $value.get_high(), $shift as u32);
+        let (lo, hi) = math::shl_i128($value.low(), $value.high(), $shift as u32);
         Self::new(lo, hi)
     }};
 
     (@shr $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shr_i128($value.get_low(), $value.get_high(), $shift as u32);
+        let (lo, hi) = math::shr_i128($value.low(), $value.high(), $shift as u32);
         Self::new(lo, hi)
     }};
 
@@ -3399,7 +3399,7 @@ macro_rules! shift_const_impl {
             let max = u256::from_u16(256);
             let other = other.as_u256();
             debug_assert!(u256_lt(other, max), "attempt to shift left with overflow");
-            let shift = (other.get_low() & (u32::MAX as u128)) as u32;
+            let shift = (other.low() & (u32::MAX as u128)) as u32;
             shift_const_impl!(@shl self, shift)
         }
 
@@ -3410,7 +3410,7 @@ macro_rules! shift_const_impl {
             let max = u256::from_u16(256);
             let other = other.as_u256();
             debug_assert!(u256_lt(other, max), "attempt to shift left with overflow");
-            let shift = (other.get_low() & (u32::MAX as u128)) as u32;
+            let shift = (other.low() & (u32::MAX as u128)) as u32;
             shift_const_impl!(@shr self, shift)
         }
     );
@@ -3440,7 +3440,7 @@ impl Shl for i256 {
     #[inline(always)]
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn shl(self, other: Self) -> Self::Output {
-        let shift = other.get_low() & (u32::MAX as u128);
+        let shift = other.low() & (u32::MAX as u128);
         shift_const_impl!(@shl self, shift)
     }
 }
@@ -3454,7 +3454,7 @@ impl Shr for i256 {
     #[inline(always)]
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn shr(self, other: Self) -> Self::Output {
-        let shift = other.get_low() & (u32::MAX as u128);
+        let shift = other.low() & (u32::MAX as u128);
         shift_const_impl!(@shr self, shift)
     }
 }
@@ -3639,7 +3639,7 @@ impl fmt::UpperHex for i256 {
 #[inline(always)]
 const fn neg(x: i256) -> i256 {
     // NOTE: This is identical to `add(not(x), 1i256)`
-    let (lo, hi) = math::neg_i128(x.get_low(), x.get_high());
+    let (lo, hi) = math::neg_i128(x.low(), x.high());
     let actual = i256::new(lo, hi);
     let expected = i256::from_u8(0).wrapping_sub(x);
     debug_assert!(eq(actual, expected));
@@ -3649,69 +3649,69 @@ const fn neg(x: i256) -> i256 {
 /// Const implementation of `BitAnd` for internal algorithm use.
 #[inline(always)]
 const fn bitand(lhs: i256, rhs: i256) -> i256 {
-    i256::new(lhs.get_low() & rhs.get_low(), lhs.get_high() & rhs.get_high())
+    i256::new(lhs.low() & rhs.low(), lhs.high() & rhs.high())
 }
 
 /// Const implementation of `BitOr` for internal algorithm use.
 #[inline(always)]
 const fn bitor(lhs: i256, rhs: i256) -> i256 {
-    i256::new(lhs.get_low() | rhs.get_low(), lhs.get_high() | rhs.get_high())
+    i256::new(lhs.low() | rhs.low(), lhs.high() | rhs.high())
 }
 
 /// Const implementation of `BitXor` for internal algorithm use.
 #[inline(always)]
 const fn bitxor(lhs: i256, rhs: i256) -> i256 {
-    i256::new(lhs.get_low() ^ rhs.get_low(), lhs.get_high() ^ rhs.get_high())
+    i256::new(lhs.low() ^ rhs.low(), lhs.high() ^ rhs.high())
 }
 
 /// Const implementation of `Not` for internal algorithm use.
 #[inline(always)]
 const fn not(n: i256) -> i256 {
-    let (lo, hi) = math::not_i128(n.get_low(), n.get_high());
+    let (lo, hi) = math::not_i128(n.low(), n.high());
     i256::new(lo, hi)
 }
 
 /// Const implementation of `Eq` for internal algorithm use.
 #[inline(always)]
 const fn eq(lhs: i256, rhs: i256) -> bool {
-    lhs.get_low() == rhs.get_low() && lhs.get_high() == rhs.get_high()
+    lhs.low() == rhs.low() && lhs.high() == rhs.high()
 }
 
 // NOTE: Because of two's complement, these comparisons are always normal.
 /// Const implementation of `PartialOrd::lt` for internal algorithm use.
 #[inline(always)]
 pub(crate) const fn lt(lhs: i256, rhs: i256) -> bool {
-    lhs.get_high() < rhs.get_high() || (lhs.get_high() == rhs.get_high() && lhs.get_low() < rhs.get_low())
+    lhs.high() < rhs.high() || (lhs.high() == rhs.high() && lhs.low() < rhs.low())
 }
 
 /// Const implementation of `PartialOrd::le` for internal algorithm use.
 #[inline(always)]
 const fn le(lhs: i256, rhs: i256) -> bool {
-    lhs.get_high() < rhs.get_high() || (lhs.get_high() == rhs.get_high() && lhs.get_low() <= rhs.get_low())
+    lhs.high() < rhs.high() || (lhs.high() == rhs.high() && lhs.low() <= rhs.low())
 }
 
 /// Const implementation of `PartialOrd::gt` for internal algorithm use.
 #[inline(always)]
 const fn gt(lhs: i256, rhs: i256) -> bool {
-    lhs.get_high() > rhs.get_high() || (lhs.get_high() == rhs.get_high() && lhs.get_low() > rhs.get_low())
+    lhs.high() > rhs.high() || (lhs.high() == rhs.high() && lhs.low() > rhs.low())
 }
 
 /// Const implementation of `PartialOrd::ge` for internal algorithm use.
 #[inline(always)]
 const fn ge(lhs: i256, rhs: i256) -> bool {
-    lhs.get_high() > rhs.get_high() || (lhs.get_high() == rhs.get_high() && lhs.get_low() >= rhs.get_low())
+    lhs.high() > rhs.high() || (lhs.high() == rhs.high() && lhs.low() >= rhs.low())
 }
 
 /// Const implementation of `PartialOrd::cmp` for internal algorithm use.
 #[inline(always)]
 const fn cmp(lhs: i256, rhs: i256) -> Ordering {
-    if lhs.get_high() < rhs.get_high() {
+    if lhs.high() < rhs.high() {
         Ordering::Less
-    } else if lhs.get_high() > rhs.get_high() {
+    } else if lhs.high() > rhs.high() {
         Ordering::Greater
-    } else if lhs.get_low() < rhs.get_low() {
+    } else if lhs.low() < rhs.low() {
         Ordering::Less
-    } else if lhs.get_low() > rhs.get_low() {
+    } else if lhs.low() > rhs.low() {
         Ordering::Greater
     } else {
         Ordering::Equal
