@@ -399,7 +399,9 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
 
     // LLVM fails to use the div instruction as it is not able to prove
     // that hi < divisor, and therefore the result will fit into 64-bits
-    // SAFETY: Safe since we've validated the parameters.
+    // SAFETY: Safe since we've validated the parameters. This is
+    // never UB, since providing a 0 divisor is valid and just leads
+    // to a division [`error`](https://www.felixcloutier.com/x86/div).
     #[cfg(target_arch = "x86_64")]
     unsafe {
         let mut quot = lo;

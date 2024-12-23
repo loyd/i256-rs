@@ -212,9 +212,9 @@ macro_rules! native_op {
 }
 
 pub fn bnum_from_u128(x: u128, y: u128) -> U256 {
-    let buf = [x.to_le(), y.to_le()];
+    let buf = [x.to_le_bytes(), y.to_le_bytes()];
     // SAFETY: plain old data
-    let slc = unsafe { mem::transmute::<[u128; 2], [u8; 32]>(buf) };
+    let slc = unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>(buf) };
     U256::from_le_slice(&slc).unwrap()
 }
 

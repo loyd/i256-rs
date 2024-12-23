@@ -1078,8 +1078,7 @@ impl u256 {
         // NOTE: the layout of `i128` is implementation-defined.
         let lo = self.lo.to_be_bytes();
         let hi = self.hi.to_be_bytes();
-        // SAFETY: plain old data
-        unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([hi, lo]) }
+        to_flat_bytes(hi, lo)
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1089,8 +1088,7 @@ impl u256 {
         // NOTE: the layout of `i128` is implementation-defined.
         let lo = self.lo.to_le_bytes();
         let hi = self.hi.to_le_bytes();
-        // SAFETY: plain old data
-        unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([lo, hi]) }
+        to_flat_bytes(lo, hi)
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1115,16 +1113,14 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_limbs(self) -> [ULimb; LIMBS] {
-        // SAFETY: This is plain old data
-        unsafe { mem::transmute(self.to_be_bytes()) }
+        to_limbs(self.to_be_bytes())
     }
 
     /// Returns the memory representation of this as a series of limbs in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_limbs(self) -> [ULimb; LIMBS] {
-        // SAFETY: This is plain old data
-        unsafe { mem::transmute(self.to_le_bytes()) }
+        to_limbs(self.to_le_bytes())
     }
 
     /// Returns the memory representation of this as a series of limbs.
@@ -1148,18 +1144,16 @@ impl u256 {
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        // SAFETY: plain old data
-        let both: [[u8; 16]; 2] = unsafe { mem::transmute(bytes) };
-        Self::new(u128::from_be_bytes(both[1]), u128::from_be_bytes(both[0]))
+        let (hi, lo) = from_flat_bytes(bytes);
+        Self::new(u128::from_be_bytes(lo), u128::from_be_bytes(hi))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        // SAFETY: plain old data
-        let both: [[u8; 16]; 2] = unsafe { mem::transmute(bytes) };
-        Self::new(u128::from_le_bytes(both[0]), u128::from_le_bytes(both[1]))
+        let (lo, hi) = from_flat_bytes(bytes);
+        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1184,16 +1178,14 @@ impl u256 {
     /// as limbs in big endian.
     #[inline(always)]
     pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        // SAFETY: This is plain old data
-        Self::from_be_bytes(unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) })
+        Self::from_be_bytes(from_limbs(limbs))
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in little endian.
     #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        // SAFETY: This is plain old data
-        Self::from_le_bytes(unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) })
+        Self::from_le_bytes(from_limbs(limbs))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -3066,6 +3058,67 @@ fn to_bytes(mut value: u256, buffer: &mut [u8; 78]) -> &[u8] {
 #[inline]
 fn to_string(value: u256, buffer: &mut [u8; 78]) -> Result<&str, Utf8Error> {
     str::from_utf8(to_bytes(value, buffer))
+}
+
+/// Flatten two 128-bit integers as bytes to flat, 32 bytes.
+///
+/// We keep this as a standalone function since Rust can sometimes
+/// vectorize this in a way using purely safe Rust cannot, which
+/// improves performance while ensuring we are very careful.
+/// These are guaranteed to be plain old [`data`] with a fixed size
+/// alignment, and padding.
+///
+/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
+#[inline(always)]
+const fn to_flat_bytes(x: [u8; 16], y: [u8; 16]) -> [u8; 32] {
+    // SAFETY: plain old data
+    unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([x, y]) }
+}
+
+/// Flatten a flat, 32 byte integer to two 128-bit integers as bytes.
+///
+/// We keep this as a standalone function since Rust can sometimes
+/// vectorize this in a way using purely safe Rust cannot, which
+/// improves performance while ensuring we are very careful.
+/// These are guaranteed to be plain old [`data`] with a fixed size
+/// alignment, and padding.
+///
+/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
+#[inline(always)]
+const fn from_flat_bytes(bytes: [u8; 32]) -> ([u8; 16], [u8; 16]) {
+    // SAFETY: plain old data
+    let r = unsafe { mem::transmute::<[u8; 32], [[u8; 16]; 2]>(bytes) };
+    (r[0], r[1])
+}
+
+/// Convert an array of limbs to the flat bytes.
+///
+/// We keep this as a standalone function since Rust can sometimes
+/// vectorize this in a way using purely safe Rust cannot, which
+/// improves performance while ensuring we are very careful.
+/// These are guaranteed to be plain old [`data`] with a fixed size
+/// alignment, and padding.
+///
+/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
+#[inline(always)]
+const fn from_limbs(limbs: [ULimb; LIMBS]) -> [u8; 32] {
+    // SAFETY: This is plain old data
+    unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) }
+}
+
+/// Convert flat bytes to an array of limbs.
+///
+/// We keep this as a standalone function since Rust can sometimes
+/// vectorize this in a way using purely safe Rust cannot, which
+/// improves performance while ensuring we are very careful.
+/// These are guaranteed to be plain old [`data`] with a fixed size
+/// alignment, and padding.
+///
+/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
+#[inline(always)]
+const fn to_limbs(bytes: [u8; 32]) -> [ULimb; LIMBS] {
+    // SAFETY: This is plain old data
+    unsafe { mem::transmute(bytes) }
 }
 
 #[cfg(test)]
