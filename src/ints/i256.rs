@@ -1318,6 +1318,7 @@ impl i256 {
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
+    #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
         u256::from_le_bytes(bytes).as_i256()
     }
@@ -1345,6 +1346,7 @@ impl i256 {
 
     /// Creates a native endian integer value from its representation
     /// as limbs in little endian.
+    #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
         u256::from_le_limbs(limbs).as_i256()
     }

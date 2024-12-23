@@ -1078,14 +1078,8 @@ impl u256 {
         // NOTE: the layout of `i128` is implementation-defined.
         let lo = self.lo.to_be_bytes();
         let hi = self.hi.to_be_bytes();
-        let mut bytes = [0; 32];
-        let mut i = 0;
-        while i < 16 {
-            bytes[i] = hi[i];
-            bytes[i + 16] = lo[i];
-            i += 1;
-        }
-        bytes
+        // SAFETY: plain old data
+        unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([hi, lo]) }
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1095,14 +1089,8 @@ impl u256 {
         // NOTE: the layout of `i128` is implementation-defined.
         let lo = self.lo.to_le_bytes();
         let hi = self.hi.to_le_bytes();
-        let mut bytes = [0; 32];
-        let mut i = 0;
-        while i != 16 {
-            bytes[i] = lo[i];
-            bytes[i + 16] = hi[i];
-            i += 1;
-        }
-        bytes
+        // SAFETY: plain old data
+        unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([lo, hi]) }
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1160,30 +1148,18 @@ impl u256 {
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        let mut lo = [0; 16];
-        let mut hi = [0; 16];
-        let mut i = 0;
-        while i < 16 {
-            hi[i] = bytes[i];
-            lo[i] = bytes[i + 16];
-            i += 1;
-        }
-        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
+        // SAFETY: plain old data
+        let both: [[u8; 16]; 2] = unsafe { mem::transmute(bytes) };
+        Self::new(u128::from_be_bytes(both[1]), u128::from_be_bytes(both[0]))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        let mut lo = [0; 16];
-        let mut hi = [0; 16];
-        let mut i = 0;
-        while i < 16 {
-            lo[i] = bytes[i];
-            hi[i] = bytes[i + 16];
-            i += 1;
-        }
-        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
+        // SAFETY: plain old data
+        let both: [[u8; 16]; 2] = unsafe { mem::transmute(bytes) };
+        Self::new(u128::from_le_bytes(both[0]), u128::from_le_bytes(both[1]))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1214,6 +1190,7 @@ impl u256 {
 
     /// Creates a native endian integer value from its representation
     /// as limbs in little endian.
+    #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
         // SAFETY: This is plain old data
         Self::from_le_bytes(unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) })
