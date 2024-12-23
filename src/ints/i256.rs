@@ -563,7 +563,7 @@ impl i256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn wrapping_div(self, rhs: Self) -> Self {
-        div_rem(self, rhs).0
+        self.wrapping_div_rem(rhs).0
     }
 
     /// Wrapping Euclidean division. Computes `self.div_euclid(rhs)`,
@@ -603,7 +603,7 @@ impl i256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn wrapping_rem(self, rhs: Self) -> Self {
-        div_rem(self, rhs).1
+        self.wrapping_div_rem(rhs).1
     }
 
     /// Wrapping Euclidean remainder. Computes `self.rem_euclid(rhs)`, wrapping
@@ -1009,7 +1009,7 @@ impl i256 {
     /// flag.
     #[inline(always)]
     pub fn div_floor(self, rhs: Self) -> Self {
-        let (d, r) = div_rem(self, rhs);
+        let (d, r) = self.wrapping_div_rem(rhs);
 
         // If the remainder is non-zero, we need to subtract one if the
         // signs of self and rhs differ, as this means we rounded upwards
@@ -1035,7 +1035,7 @@ impl i256 {
     /// flag.
     #[inline(always)]
     pub fn div_ceil(self, rhs: Self) -> Self {
-        let (d, r) = div_rem(self, rhs);
+        let (d, r) = self.wrapping_div_rem(rhs);
 
         // When remainder is non-zero we have a.div_ceil(b) == 1 + a.div_floor(b),
         // so we can re-use the algorithm from div_floor, just adding 1.
@@ -1935,6 +1935,82 @@ impl i256 {
             None
         } else {
             Some(value)
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    #[inline(always)]
+    pub fn div_rem(self, n: Self) -> (Self, Self) {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_div_rem(n)
+        } else {
+            self.checked_div_rem(n).expect("attempt to divide with overflow")
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    #[inline(always)]
+    pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
+        // NOTE: Our algorithm assumes little-endian order, which we might not have.
+        // So, we transmute to LE order prior to the call.
+        // Do division as positive numbers, and if `lhs.is_sign_negative() ^
+        // rhs.is_sign_negative()`, then we can inver the sign
+        let x = self.wrapping_abs().as_u256().to_le_limbs();
+        let y = n.wrapping_abs().as_u256().to_le_limbs();
+
+        // get our unsigned division product
+        let (div, rem) = math::div_rem_full(&x, &y);
+        let mut div = u256::from_le_limbs(div).as_i256();
+        let mut rem = u256::from_le_limbs(rem).as_i256();
+
+        // convert to our correct signs, get the product
+        if self.is_negative() != n.is_negative() {
+            div = div.wrapping_neg();
+        }
+        if self.is_negative() {
+            rem = rem.wrapping_neg();
+        }
+
+        (div, rem)
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    #[inline(always)]
+    pub fn checked_div_rem(self, n: Self) -> Option<(Self, Self)> {
+        if n == Self::from_u8(0) {
+            None
+        } else {
+            Some(self.wrapping_div_rem(n))
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    #[inline(always)]
+    pub fn overflowing_div_rem(self, n: Self) -> ((Self, Self), bool) {
+        if n == Self::from_u8(0) {
+            ((Self::MAX, Self::from_u8(0)), true)
+        } else {
+            (self.wrapping_div_rem(n), false)
         }
     }
 
@@ -3557,33 +3633,6 @@ impl fmt::UpperHex for i256 {
         // NOTE: UpperHex for negative numbers uses wrapping formats.
         fmt::UpperHex::fmt(&self.as_u256(), f)
     }
-}
-
-// NOTE: Our algorithm assumes little-endian order, which we might not have.
-// So, we transmute to LE order prior to the call.
-/// Large division/remainder calculation. This will panic if `rhs == 0` or if
-/// `rhs == -1 && lhs == i256::MIN`.
-#[inline]
-fn div_rem(lhs: i256, rhs: i256) -> (i256, i256) {
-    // Do division as positive numbers, and if `lhs.is_sign_negative() ^
-    // rhs.is_sign_negative()`, then we can inver the sign
-    let x = lhs.wrapping_abs().as_u256().to_le_limbs();
-    let y = rhs.wrapping_abs().as_u256().to_le_limbs();
-
-    // get our unsigned division product
-    let (div, rem) = math::div_rem_full(&x, &y);
-    let mut div = u256::from_le_limbs(div).as_i256();
-    let mut rem = u256::from_le_limbs(rem).as_i256();
-
-    // convert to our correct signs, get the product
-    if lhs.is_negative() != rhs.is_negative() {
-        div = div.wrapping_neg();
-    }
-    if lhs.is_negative() {
-        rem = rem.wrapping_neg();
-    }
-
-    (div, rem)
 }
 
 /// Const implementation of `Neg` for internal algorithm use.

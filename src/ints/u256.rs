@@ -643,7 +643,7 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn wrapping_div(self, rhs: Self) -> Self {
-        div_rem(self, rhs).0
+        self.wrapping_div_rem(rhs).0
     }
 
     /// Wrapping Euclidean division. Computes `self.div_euclid(rhs)`.
@@ -674,7 +674,7 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn wrapping_rem(self, rhs: Self) -> Self {
-        div_rem(self, rhs).1
+        self.wrapping_div_rem(rhs).1
     }
 
     /// Wrapping Euclidean modulo. Computes `self.rem_euclid(rhs)`.
@@ -965,7 +965,7 @@ impl u256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn div_ceil(self, rhs: Self) -> Self {
-        let (d, r) = div_rem(self, rhs);
+        let (d, r) = self.wrapping_div_rem(rhs);
         if r.lo > 0 || r.hi > 0 {
             // NOTE: This can't overflow
             let (lo, hi) = math::wrapping_add_u128(d.lo, d.hi, 1, 0);
@@ -1581,6 +1581,71 @@ impl u256 {
             None
         } else {
             Some(value)
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    #[inline(always)]
+    pub fn div_rem(self, n: Self) -> (Self, Self) {
+        if cfg!(not(have_overflow_checks)) {
+            self.wrapping_div_rem(n)
+        } else {
+            self.checked_div_rem(n).expect("attempt to divide with overflow")
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    #[inline(always)]
+    pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
+        // NOTE: Our algorithm assumes little-endian order, which we might not have.
+        // So, we transmute to LE order prior to the call.
+        let x = self.to_le_limbs();
+        let y = n.to_le_limbs();
+
+        let (div, rem) = math::div_rem_full(&x, &y);
+        let div = u256::from_le_limbs(div);
+        let rem = u256::from_le_limbs(rem);
+
+        (div, rem)
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    #[inline(always)]
+    pub fn checked_div_rem(self, n: Self) -> Option<(Self, Self)> {
+        if n == Self::from_u8(0) {
+            None
+        } else {
+            Some(self.wrapping_div_rem(n))
+        }
+    }
+
+    /// Div/Rem operation on a 256-bit integer.
+    ///
+    /// This allows storing of both the quotient and remainder without
+    /// making repeated calls.
+    #[inline(always)]
+    pub fn overflowing_div_rem(self, n: Self) -> ((Self, Self), bool) {
+        if n == Self::from_u8(0) {
+            ((Self::MAX, Self::from_u8(0)), true)
+        } else {
+            (self.wrapping_div_rem(n), false)
         }
     }
 
@@ -2949,21 +3014,6 @@ impl fmt::UpperHex for u256 {
         }
         write!(f, "{:X}", self.lo)
     }
-}
-
-// NOTE: Our algorithm assumes little-endian order, which we might not have.
-// So, we transmute to LE order prior to the call.
-/// Large division/remainder calculation. This will panic if rhs is 0.
-#[inline]
-fn div_rem(lhs: u256, rhs: u256) -> (u256, u256) {
-    let x = lhs.to_le_limbs();
-    let y = rhs.to_le_limbs();
-
-    let (div, rem) = math::div_rem_full(&x, &y);
-    let div = u256::from_le_limbs(div);
-    let rem = u256::from_le_limbs(rem);
-
-    (div, rem)
 }
 
 /// Const implementation of `BitAnd` for internal algorithm use.
