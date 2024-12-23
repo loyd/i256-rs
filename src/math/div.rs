@@ -43,18 +43,14 @@ pub fn div_rem_full<const M: usize, const N: usize>(
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
     if is_zero(numerator, 0) {
-        return ([0; M], [0; N]);
+        return (scalar(0), scalar(0));
     } else if N == 1 {
         return div_rem_small_padded(numerator, divisor[0]);
     }
 
     match cmp(numerator, divisor) {
         Ordering::Less => ([0; M], truncate(*numerator)),
-        Ordering::Equal => {
-            let mut quo = [0; M];
-            quo[0] = 1;
-            (quo, [0; N])
-        },
+        Ordering::Equal => (scalar(1), scalar(0)),
         Ordering::Greater => {
             let n = last_index(divisor);
             if n == 0 {
@@ -68,6 +64,11 @@ pub fn div_rem_full<const M: usize, const N: usize>(
 }
 
 /// Division of a numerator by a u128 divisor.
+///
+/// Performance of this is highly variable: for small
+/// divisors it can be very fast, for larger divisors
+/// due to the creation of the temporary divisor it
+/// can be significantly slower.
 #[inline]
 pub fn div_rem_small<const M: usize>(
     numerator: &[ULimb; M],
@@ -156,6 +157,15 @@ const fn last_index<const N: usize>(x: &[ULimb; N]) -> usize {
     0
 }
 
+/// Construct a single value from a scalar.
+#[inline(always)]
+pub const fn scalar<const N: usize>(value: ULimb) -> [ULimb; N] {
+    assert!(N > 0);
+    let mut r = [0; N];
+    r[0] = value;
+    r
+}
+
 /// Division of numerator by a u64 divisor
 #[inline]
 pub fn div_rem_small_padded<const M: usize, const N: usize>(
@@ -163,9 +173,7 @@ pub fn div_rem_small_padded<const M: usize, const N: usize>(
     divisor: ULimb,
 ) -> ([ULimb; M], [ULimb; N]) {
     let (numerator, rem) = div_rem_half(numerator, divisor);
-    let mut rem_padded = [0; N];
-    rem_padded[0] = rem;
-    (numerator, rem_padded)
+    (numerator, scalar(rem))
 }
 
 /// Use Knuth Algorithm D to compute `numerator / divisor` returning the
@@ -316,9 +324,30 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     debug_assert!(hi < divisor);
     debug_assert!(divisor != 0);
 
+    // Using a naive implementation can have major performance impacts. For
+    // small integers, the overhead can be ~70% slower. For large ones, it
+    // can be 10-12% slower. For example, for the following cases, we got
+    // the following bench results (5K ints per benchmark).
+    // Uniform:
+    // - naive: 203.68 µs
+    // - divq: 188.65 µs
+    //
+    // Simple:
+    // - naive: 203.36 µs
+    // - divq: 127.62 µs
+    //
+    // Large:
+    // - naive: 206.92 µs
+    // - divq: 189.52 µs
+
+    // Manally implementation the `udiv128by64to64default` part of `udivti3`
+    // did not lead to any performance gains, rather, serious regressions,
+    // which might be due to optimization considerations.
+
     // NOTE: ARM64 requires the `__udivti3` Clang instrinsic internally,
     // which means we get 0 optimizations which our own implementation,
-    // well, maybe besides a 0-divisor check.
+    // well, maybe besides a 0-divisor check. This already has heavy
+    // fast-path optimizations when the divisor fits in 64 bits.
 
     // LLVM fails to use the div instruction as it is not able to prove
     // that hi < divisor, and therefore the result will fit into 64-bits
@@ -418,6 +447,9 @@ pub const fn truncate<const M: usize, const N: usize>(v: [ULimb; M]) -> [ULimb; 
 /// An array of N + 1 elements
 ///
 /// This is a hack around lack of support for const arithmetic
+///
+/// The order of this isn't **GUARANTEED** to be te same order of
+/// indexing.
 #[repr(C)]
 struct ArrayPlusOne<const N: usize>([ULimb; N], ULimb);
 

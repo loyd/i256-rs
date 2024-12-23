@@ -1939,6 +1939,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn div_rem_usmall(self, n: UWide) -> (Self, UWide) {
         if cfg!(not(have_overflow_checks)) {
@@ -1952,6 +1956,10 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_div_rem_usmall(self, n: UWide) -> (Self, UWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
@@ -1964,6 +1972,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_div_rem_usmall(self, n: UWide) -> Option<(Self, UWide)> {
         if n == 0 {
@@ -1976,6 +1988,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_div_rem_usmall(self, n: UWide) -> ((Self, UWide), bool) {
         if n == 0 {
@@ -1988,6 +2004,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn div_rem_ismall(self, n: IWide) -> (Self, IWide) {
         if cfg!(not(have_overflow_checks)) {
@@ -2001,6 +2021,10 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_div_rem_ismall(self, n: IWide) -> (Self, IWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
@@ -2022,6 +2046,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_div_rem_ismall(self, n: IWide) -> Option<(Self, IWide)> {
         if n == 0 {
@@ -2034,6 +2062,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_div_rem_ismall(self, n: IWide) -> ((Self, IWide), bool) {
         if n == 0 {
@@ -2046,6 +2078,10 @@ impl i256 {
     /// Div the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn div_usmall(self, n: UWide) -> Self {
         self.div_rem_usmall(n).0
@@ -2054,6 +2090,10 @@ impl i256 {
     /// Div the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_div_usmall(self, n: UWide) -> Self {
         self.wrapping_div_rem_usmall(n).0
@@ -2062,6 +2102,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_div_usmall(self, n: UWide) -> Option<Self> {
         Some(self.checked_div_rem_usmall(n)?.0)
@@ -2070,6 +2114,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_div_usmall(self, n: UWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_usmall(n);
@@ -2079,6 +2127,10 @@ impl i256 {
     /// Div the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn div_ismall(self, n: IWide) -> Self {
         self.div_rem_ismall(n).0
@@ -2087,13 +2139,22 @@ impl i256 {
     /// Div the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_div_ismall(self, n: IWide) -> Self {
         self.wrapping_div_rem_ismall(n).0
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
+    ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_div_ismall(self, n: IWide) -> Option<Self> {
         Some(self.checked_div_rem_ismall(n)?.0)
@@ -2102,6 +2163,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_div_ismall(self, n: IWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_ismall(n);
@@ -2111,6 +2176,10 @@ impl i256 {
     /// Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn rem_usmall(self, n: UWide) -> UWide {
         self.wrapping_div_rem_usmall(n).1
@@ -2119,6 +2188,10 @@ impl i256 {
     /// Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_rem_usmall(self, n: UWide) -> UWide {
         self.wrapping_div_rem_usmall(n).1
@@ -2127,6 +2200,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_rem_usmall(self, n: UWide) -> Option<UWide> {
         Some(self.checked_div_rem_usmall(n)?.1)
@@ -2135,6 +2212,10 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a small, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_rem_usmall(self, n: UWide) -> (UWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_usmall(n);
@@ -2144,6 +2225,10 @@ impl i256 {
     /// Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn rem_ismall(self, n: IWide) -> IWide {
         self.div_rem_ismall(n).1
@@ -2152,20 +2237,34 @@ impl i256 {
     /// Rem the 256-bit integer by a small, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn wrapping_rem_ismall(self, n: IWide) -> IWide {
         self.wrapping_div_rem_ismall(n).1
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
+    ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn checked_rem_ismall(self, n: IWide) -> Option<IWide> {
         Some(self.checked_div_rem_ismall(n)?.1)
     }
 
     /// Div/Rem the 256-bit integer by a small, 64-bit signed factor.
+    ///
     /// This allows optimizations a full division cannot do.
+    /// Performance of this is highly variable: for small
+    /// divisors it can be very fast, for larger divisors
+    /// due to the creation of the temporary divisor it
+    /// can be significantly slower.
     #[inline(always)]
     pub fn overflowing_rem_ismall(self, n: IWide) -> (IWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_ismall(n);
