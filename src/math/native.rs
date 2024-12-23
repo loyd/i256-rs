@@ -5,6 +5,8 @@
 
 #![doc(hidden)]
 
+use core::mem;
+
 // NOTE: These are named after the size of the types that are the
 // operands: for example, `wrapping_add_u8` takes 2x `u8`, so it's
 // a 16-bit addition.
@@ -22,14 +24,27 @@ macro_rules! split {
     }};
 
     (@arr2 $u:ty, $h:ty, $v:expr) => {{
-        let (lo, hi) = split!($u, $h, $v);
-        [lo, hi]
+        // FIXME: Using raw transmutes can allow vectorizing,
+        // restore to raw splits when possible.
+        //  let (lo, hi) = split!($u, $h, $v);
+        //  [lo, hi]
+        let bytes = $v.to_le_bytes();
+        // SAFETY: safe since this is plain old data
+        let v: [$h; 2] = unsafe { mem::transmute(bytes) };
+        v
     }};
 
     (@arr4 $u:ty, $h:ty, $x:expr, $y:expr) => {{
-        let (x0, x1) = split!($u, $h, $x);
-        let (y0, y1) = split!($u, $h, $y);
-        [x0, x1, y0, y1]
+        // FIXME: Using raw transmutes can allow vectorizing,
+        // restore to raw splits when possible.
+        //  let (x0, x1) = split!($u, $h, $x);
+        //  let (y0, y1) = split!($u, $h, $y);
+        //  [x0, x1, y0, y1]
+        let xb = $x.to_le_bytes();
+        let yb = $y.to_le_bytes();
+        // SAFETY: safe since this is plain old data
+        let v: [$h; 4] = unsafe { mem::transmute([xb, yb]) };
+        v
     }};
 }
 
