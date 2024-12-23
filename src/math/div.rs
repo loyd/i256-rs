@@ -42,16 +42,20 @@ pub fn div_rem_full<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
-    if is_zero(numerator, 0) {
-        return (scalar1(0), scalar1(0));
-    } else if N == 1 {
+    if N == 1 {
         return div_rem_half_padded(numerator, divisor[0]);
     }
 
     match cmp(numerator, divisor) {
         Ordering::Less => ([0; M], truncate(*numerator)),
         Ordering::Equal => (scalar1(1), scalar1(0)),
-        Ordering::Greater => div_rem_full_gt(numerator, divisor),
+        Ordering::Greater => {
+            if is_zero(numerator, 0) {
+                (scalar1(0), scalar1(0))
+            } else {
+                div_rem_full_gt(numerator, divisor)
+            }
+        },
     }
 }
 
@@ -66,6 +70,7 @@ pub fn div_rem_small<const M: usize>(
     numerator: &[ULimb; M],
     divisor: UWide,
 ) -> ([ULimb; M], UWide) {
+    // NOTE: It's way better to keep this optimization outside the comparison.
     if M >= 2 && is_zero(numerator, 2) {
         // Can do as a scalar operation, simple.
         if numerator[0] == 0 && numerator[1] == 0 {
@@ -79,13 +84,11 @@ pub fn div_rem_small<const M: usize>(
         }
     }
 
-    let lo = divisor as ULimb;
-    let hi = (divisor >> ULimb::BITS) as ULimb;
-    let divisor = [lo, hi];
-    let (quo, rem) = match cmp(numerator, &divisor) {
+    let y = scalar2::<2>(divisor);
+    let (quo, rem) = match cmp(numerator, &y) {
         Ordering::Less => ([0; M], truncate(*numerator)),
-        Ordering::Equal => (scalar1(1), scalar1(0)),
-        Ordering::Greater => div_rem_full_gt(numerator, &divisor),
+        Ordering::Equal => return (scalar1(1), 0),
+        Ordering::Greater => div_rem_full_gt(numerator, &y),
     };
     let rem = (rem[0] as UWide) | ((rem[1] as UWide) << ULimb::BITS);
 
