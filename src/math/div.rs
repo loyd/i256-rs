@@ -42,41 +42,54 @@ pub fn div_rem_full<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
-    if is_zero(numerator, 0) {
-        return ([0; M], [0; N]);
-    } else if N == 1 {
-        return div_rem_small_padded(numerator, divisor[0]);
+    if N == 1 {
+        return div_rem_half_padded(numerator, divisor[0]);
     }
 
     match cmp(numerator, divisor) {
         Ordering::Less => ([0; M], truncate(*numerator)),
-        Ordering::Equal => {
-            let mut quo = [0; M];
-            quo[0] = 1;
-            (quo, [0; N])
-        },
+        Ordering::Equal => (scalar1(1), scalar1(0)),
         Ordering::Greater => {
-            let n = last_index(divisor);
-            if n == 0 {
-                div_rem_small_padded(numerator, divisor[0])
+            if is_zero(numerator, 0) {
+                (scalar1(0), scalar1(0))
             } else {
-                let m = last_index(numerator) - n;
-                div_rem_knuth(numerator, divisor, n + 1, m)
+                div_rem_full_gt(numerator, divisor)
             }
         },
     }
 }
 
 /// Division of a numerator by a u128 divisor.
+///
+/// Performance of this is highly variable: for small
+/// divisors it can be very fast, for larger divisors
+/// due to the creation of the temporary divisor it
+/// can be significantly slower.
 #[inline]
 pub fn div_rem_small<const M: usize>(
     numerator: &[ULimb; M],
     divisor: UWide,
 ) -> ([ULimb; M], UWide) {
-    let lo = divisor as ULimb;
-    let hi = (divisor >> ULimb::BITS) as ULimb;
-    let divisor = [lo, hi];
-    let (quo, rem) = div_rem_full(numerator, &divisor);
+    // NOTE: It's way better to keep this optimization outside the comparison.
+    if M >= 2 && is_zero(numerator, 2) {
+        // Can do as a scalar operation, simple.
+        if numerator[0] == 0 && numerator[1] == 0 {
+            return (scalar1(0), 0);
+        } else {
+            let lo = numerator[0] as UWide;
+            let hi = (numerator[1] as UWide) << ULimb::BITS;
+            let numerator = lo | hi;
+            let (quo, rem) = (numerator / divisor, numerator % divisor);
+            return (scalar2(quo), rem);
+        }
+    }
+
+    let y = scalar2::<2>(divisor);
+    let (quo, rem) = match cmp(numerator, &y) {
+        Ordering::Less => ([0; M], truncate(*numerator)),
+        Ordering::Equal => return (scalar1(1), 0),
+        Ordering::Greater => div_rem_full_gt(numerator, &y),
+    };
     let rem = (rem[0] as UWide) | ((rem[1] as UWide) << ULimb::BITS);
 
     (quo, rem)
@@ -85,6 +98,16 @@ pub fn div_rem_small<const M: usize>(
 /// Division of numerator by a u64 divisor
 #[inline]
 pub fn div_rem_half<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
+    // quick path optinmization for small values
+    if M >= 2 && is_zero(numerator, 2) {
+        let lo = numerator[0] as UWide;
+        let hi = (numerator[1] as UWide) << ULimb::BITS;
+        let numerator = lo | hi;
+        let divisor = divisor as UWide;
+        let (quo, rem) = (numerator / divisor, numerator % divisor);
+        return (scalar2(quo), rem as ULimb);
+    }
+
     let mut numerator = *numerator;
     let mut r = 0;
     let mut i = M;
@@ -97,6 +120,22 @@ pub fn div_rem_half<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> (
     }
 
     (numerator, r)
+}
+
+/// Internal variant that assumes our numerator >= divisor,
+/// and therefore removes all validation checks.
+#[inline]
+fn div_rem_full_gt<const M: usize, const N: usize>(
+    numerator: &[ULimb; M],
+    divisor: &[ULimb; N],
+) -> ([ULimb; M], [ULimb; N]) {
+    let n = last_index(divisor);
+    if n == 0 {
+        div_rem_half_padded(numerator, divisor[0])
+    } else {
+        let m = last_index(numerator) - n;
+        div_rem_knuth(numerator, divisor, n + 1, m)
+    }
 }
 
 /// Efficiently, const comparison of M to N sized arrays.
@@ -156,16 +195,33 @@ const fn last_index<const N: usize>(x: &[ULimb; N]) -> usize {
     0
 }
 
+/// Construct an array from a limb.
+#[inline(always)]
+pub const fn scalar1<const N: usize>(value: ULimb) -> [ULimb; N] {
+    assert!(N > 0);
+    let mut r = [0; N];
+    r[0] = value;
+    r
+}
+
+/// Construct an array from a wide limb.
+#[inline(always)]
+pub const fn scalar2<const N: usize>(value: UWide) -> [ULimb; N] {
+    assert!(N > 0);
+    let mut r = [0; N];
+    r[0] = value as ULimb;
+    r[1] = (value >> ULimb::BITS) as ULimb;
+    r
+}
+
 /// Division of numerator by a u64 divisor
 #[inline]
-pub fn div_rem_small_padded<const M: usize, const N: usize>(
+pub fn div_rem_half_padded<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: ULimb,
 ) -> ([ULimb; M], [ULimb; N]) {
     let (numerator, rem) = div_rem_half(numerator, divisor);
-    let mut rem_padded = [0; N];
-    rem_padded[0] = rem;
-    (numerator, rem_padded)
+    (numerator, scalar1(rem))
 }
 
 /// Use Knuth Algorithm D to compute `numerator / divisor` returning the
@@ -316,9 +372,30 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     debug_assert!(hi < divisor);
     debug_assert!(divisor != 0);
 
+    // Using a naive implementation can have major performance impacts. For
+    // small integers, the overhead can be ~70% slower. For large ones, it
+    // can be 10-12% slower. For example, for the following cases, we got
+    // the following bench results (5K ints per benchmark).
+    // Uniform:
+    // - naive: 203.68 µs
+    // - divq: 188.65 µs
+    //
+    // Simple:
+    // - naive: 203.36 µs
+    // - divq: 127.62 µs
+    //
+    // Large:
+    // - naive: 206.92 µs
+    // - divq: 189.52 µs
+
+    // Manally implementation the `udiv128by64to64default` part of `udivti3`
+    // did not lead to any performance gains, rather, serious regressions,
+    // which might be due to optimization considerations.
+
     // NOTE: ARM64 requires the `__udivti3` Clang instrinsic internally,
     // which means we get 0 optimizations which our own implementation,
-    // well, maybe besides a 0-divisor check.
+    // well, maybe besides a 0-divisor check. This already has heavy
+    // fast-path optimizations when the divisor fits in 64 bits.
 
     // LLVM fails to use the div instruction as it is not able to prove
     // that hi < divisor, and therefore the result will fit into 64-bits
@@ -418,6 +495,9 @@ pub const fn truncate<const M: usize, const N: usize>(v: [ULimb; M]) -> [ULimb; 
 /// An array of N + 1 elements
 ///
 /// This is a hack around lack of support for const arithmetic
+///
+/// The order of this isn't **GUARANTEED** to be te same order of
+/// indexing.
 #[repr(C)]
 struct ArrayPlusOne<const N: usize>([ULimb; N], ULimb);
 
