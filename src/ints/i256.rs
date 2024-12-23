@@ -117,7 +117,7 @@ impl i256 {
     /// let max = i256::MAX;
     /// assert_eq!(max.leading_zeros(), 1);
     /// ```
-    #[inline(always)]
+    #[inline]
     pub const fn leading_zeros(self) -> u32 {
         let mut leading = (self.hi as u128).leading_zeros();
         if leading == u128::BITS {
@@ -128,7 +128,7 @@ impl i256 {
 
     /// Returns the number of trailing zeros in the binary representation of
     /// `self`.
-    #[inline(always)]
+    #[inline]
     pub const fn trailing_zeros(self) -> u32 {
         let mut trailing = self.hi.trailing_zeros();
         if trailing == u128::BITS {
@@ -479,7 +479,7 @@ impl i256 {
 
     /// Saturating integer multiplication. Computes `self * rhs`, saturating at
     /// the numeric bounds instead of overflowing.
-    #[inline(always)]
+    #[inline]
     pub const fn saturating_mul(self, rhs: Self) -> Self {
         match self.checked_mul(rhs) {
             Some(x) => x,
@@ -577,7 +577,7 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
         let mut q = self.wrapping_div(rhs);
         if lt(self.wrapping_rem(rhs), Self::from_u8(0)) {
@@ -612,7 +612,7 @@ impl i256 {
     /// Wrapping will only occur in `MIN % -1` on a signed type (where `MIN` is
     /// the negative minimal value for the type). In this case, this method
     /// returns 0.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
         let r = self.wrapping_rem(rhs);
         if lt(r, Self::from_u8(0)) {
@@ -1007,7 +1007,7 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
     /// flag.
-    #[inline(always)]
+    #[inline]
     pub fn div_floor(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
 
@@ -1033,7 +1033,7 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
     /// flag.
-    #[inline(always)]
+    #[inline]
     pub fn div_ceil(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
 
@@ -1963,7 +1963,7 @@ impl i256 {
     /// # Panics
     ///
     /// This panics if the divisor is 0.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
         // NOTE: Our algorithm assumes little-endian order, which we might not have.
         // So, we transmute to LE order prior to the call.
@@ -1992,7 +1992,7 @@ impl i256 {
     ///
     /// This allows storing of both the quotient and remainder without
     /// making repeated calls.
-    #[inline(always)]
+    #[inline]
     pub fn checked_div_rem(self, n: Self) -> Option<(Self, Self)> {
         if n == Self::from_u8(0) {
             None
@@ -2005,7 +2005,7 @@ impl i256 {
     ///
     /// This allows storing of both the quotient and remainder without
     /// making repeated calls.
-    #[inline(always)]
+    #[inline]
     pub fn overflowing_div_rem(self, n: Self) -> ((Self, Self), bool) {
         if n == Self::from_u8(0) {
             ((Self::MAX, Self::from_u8(0)), true)
@@ -2021,7 +2021,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn div_rem_usmall(self, n: UWide) -> (Self, UWide) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_usmall(n)
@@ -2038,7 +2038,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem_usmall(self, n: UWide) -> (Self, UWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
         let (div, rem) = math::div_rem_small(&x, n);
@@ -2054,7 +2054,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn checked_div_rem_usmall(self, n: UWide) -> Option<(Self, UWide)> {
         if n == 0 {
             None
@@ -2070,7 +2070,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn overflowing_div_rem_usmall(self, n: UWide) -> ((Self, UWide), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
@@ -2086,7 +2086,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn div_rem_ismall(self, n: IWide) -> (Self, IWide) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_ismall(n)
@@ -2103,7 +2103,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem_ismall(self, n: IWide) -> (Self, IWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
         let (div, rem) = math::div_rem_small(&x, n.wrapping_abs() as UWide);
@@ -2128,7 +2128,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn checked_div_rem_ismall(self, n: IWide) -> Option<(Self, IWide)> {
         if n == 0 {
             None
@@ -2144,7 +2144,7 @@ impl i256 {
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
-    #[inline(always)]
+    #[inline]
     pub fn overflowing_div_rem_ismall(self, n: IWide) -> ((Self, IWide), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
@@ -2352,7 +2352,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn div_rem_uhalf(self, n: ULimb) -> (Self, ULimb) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_uhalf(n)
@@ -2365,7 +2365,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem_uhalf(self, n: ULimb) -> (Self, ULimb) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
         let (div, rem) = math::div_rem_half(&x, n);
@@ -2377,7 +2377,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn checked_div_rem_uhalf(self, n: ULimb) -> Option<(Self, ULimb)> {
         if n == 0 {
             None
@@ -2389,7 +2389,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn overflowing_div_rem_uhalf(self, n: ULimb) -> ((Self, ULimb), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
@@ -2401,7 +2401,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn div_rem_ihalf(self, n: ILimb) -> (Self, ILimb) {
         if cfg!(not(have_overflow_checks)) {
             self.wrapping_div_rem_ihalf(n)
@@ -2414,7 +2414,7 @@ impl i256 {
     ///
     /// This allows optimizations a full division cannot do. This always
     /// wraps, which can never happen in practice.
-    #[inline(always)]
+    #[inline]
     pub fn wrapping_div_rem_ihalf(self, n: ILimb) -> (Self, ILimb) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
         let (div, rem) = math::div_rem_half(&x, n.wrapping_abs() as ULimb);
@@ -2435,7 +2435,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn checked_div_rem_ihalf(self, n: ILimb) -> Option<(Self, ILimb)> {
         if n == 0 {
             None
@@ -2447,7 +2447,7 @@ impl i256 {
     /// Div/Rem the 256-bit integer by a half, 64-bit signed factor.
     ///
     /// This allows optimizations a full division cannot do.
-    #[inline(always)]
+    #[inline]
     pub fn overflowing_div_rem_ihalf(self, n: ILimb) -> ((Self, ILimb), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
@@ -3153,7 +3153,7 @@ impl fmt::Debug for i256 {
 }
 
 impl fmt::Display for i256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.is_negative() {
             write!(f, "-")?;
@@ -3210,8 +3210,8 @@ impl FromStr for i256 {
     /// Parses a string s to return a value of this type.
     ///
     /// This is not optimized, since all optimization is done in
-    /// the lexical implementation.
-    #[inline(always)]
+    /// theimplementation.
+    #[inline]
     fn from_str(src: &str) -> Result<i256, ParseIntError> {
         // up to 39 digits can be stored in a `u128`, so less is always valid
         // meanwhile, 78 is good for all 256-bit integers. 32-bit architectures
@@ -3229,7 +3229,7 @@ impl FromStr for i256 {
 }
 
 impl fmt::LowerExp for i256 {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.is_negative() {
             write!(f, "-")?;

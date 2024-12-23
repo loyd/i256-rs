@@ -2,11 +2,18 @@
 
 Optimized implementations of 256-bit signed and unsigned integers.
 
-This contains a fixed-width, performant implementation for 256-bit
-signed and unsigned integers. This has significantly faster performance
-for basic math operations than comparable fixed-width integer types,
-since it can use optimizations from 128-bit integers on 64-bit
-architectures.
+This contains a fixed-width, performant implementation for 256-bit signed and unsigned integers. This has significantly faster performance for basic math operations than comparable fixed-width integer types, since it can use optimizations from 128-bit integers on 64-bit architectures.
+
+## Use Case
+
+`i256` is for a very specific purpose: relatively high-performance, fixed-sized 256-bit integers. This is dependent on support for native 64-bit integer multiplies on the architecture, and highly benefits from 64-bit to 128-bit widening multiplies (supported on `x86_64`). For example, on `x86_64`, we can get 256-bit multiplications in at worst 10 multiplies and 15 adds, and significantly faster in most cases. Likewise, 256-bit addition/subtraction is in 6 adds/subtracts, significantly more efficient than building from smaller type sizes.
+
+This will, for obvious reasons, not support larger type sizes. 512+ bit integers require types comprised of an array of limbs, sacrificing performance for this specific use-case in their design. If you need anything else, you probably want one of the following libraries:
+- [bnum](https://crates.io/crates/bnum): Arbitrary-precision, fixed-width, big integer support.
+- [crypto-bigint](https://crates.io/crates/crypto-bigint): Constant-time, arbitrary-precision, fixed-width, big integer support suitable for cryptographically secure applications.
+- [num-bigint](https://crates.io/crates/num-bigint), [malachite](https://crates.io/crates/malachite), or [rug](https://crates.io/crates/rug): Dynamic-width big integers with high-performance calculations with very large integers.
+
+Specifically, `i256` has optimizations that would be considered anti-features for these libraries: better performance for smaller values, and operations with native, scalar values. This is particularly useful when doing incremental operations with native integers.
 
 ## Versioning and Version Support
 

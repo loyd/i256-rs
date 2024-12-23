@@ -221,3 +221,9 @@ pub fn bnum_from_u128(x: u128, y: u128) -> U256 {
 pub fn bnum_from_u64(x0: u64, x1: u64, y0: u64, y1: u64) -> U256 {
     bnum_from_u128(x0 as u128 | (x1 as u128) << 64, y0 as u128 | (y1 as u128) << 64)
 }
+
+pub fn cryptobi_from_u128(lo: u128, hi: u128) -> crypto_bigint::U256 {
+    // SAFETY: plain old data
+    let bytes: [u8; 32] = unsafe { mem::transmute([lo.to_le_bytes(), hi.to_le_bytes()]) };
+    crypto_bigint::U256::from_le_slice(&bytes)
+}

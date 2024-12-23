@@ -87,7 +87,7 @@ macro_rules! add_unsigned_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
             // NOTE: This is significantly slower than implementing with overflowing.
             let (v0, c0) = x0.overflowing_add(y0);
@@ -151,7 +151,7 @@ macro_rules! add_unsigned_impl {
         ///     ret
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
             let (v0, c0) = x0.overflowing_add(y0);
             // FIXME: Move to `carrying_add` once stable.
@@ -201,7 +201,7 @@ macro_rules! add_unsigned_impl {
         ///    mov     qword ptr [rdi + 24], r8
         ///    ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
             // NOTE: This is significantly slower than implementing with overflowing.
             let (v0, c0) = x0.overflowing_add(y);
@@ -252,7 +252,7 @@ macro_rules! add_unsigned_impl {
         ///     setb    byte ptr [rdi + 32]
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
             let (v0, c0) = x0.overflowing_add(y);
             let (v1, c1) = x1.overflowing_add(c0 as $u);
@@ -348,7 +348,7 @@ macro_rules! sub_unsigned_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
             let (v0, c0) = x0.overflowing_sub(y0);
             let v1 = x1.wrapping_sub(y1);
@@ -405,7 +405,7 @@ macro_rules! sub_unsigned_impl {
         ///     mov     byte ptr [rax + 32], dil
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             let (v0, c0) = x0.overflowing_sub(y0);
@@ -456,7 +456,7 @@ macro_rules! sub_unsigned_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
             let (v0, c0) = x0.overflowing_sub(y);
             let v1 = x1.wrapping_sub(c0 as $u);
@@ -506,7 +506,7 @@ macro_rules! sub_unsigned_impl {
         ///     setb    byte ptr [rdi + 32]
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             // This is super efficient, it becomes an `add` and an `adc` (add carry).
@@ -582,7 +582,7 @@ macro_rules! mul_unsigned_impl {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         const fn $wrapping_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u) {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
@@ -670,7 +670,7 @@ macro_rules! mul_unsigned_impl {
         /// and optimizes nicely for small multiplications.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
             // 128-Bit
             // -------
@@ -972,7 +972,7 @@ macro_rules! mul_unsigned_impl {
         /// is at worst 8 `mul` and 12 `add` instructions, which optimizes quite nicely.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
             // 256-Bit
             // -------
@@ -1076,7 +1076,7 @@ macro_rules! mul_unsigned_impl {
         /// extremely efficient.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_half(x0: $u, x1: $u, y: $h) -> ($u, $u) {
             // 256-Bit
             // -------
@@ -1125,7 +1125,7 @@ macro_rules! mul_unsigned_impl {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         const fn $overflowing_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u, bool) {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
@@ -1206,7 +1206,7 @@ macro_rules! mul_unsigned_impl {
         /// The analysis here is practically identical to that of `wrapping_full`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
             let x = split!(@arr4 $u, $h, x0, x1);
             let y = split!(@arr4 $u, $h, y0, y1);
@@ -1239,7 +1239,7 @@ macro_rules! mul_unsigned_impl {
         /// The analysis here is practically identical to that of `wrapping_small`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
             let x = split!(@arr4 $u, $h, x0, x1);
             let y = split!(@arr2 $u, $h, y);
@@ -1269,7 +1269,7 @@ macro_rules! mul_unsigned_impl {
         /// The analysis here is practically identical to that of `wrapping_half`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_half(x0: $u, x1: $u, y: $h) -> ($u, $u, bool) {
             let x = split!(@arr4 $u, $h, x0, x1);
             let y = [y];
@@ -1439,7 +1439,7 @@ macro_rules! shift_unsigned_impl {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $shl(x0: $u, x1: $u, shift: u32) -> ($u, $u) {
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < 2 * BITS, "attempt to shift left with overflow");
@@ -1532,7 +1532,7 @@ macro_rules! shift_unsigned_impl {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $shr(x0: $u, x1: $u, shift: u32) -> ($u, $u) {
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < 2 * BITS, "attempt to shift right with overflow");
@@ -1612,7 +1612,7 @@ macro_rules! rotate_unsigned_impl {
         ///     or      eax, ecx
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $left(x0:$u, x1: $u, n: u32) -> ($u, $u) {
             // 0bXYFFFF -> 0bFFFFXY
             const BITS: u32 = <$u>::BITS;
@@ -1647,7 +1647,7 @@ macro_rules! rotate_unsigned_impl {
         /// integer.
         ///
         /// Please note this isn't the same operation as the `>>` shifting operator!
-        #[inline(always)]
+        #[inline]
         pub const fn $right(x0:$u, x1: $u, n: u32) -> ($u, $u) {
             // See rotate_left for the description
             // 0bFFFFXY -> 0bXYFFFF
@@ -1843,7 +1843,7 @@ macro_rules! add_signed_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_add(y0);
@@ -1909,7 +1909,7 @@ macro_rules! add_signed_impl {
         ///     mov     byte ptr [rax + 32], dil
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_add(y0);
@@ -1960,7 +1960,7 @@ macro_rules! add_signed_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let (v0, c0) = x0.overflowing_add(y);
             let v1 = x1.wrapping_add(c0 as $s);
@@ -2010,7 +2010,7 @@ macro_rules! add_signed_impl {
         ///     seto    byte ptr [rdi + 32]
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let (v0, c0) = x0.overflowing_add(y);
             let (v1, c1) = x1.overflowing_add(c0 as $s);
@@ -2066,7 +2066,7 @@ macro_rules! add_signed_impl {
         ///     mov     qword ptr [rdi + 24], r9
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
@@ -2132,7 +2132,7 @@ macro_rules! add_signed_impl {
         ///     mov     byte ptr [rax + 32], dil
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
@@ -2246,7 +2246,7 @@ macro_rules! sub_signed_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             debug_assert!(<$u>::BITS == <$s>::BITS);
@@ -2310,7 +2310,7 @@ macro_rules! sub_signed_impl {
         ///     mov     byte ptr [rax + 32], dil
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             debug_assert!(<$u>::BITS == <$s>::BITS);
@@ -2362,7 +2362,7 @@ macro_rules! sub_signed_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let (v0, c0) = x0.overflowing_sub(y);
             let v1 = x1.wrapping_sub(c0 as $s);
@@ -2412,7 +2412,7 @@ macro_rules! sub_signed_impl {
         ///     seto    byte ptr [rdi + 32]
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let (v0, c0) = x0.overflowing_sub(y);
             let (v1, c1) = x1.overflowing_sub(c0 as $s);
@@ -2469,7 +2469,7 @@ macro_rules! sub_signed_impl {
         ///     mov     qword ptr [rdi + 24], r8
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
@@ -2533,7 +2533,7 @@ macro_rules! sub_signed_impl {
         ///     mov     byte ptr [rax + 32], dil
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
@@ -2685,7 +2685,7 @@ macro_rules! mul_signed_impl {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
@@ -2724,7 +2724,7 @@ macro_rules! mul_signed_impl {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = split!(@arr2 $u, $uh, y);
@@ -2763,7 +2763,7 @@ macro_rules! mul_signed_impl {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
@@ -2802,7 +2802,7 @@ macro_rules! mul_signed_impl {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let (lo, hi) = $wrapping_array(lhs, [y]);
@@ -2840,7 +2840,7 @@ macro_rules! mul_signed_impl {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $wrapping_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let (lo, hi) = $wrapping_array(lhs, [y.unsigned_abs()]);
@@ -2872,7 +2872,7 @@ macro_rules! mul_signed_impl {
         /// The analysis here is practically identical to that of `wrapping_full`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
@@ -2907,7 +2907,7 @@ macro_rules! mul_signed_impl {
         /// The analysis here is practically identical to that of `wrapping_usmall`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = split!(@arr2 $u, $uh, y);
@@ -2943,7 +2943,7 @@ macro_rules! mul_signed_impl {
         /// The analysis here is practically identical to that of `wrapping_ismall`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
@@ -2979,7 +2979,7 @@ macro_rules! mul_signed_impl {
         /// The analysis here is practically identical to that of `wrapping_uhalf`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let (lo, hi, overflowed) = $overflowing_array(lhs, [y]);
@@ -3014,7 +3014,7 @@ macro_rules! mul_signed_impl {
         /// The analysis here is practically identical to that of `wrapping_ihalf`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline(always)]
+        #[inline]
         pub const fn $overflowing_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let (lo, hi, overflowed) = $overflowing_array(lhs, [y.unsigned_abs()]);
@@ -3195,7 +3195,7 @@ macro_rules! shift_signed_impl {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $shl(x0: $u, x1: $s, shift: u32) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             const BITS: u32 = <$u>::BITS;
@@ -3298,7 +3298,7 @@ macro_rules! shift_signed_impl {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $shr(x0: $u, x1: $s, shift: u32) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             const BITS: u32 = <$u>::BITS;
@@ -3341,7 +3341,7 @@ macro_rules! swap_signed_impl {
         ///
         /// This optimizes very nicely, with efficient `bswap` or `rol`
         /// implementations for each.
-        #[inline(always)]
+        #[inline]
         pub const fn $swap_bytes(x0: $u, x1: $s) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             (x1.swap_bytes() as $u, x0.swap_bytes() as $s)
@@ -3355,7 +3355,7 @@ macro_rules! swap_signed_impl {
         /// larger integers (2x `u64`), this is just as efficient as the
         /// native implementation. For smaller type sizes, the compiler can
         /// optimize the implementation, but we go beyond that realm.
-        #[inline(always)]
+        #[inline]
         pub const fn $reverse_bits(x0: $u, x1: $s) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             // NOTE: Reversing bits is identical to unsigned.
@@ -3414,7 +3414,7 @@ macro_rules! rotate_signed_impl {
         /// .LBB:
         ///     ret
         /// ```
-        #[inline(always)]
+        #[inline]
         pub const fn $left(x0:$u, x1: $s, n: u32) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             // 0bXYFFFF -> 0bFFFFXY
@@ -3441,7 +3441,7 @@ macro_rules! rotate_signed_impl {
         /// integer.
         ///
         /// Please note this isn't the same operation as the `>>` shifting operator!
-        #[inline(always)]
+        #[inline]
         pub const fn $right(x0:$u, x1: $s, n: u32) -> ($u, $s) {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             // 0bFFFFXY -> 0bXYFFFF
