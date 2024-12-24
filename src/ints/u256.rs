@@ -11,22 +11,19 @@
 //! crucial to parsing or serialization ([`add`][`u256::add`],
 //! [`mul`][`u256::mul`], [`div`][`u256::div`], and
 //! [`sub`][`u256::sub`]), as well as their `wrapping_*`,
-//! `checked_*`, `overflowing_*` and `*_small` variants are
+//! `checked_*`, `overflowing_*` and `*_wide` variants are
 //! likely based on the core implementations.
 
 use core::cmp::Ordering;
 use core::str::{FromStr, Utf8Error};
-use core::{fmt, mem, str};
+use core::{fmt, str};
 use core::{ops::*, panic};
 
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::i256;
 use crate::ints::i256::lt as i256_lt;
-use crate::math::{self, ULimb, UWide};
+use crate::math::{self, ULimb, UWide, LIMBS};
 use crate::numtypes::*;
-
-// The number of limbs in the integer.
-const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
@@ -36,7 +33,7 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 /// The high and low words depend on the target endianness.
 /// Conversion to and from big endian should be done via
 /// [`to_le_bytes`] and [`to_be_bytes`]. or using
-/// [`get_high`] and [`get_low`].
+/// [`high`] and [`low`].
 ///
 /// Our formatting specifications are limited: we ignore a
 /// lot of settings, and only respect [`alternate`] among the
@@ -50,16 +47,15 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 ///
 /// [`to_le_bytes`]: i256::to_le_bytes
 /// [`to_be_bytes`]: i256::to_be_bytes
-/// [`get_high`]: i256::get_high
-/// [`get_low`]: i256::get_low
+/// [`high`]: i256::high
+/// [`low`]: i256::low
 /// [`alternate`]: fmt::Formatter::alternate
 /// [`Binary`]: fmt::Binary
 /// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct u256 {
-    pub(crate) lo: u128,
-    pub(crate) hi: u128,
+    limbs: [ULimb; LIMBS],
 }
 
 impl u256 {
@@ -83,7 +79,7 @@ impl u256 {
     /// Returns the number of ones in the binary representation of `self`.
     #[inline(always)]
     pub const fn count_ones(self) -> u32 {
-        self.hi.count_ones() + self.lo.count_ones()
+        self.high().count_ones() + self.low().count_ones()
     }
 
     /// Returns the number of zeros in the binary representation of `self`.
@@ -114,9 +110,9 @@ impl u256 {
     /// ```
     #[inline(always)]
     pub const fn leading_zeros(self) -> u32 {
-        let mut leading = self.hi.leading_zeros();
+        let mut leading = self.high().leading_zeros();
         if leading == u128::BITS {
-            leading += self.lo.leading_zeros();
+            leading += self.low().leading_zeros();
         }
         leading
     }
@@ -125,9 +121,9 @@ impl u256 {
     /// `self`.
     #[inline(always)]
     pub const fn trailing_zeros(self) -> u32 {
-        let mut trailing = self.hi.trailing_zeros();
+        let mut trailing = self.high().trailing_zeros();
         if trailing == u128::BITS {
-            trailing += self.lo.trailing_zeros();
+            trailing += self.low().trailing_zeros();
         }
         trailing
     }
@@ -152,7 +148,7 @@ impl u256 {
     /// Please note this isn't the same operation as the `<<` shifting operator!
     #[inline(always)]
     pub const fn rotate_left(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_left_u128(self.lo, self.hi, n);
+        let (lo, hi) = math::rotate_left_u128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
@@ -163,14 +159,14 @@ impl u256 {
     /// Please note this isn't the same operation as the `>>` shifting operator!
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_right_u128(self.lo, self.hi, n);
+        let (lo, hi) = math::rotate_right_u128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
     /// Reverses the byte order of the integer.
     #[inline(always)]
     pub const fn swap_bytes(self) -> Self {
-        let (lo, hi) = math::swap_bytes_u128(self.lo, self.hi);
+        let (lo, hi) = math::swap_bytes_u128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -179,7 +175,7 @@ impl u256 {
     /// becomes second most-significant bit, etc.
     #[inline(always)]
     pub const fn reverse_bits(self) -> Self {
-        let (lo, hi) = math::reverse_bits_u128(self.lo, self.hi);
+        let (lo, hi) = math::reverse_bits_u128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -479,8 +475,8 @@ impl u256 {
     //             let mut log = 0;
     //             let mut value = self;
     //             const E16: u64 = 10_000_000_000_000_000;
-    //             while value.hi > 0 {
-    //                 value = value.div_small(E16);
+    //             while value.high() > 0 {
+    //                 value = value.div_wide(E16);
     //                 log += 16;
     //             }
     //             let value: u128 = value.as_u128();
@@ -548,7 +544,7 @@ impl u256 {
     /// saturating at the numeric bounds instead of overflowing.
     #[inline]
     pub const fn saturating_add_signed(self, rhs: i256) -> Self {
-        let is_negative = rhs.hi < 0;
+        let is_negative = rhs.high() < 0;
         let (r, overflowed) = self.overflowing_add(Self::from_i256(rhs));
         if overflowed == is_negative {
             r
@@ -605,7 +601,7 @@ impl u256 {
     /// wrapping around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_add_u128(self.low(), self.high(), rhs.low(), rhs.high());
         u256::new(lo, hi)
     }
 
@@ -620,16 +616,309 @@ impl u256 {
     /// wrapping around at the boundary of the type.
     #[inline(always)]
     pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi) = math::wrapping_sub_u128(self.low(), self.high(), rhs.low(), rhs.high());
         u256::new(lo, hi)
     }
 
     /// Wrapping (modular) multiplication. Computes `self *
     /// rhs`, wrapping around at the boundary of the type.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only
+    ///
+    /// # Assembly
+    ///
+    /// For a 128-bit multiplication (2x `u64` + 2x `u64`), algorithm (1) had
+    /// 6 `mul`, 6 `add`, and 6 bitshift instructions. Algorithm (3) had 10
+    /// `mul`, 12 `add`, and 12 bitshift instructions in the worst case, with
+    /// a minimum of 4 `mul` and 2 `add` instructions, along with a lot of
+    /// branching. That is, it was almost never worth it.
+    ///
+    /// However, for 256-bit multiplication, the switch flips, with algorithm
+    /// (1) having 10 `mul` and 14 `add` instructions. However, algorithm (3)
+    /// has in the worst case 10 `mul` and 15 `add` instructions, however,
+    /// because of branching in nearly every case, it has better performance
+    /// and optimizes nicely for small multiplications.
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
-        u256::new(lo, hi)
+        // 128-Bit
+        // -------
+        // long_u64:
+        //     push    r15
+        //     push    r14
+        //     push    rbx
+        //     mov     r11, rdi
+        //     shr     r11, 32
+        //     mov     r8, rdx
+        //     shr     r8, 32
+        //     test    edi, edi
+        //     je      .LBB0_1
+        //     mov     ebx, edi
+        //     mov     r9, rcx
+        //     shr     r9, 32
+        //     mov     eax, edx
+        //     imul    rax, rbx
+        //     mov     r10d, eax
+        //     mov     r14, rax
+        //     shr     r14, 32
+        //     mov     rax, r8
+        //     imul    rax, rbx
+        //     add     rax, r14
+        //     mov     r14, rax
+        //     shr     r14, 32
+        //     mov     r15d, ecx
+        //     imul    r15, rbx
+        //     imul    r9d, edi
+        //     shl     r9, 32
+        //     add     r9, r15
+        //     add     r9, r14
+        //     movabs  rdi, -4294967296
+        //     test    r11, r11
+        //     je      .LBB0_5
+        // .LBB0_4:
+        //     mov     ebx, edx
+        //     imul    rbx, r11
+        //     mov     eax, eax
+        //     add     rax, rbx
+        //     mov     rbx, rax
+        //     shr     rbx, 32
+        //     mov     r14, r8
+        //     imul    r14, r11
+        //     mov     r15d, r9d
+        //     add     r15, r14
+        //     add     r15, rbx
+        //     mov     ebx, r15d
+        //     imul    r11d, ecx
+        //     shl     r11, 32
+        //     add     r11, r15
+        //     and     r11, rdi
+        //     add     r11, r9
+        //     and     r11, rdi
+        //     or      r11, rbx
+        //     mov     r9, r11
+        // .LBB0_5:
+        //     test    esi, esi
+        //     je      .LBB0_7
+        //     mov     ecx, esi
+        //     mov     r11d, edx
+        //     imul    r11, rcx
+        //     mov     ecx, r9d
+        //     add     rcx, r11
+        //     mov     r11d, ecx
+        //     imul    r8d, esi
+        //     shl     r8, 32
+        //     add     r8, rcx
+        //     and     r8, rdi
+        //     add     r8, r9
+        //     and     r8, rdi
+        //     or      r8, r11
+        //     mov     r9, r8
+        // .LBB0_7:
+        //     shr     rsi, 32
+        //     imul    edx, esi
+        //     shl     rdx, 32
+        //     test    rsi, rsi
+        //     cmove   rdx, rsi
+        //     add     rdx, r9
+        //     shl     rax, 32
+        //     or      rax, r10
+        //     pop     rbx
+        //     pop     r14
+        //     pop     r15
+        //     ret
+        // .LBB0_1:
+        //     xor     r9d, r9d
+        //     xor     eax, eax
+        //     xor     r10d, r10d
+        //     movabs  rdi, -4294967296
+        //     test    r11, r11
+        //     jne     .LBB0_4
+        //     jmp     .LBB0_5
+        //
+        // mulx_u64:
+        //     mov     eax, edi
+        //     imul    rcx, rdi
+        //     shr     rdi, 32
+        //     mov     r8d, edx
+        //     mov     r9, rdx
+        //     shr     r9, 32
+        //     mov     r10, r8
+        //     imul    r10, rax
+        //     imul    rax, r9
+        //     imul    r8, rdi
+        //     imul    r9, rdi
+        //     mov     edi, r10d
+        //     shr     r10, 32
+        //     add     r10, r8
+        //     mov     r8d, r10d
+        //     shr     r10, 32
+        //     add     r8, rax
+        //     mov     rax, r8
+        //     shl     rax, 32
+        //     or      rax, rdi
+        //     shr     r8, 32
+        //     imul    rdx, rsi
+        //     add     rdx, rcx
+        //     add     rdx, r9
+        //     add     rdx, r10
+        //     add     rdx, r8
+        //     ret
+        //
+        // 256-Bit
+        // -------
+        // long_u128:
+        //     push    r15
+        //     push    r14
+        //     push    r13
+        //     push    r12
+        //     push    rbx
+        //     mov     r12, rdx
+        //     mov     r15, qword ptr [rsp + 64]
+        //     mov     r11, qword ptr [rsp + 56]
+        //     mov     rbx, qword ptr [rsp + 48]
+        //     test    rsi, rsi
+        //     je      .LBB1_1
+        //     mov     rax, rbx
+        //     mul     rsi
+        //     mov     r14, rdx
+        //     mov     r9, rax
+        //     mov     rax, r11
+        //     mul     rsi
+        //     mov     r13, rdx
+        //     mov     r10, rax
+        //     add     r10, r14
+        //     adc     r13, 0
+        //     mov     rax, r15
+        //     mul     rsi
+        //     mov     r14, rax
+        //     imul    rsi, qword ptr [rsp + 72]
+        //     add     r14, r13
+        //     adc     rsi, rdx
+        //     test    r12, r12
+        //     je      .LBB1_5
+        // .LBB1_4:
+        //     mov     rax, rbx
+        //     mul     r12
+        //     mov     r13, rdx
+        //     add     r10, rax
+        //     adc     r13, 0
+        //     mov     rax, r11
+        //     mul     r12
+        //     add     rax, r13
+        //     adc     rdx, 0
+        //     imul    r15, r12
+        //     add     r14, rax
+        //     adc     r15, rdx
+        //     add     rsi, r15
+        // .LBB1_5:
+        //     test    rcx, rcx
+        //     je      .LBB1_7
+        //     mov     rax, rbx
+        //     mul     rcx
+        //     imul    r11, rcx
+        //     add     r14, rax
+        //     adc     r11, rdx
+        //     add     rsi, r11
+        // .LBB1_7:
+        //     test    r8, r8
+        //     je      .LBB1_9
+        //     imul    r8, rbx
+        //     add     rsi, r8
+        // .LBB1_9:
+        //     mov     qword ptr [rdi + 8], r10
+        //     mov     qword ptr [rdi], r9
+        //     mov     qword ptr [rdi + 24], rsi
+        //     mov     qword ptr [rdi + 16], r14
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     pop     r12
+        //     pop     r13
+        //     pop     r14
+        //     pop     r15
+        //     ret
+        // .LBB1_1:
+        //     xor     esi, esi
+        //     xor     r14d, r14d
+        //     xor     r10d, r10d
+        //     xor     r9d, r9d
+        //     test    r12, r12
+        //     jne     .LBB1_4
+        //     jmp     .LBB1_5
+        //
+        // mulx_u128:
+        //     push    rbp
+        //     push    r15
+        //     push    r14
+        //     push    r13
+        //     push    r12
+        //     push    rbx
+        //     mov     r13, rdx
+        //     mov     r12, qword ptr [rsp + 56]
+        //     mov     r14, qword ptr [rsp + 64]
+        //     mov     rax, r12
+        //     mul     rsi
+        //     mov     qword ptr [rsp - 24], rdx
+        //     mov     qword ptr [rsp - 8], rax
+        //     mov     rax, r14
+        //     mul     rsi
+        //     mov     rbx, rax
+        //     mov     qword ptr [rsp - 16], rdx
+        //     mov     rax, r12
+        //     mul     r13
+        //     mov     r15, rdx
+        //     mov     rbp, rax
+        //     mov     rax, r14
+        //     mul     r13
+        //     mov     r10, rax
+        //     mov     r9, rdx
+        //     mov     rax, qword ptr [rsp + 72]
+        //     imul    r13, rax
+        //     mul     rsi
+        //     mov     r11, rax
+        //     add     rdx, r13
+        //     imul    rsi, qword ptr [rsp + 80]
+        //     add     rsi, rdx
+        //     imul    r8, r12
+        //     mov     rax, r12
+        //     mul     rcx
+        //     add     rdx, r8
+        //     imul    r14, rcx
+        //     add     r14, rdx
+        //     add     rax, r10
+        //     adc     r14, r9
+        //     add     rax, r11
+        //     adc     r14, rsi
+        //     add     rbp, qword ptr [rsp - 24]
+        //     adc     rax, r15
+        //     adc     r14, 0
+        //     add     rbp, rbx
+        //     adc     rax, qword ptr [rsp - 16]
+        //     mov     rcx, qword ptr [rsp - 8]
+        //     mov     qword ptr [rdi], rcx
+        //     mov     qword ptr [rdi + 8], rbp
+        //     mov     qword ptr [rdi + 16], rax
+        //     adc     r14, 0
+        //     mov     qword ptr [rdi + 24], r14
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     pop     r12
+        //     pop     r13
+        //     pop     r14
+        //     pop     r15
+        //     pop     rbp
+        //     ret
+        let r = math::wrapping_mul_arr_u128(&self.to_le_limbs(), &rhs.to_le_limbs());
+        Self::from_le_limbs(r)
     }
 
     /// Wrapping (modular) division. Computes `self / rhs`.
@@ -720,7 +1009,7 @@ impl u256 {
     /// which may be what you want instead.
     #[inline(always)]
     pub const fn wrapping_shl(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shl_u128(self.lo, self.hi, rhs % 256);
+        let (lo, hi) = math::shl_u128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
     }
 
@@ -736,7 +1025,7 @@ impl u256 {
     /// which may be what you want instead.
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shr_u128(self.lo, self.hi, rhs % 256);
+        let (lo, hi) = math::shr_u128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
     }
 
@@ -772,7 +1061,8 @@ impl u256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) =
+            math::overflowing_add_u128(self.low(), self.high(), rhs.low(), rhs.high());
         (Self::new(lo, hi), overflowed)
     }
 
@@ -783,7 +1073,7 @@ impl u256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_add_signed(self, rhs: i256) -> (Self, bool) {
-        let is_negative = rhs.hi < 0;
+        let is_negative = rhs.high() < 0;
         let (r, overflowed) = self.overflowing_add(Self::from_i256(rhs));
         (r, overflowed ^ is_negative)
     }
@@ -795,7 +1085,8 @@ impl u256 {
     /// have occurred then the wrapped value is returned.
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_u128(self.lo, self.hi, rhs.lo, rhs.hi);
+        let (lo, hi, overflowed) =
+            math::overflowing_sub_u128(self.low(), self.high(), rhs.low(), rhs.high());
         (Self::new(lo, hi), overflowed)
     }
 
@@ -814,10 +1105,32 @@ impl u256 {
     /// Returns a tuple of the multiplication along with a boolean
     /// indicating whether an arithmetic overflow would occur. If an
     /// overflow would have occurred then the wrapped value is returned.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// * `x0` - The lower half of x.
+    /// * `x1` - The upper half of x.
+    /// * `y0` - The lower half of y.
+    /// * `y1` - The upper half of y.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul`]: Self::wrapping_mul
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_u128(self.lo, self.hi, rhs.lo, rhs.hi);
-        (Self::new(lo, hi), overflowed)
+        let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &rhs.to_le_limbs());
+        (Self::from_le_limbs(r), overflow)
     }
 
     /// Calculates the divisor when `self` is divided by `rhs`.
@@ -966,10 +1279,9 @@ impl u256 {
     #[inline]
     pub fn div_ceil(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
-        if r.lo > 0 || r.hi > 0 {
+        if r.low() > 0 || r.high() > 0 {
             // NOTE: This can't overflow
-            let (lo, hi) = math::wrapping_add_u128(d.lo, d.hi, 1, 0);
-            Self::new(lo, hi)
+            d.wrapping_add(Self::from_u8(1))
         } else {
             d
         }
@@ -1075,20 +1387,14 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
-        // NOTE: the layout of `i128` is implementation-defined.
-        let lo = self.lo.to_be_bytes();
-        let hi = self.hi.to_be_bytes();
-        to_flat_bytes(hi, lo)
+        math::from_limbs(self.to_be_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
-        // NOTE: the layout of `i128` is implementation-defined.
-        let lo = self.lo.to_le_bytes();
-        let hi = self.hi.to_le_bytes();
-        to_flat_bytes(lo, hi)
+        math::from_limbs(self.to_le_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1102,25 +1408,21 @@ impl u256 {
     /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
     pub const fn to_ne_bytes(self) -> [u8; 32] {
-        if cfg!(target_endian = "big") {
-            self.to_be_bytes()
-        } else {
-            self.to_le_bytes()
-        }
+        math::from_limbs(self.to_ne_limbs())
     }
 
     /// Returns the memory representation of this as a series of limbs in
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_limbs(self) -> [ULimb; LIMBS] {
-        to_limbs(self.to_be_bytes())
+        self.to_be().limbs
     }
 
     /// Returns the memory representation of this as a series of limbs in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_limbs(self) -> [ULimb; LIMBS] {
-        to_limbs(self.to_le_bytes())
+        self.to_le().limbs
     }
 
     /// Returns the memory representation of this as a series of limbs.
@@ -1133,27 +1435,21 @@ impl u256 {
     /// [`to_le_limbs`]: Self::to_le_limbs
     #[inline(always)]
     pub const fn to_ne_limbs(self) -> [ULimb; LIMBS] {
-        if cfg!(target_endian = "big") {
-            self.to_be_limbs()
-        } else {
-            self.to_le_limbs()
-        }
+        self.limbs
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        let (hi, lo) = from_flat_bytes(bytes);
-        Self::new(u128::from_be_bytes(lo), u128::from_be_bytes(hi))
+        Self::from_be_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        let (lo, hi) = from_flat_bytes(bytes);
-        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
+        Self::from_le_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1167,25 +1463,29 @@ impl u256 {
     /// [`from_le_bytes`]: Self::from_le_bytes
     #[inline(always)]
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
-        if cfg!(target_endian = "big") {
-            Self::from_be_bytes(bytes)
-        } else {
-            Self::from_le_bytes(bytes)
-        }
+        Self::from_ne_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in big endian.
     #[inline(always)]
     pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        Self::from_be_bytes(from_limbs(limbs))
+        if cfg!(target_endian = "big") {
+            Self::from_ne_limbs(limbs)
+        } else {
+            Self::from_ne_limbs(math::swap_limbs(limbs))
+        }
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in little endian.
     #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        Self::from_le_bytes(from_limbs(limbs))
+        if cfg!(target_endian = "big") {
+            Self::from_ne_limbs(math::swap_limbs(limbs))
+        } else {
+            Self::from_ne_limbs(limbs)
+        }
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1199,10 +1499,8 @@ impl u256 {
     /// [`from_le_limbs`]: Self::from_le_limbs
     #[inline(always)]
     pub const fn from_ne_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        if cfg!(target_endian = "big") {
-            Self::from_be_limbs(limbs)
-        } else {
-            Self::from_le_limbs(limbs)
+        Self {
+            limbs,
         }
     }
 
@@ -1239,22 +1537,35 @@ impl u256 {
     /// Create a new `u256` from the low and high bits.
     #[inline(always)]
     pub const fn new(lo: u128, hi: u128) -> Self {
-        Self {
-            lo,
-            hi,
+        if cfg!(target_endian = "big") {
+            Self::from_be_bytes(math::to_flat_bytes(hi.to_be_bytes(), lo.to_be_bytes()))
+        } else {
+            Self::from_le_bytes(math::to_flat_bytes(lo.to_le_bytes(), hi.to_le_bytes()))
         }
     }
 
     /// Get the high 128 bits of the signed integer.
     #[inline(always)]
-    pub const fn get_high(self) -> u128 {
-        self.hi
+    pub const fn high(self) -> u128 {
+        if cfg!(target_endian = "big") {
+            let (hi, _) = math::from_flat_bytes(self.to_be_bytes());
+            u128::from_be_bytes(hi)
+        } else {
+            let (_, hi) = math::from_flat_bytes(self.to_le_bytes());
+            u128::from_le_bytes(hi)
+        }
     }
 
     /// Get the low 128 bits of the signed integer.
     #[inline(always)]
-    pub const fn get_low(self) -> u128 {
-        self.lo
+    pub const fn low(self) -> u128 {
+        if cfg!(target_endian = "big") {
+            let (_, lo) = math::from_flat_bytes(self.to_be_bytes());
+            u128::from_be_bytes(lo)
+        } else {
+            let (lo, _) = math::from_flat_bytes(self.to_le_bytes());
+            u128::from_le_bytes(lo)
+        }
     }
 
     /// Create the 256-bit unsigned integer to a `u8`, as if by an `as` cast.
@@ -1334,32 +1645,32 @@ impl u256 {
     /// Convert the 256-bit unsigned integer to an `u8`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u8(&self) -> u8 {
-        self.lo as u8
+        self.low() as u8
     }
 
     /// Convert the 256-bit unsigned integer to an `u16`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u16(&self) -> u16 {
-        self.lo as u16
+        self.low() as u16
     }
 
     /// Convert the 256-bit unsigned integer to an `u32`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u32(&self) -> u32 {
-        self.lo as u32
+        self.low() as u32
     }
 
     /// Convert the 256-bit unsigned integer to an `u64`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u64(&self) -> u64 {
-        self.lo as u64
+        self.low() as u64
     }
 
     /// Convert the 256-bit unsigned integer to an `u128`, as if by an `as`
     /// cast.
     #[inline(always)]
     pub const fn as_u128(&self) -> u128 {
-        math::as_unarrow_u128(self.lo, self.hi)
+        math::as_unarrow_u128(self.low(), self.high())
     }
 
     /// Convert the 256-bit unsigned integer to an `u256`, as if by an `as`
@@ -1397,52 +1708,52 @@ impl u256 {
     /// cast.
     #[inline(always)]
     pub const fn as_i128(&self) -> i128 {
-        math::as_inarrow_u128(self.lo, self.hi)
+        math::as_inarrow_u128(self.low(), self.high())
     }
 
     /// Convert the 256-bit unsigned integer to an `i256`, as if by an `as`
     /// cast.
     #[inline(always)]
     pub const fn as_i256(&self) -> i256 {
-        let (lo, hi) = math::wide_cast_u128(self.lo, self.hi);
+        let (lo, hi) = math::wide_cast_u128(self.low(), self.high());
         i256::new(lo, hi)
     }
 
-    /// Add the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
-    pub const fn add_small(self, n: u128) -> Self {
+    pub const fn add_uwide(self, n: UWide) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_add_small(n)
+            self.wrapping_add_uwide(n)
         } else {
-            match self.checked_add_small(n) {
+            match self.checked_add_uwide(n) {
                 Some(v) => v,
                 None => panic!("attempt to add with overflow"),
             }
         }
     }
 
-    /// Add the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
-    pub const fn wrapping_add_small(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_add_small_u128(self.lo, self.hi, n);
+    pub const fn wrapping_add_uwide(self, n: UWide) -> Self {
+        let (lo, hi) = math::wrapping_add_wide_u128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
-    /// Add the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
-    pub const fn overflowing_add_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_small_u128(self.lo, self.hi, n);
+    pub const fn overflowing_add_uwide(self, n: UWide) -> (Self, bool) {
+        let (lo, hi, overflowed) = math::overflowing_add_wide_u128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
-    /// Add the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full addition cannot do.
     #[inline(always)]
-    pub const fn checked_add_small(self, n: u128) -> Option<Self> {
-        let (value, overflowed) = self.overflowing_add_small(n);
+    pub const fn checked_add_uwide(self, n: UWide) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_add_uwide(n);
         if overflowed {
             None
         } else {
@@ -1450,41 +1761,41 @@ impl u256 {
         }
     }
 
-    /// Subtract the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
-    pub const fn sub_small(self, n: u128) -> Self {
+    pub const fn sub_uwide(self, n: UWide) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_sub_small(n)
+            self.wrapping_sub_uwide(n)
         } else {
-            match self.checked_sub_small(n) {
+            match self.checked_sub_uwide(n) {
                 Some(v) => v,
                 None => panic!("attempt to subtract with overflow"),
             }
         }
     }
 
-    /// Subtract the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
-    pub const fn wrapping_sub_small(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_sub_small_u128(self.lo, self.hi, n);
+    pub const fn wrapping_sub_uwide(self, n: UWide) -> Self {
+        let (lo, hi) = math::wrapping_sub_wide_u128(self.low(), self.high(), n);
         Self::new(lo, hi)
     }
 
-    /// Subtract the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
-    pub const fn overflowing_sub_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_small_u128(self.lo, self.hi, n);
+    pub const fn overflowing_sub_uwide(self, n: UWide) -> (Self, bool) {
+        let (lo, hi, overflowed) = math::overflowing_sub_wide_u128(self.low(), self.high(), n);
         (Self::new(lo, hi), overflowed)
     }
 
-    /// Subtract the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
     /// This allows optimizations a full subtraction cannot do.
     #[inline(always)]
-    pub const fn checked_sub_small(self, n: u128) -> Option<Self> {
-        let (value, overflowed) = self.overflowing_sub_small(n);
+    pub const fn checked_sub_uwide(self, n: UWide) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_sub_uwide(n);
         if overflowed {
             None
         } else {
@@ -1492,45 +1803,155 @@ impl u256 {
         }
     }
 
-    /// Multiply the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
-    pub const fn mul_small(self, n: u128) -> Self {
+    pub const fn mul_uwide(self, n: UWide) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_mul_small(n)
+            self.wrapping_mul_uwide(n)
         } else {
-            match self.checked_mul_small(n) {
+            match self.checked_mul_uwide(n) {
                 Some(v) => v,
                 None => panic!("attempt to multiply with overflow"),
             }
         }
     }
 
-    /// Multiply the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
+    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u128`
+    /// is at worst 8 `mul` and 12 `add` instructions, which optimizes quite nicely.
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
-    pub const fn wrapping_mul_small(self, n: u128) -> Self {
-        let (lo, hi) = math::wrapping_mul_small_u128(self.lo, self.hi, n);
-        Self::new(lo, hi)
+    pub const fn wrapping_mul_uwide(self, n: UWide) -> Self {
+        // 256-Bit
+        // -------
+        // wrapping_mul:
+        //     push    r15
+        //     push    r14
+        //     push    r12
+        //     push    rbx
+        //     mov     r14, rdx
+        //     mov     r11, qword ptr [rsp + 48]
+        //     mov     rbx, qword ptr [rsp + 40]
+        //     test    rsi, rsi
+        //     je      .LBB1_1
+        //     mov     rax, rbx
+        //     mul     rsi
+        //     mov     r12, rdx
+        //     mov     r15, rax
+        //     mov     rax, r11
+        //     mul     rsi
+        //     mov     r10, rdx
+        //     mov     r9, rax
+        //     add     r9, r12
+        //     adc     r10, 0
+        //     test    r14, r14
+        //     jne     .LBB1_5
+        // .LBB1_4:
+        //     xor     r14d, r14d
+        //     test    rcx, rcx
+        //     jne     .LBB1_7
+        //     jmp     .LBB1_8
+        // .LBB1_1:
+        //     xor     r9d, r9d
+        //     xor     r15d, r15d
+        //     xor     r10d, r10d
+        //     test    r14, r14
+        //     je      .LBB1_4
+        // .LBB1_5:
+        //     mov     rax, rbx
+        //     mul     r14
+        //     mov     rsi, rdx
+        //     add     r9, rax
+        //     adc     rsi, 0
+        //     mov     rax, r11
+        //     mul     r14
+        //     mov     r14, rdx
+        //     add     rax, rsi
+        //     adc     r14, 0
+        //     add     r10, rax
+        //     adc     r14, 0
+        //     test    rcx, rcx
+        //     je      .LBB1_8
+        // .LBB1_7:
+        //     mov     rax, rbx
+        //     mul     rcx
+        //     imul    r11, rcx
+        //     add     r10, rax
+        //     adc     r11, rdx
+        //     add     r14, r11
+        // .LBB1_8:
+        //     test    r8, r8
+        //     je      .LBB1_10
+        //     imul    r8, rbx
+        //     add     r14, r8
+        // .LBB1_10:
+        //     mov     qword ptr [rdi + 8], r9
+        //     mov     qword ptr [rdi], r15
+        //     mov     qword ptr [rdi + 24], r14
+        //     mov     qword ptr [rdi + 16], r10
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     pop     r12
+        //     pop     r14
+        //     pop     r15
+        //     ret
+        let n = math::split!(UWide, ULimb, n);
+        let r = math::wrapping_mul_arr_u128(&self.to_le_limbs(), &n);
+        Self::from_le_limbs(r)
     }
 
-    /// Multiply the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul_uwide`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul_uwide`]: Self::wrapping_mul_uwide
     #[inline(always)]
-    pub const fn overflowing_mul_small(self, n: u128) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_small_u128(self.lo, self.hi, n);
-        (Self::new(lo, hi), overflowed)
+    pub const fn overflowing_mul_uwide(self, n: UWide) -> (Self, bool) {
+        let n = math::split!(UWide, ULimb, n);
+        let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &n);
+        (Self::from_le_limbs(r), overflow)
     }
 
-    /// Multiply the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
-    pub const fn checked_mul_small(self, n: u128) -> Option<Self> {
-        let (value, overflowed) = self.overflowing_mul_small(n);
+    pub const fn checked_mul_uwide(self, n: UWide) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_mul_uwide(n);
         if overflowed {
             None
         } else {
@@ -1538,45 +1959,103 @@ impl u256 {
         }
     }
 
-    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
-    pub const fn mul_half(self, n: u64) -> Self {
+    pub const fn mul_ulimb(self, n: ULimb) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_mul_half(n)
+            self.wrapping_mul_ulimb(n)
         } else {
-            match self.checked_mul_half(n) {
+            match self.checked_mul_ulimb(n) {
                 Some(v) => v,
                 None => panic!("attempt to multiply with overflow"),
             }
         }
     }
 
-    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
+    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u64`
+    /// is always 4 `mul` and 3 `add` instructions without any branching. This is
+    /// extremely efficient.
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
-    pub const fn wrapping_mul_half(self, n: u64) -> Self {
-        let (lo, hi) = math::wrapping_mul_half_u128(self.lo, self.hi, n);
-        Self::new(lo, hi)
+    pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
+        // 256-Bit
+        // -------
+        // wrapping_mul:
+        //     push    rbx
+        //     mov     rax, rcx
+        //     mov     rcx, rdx
+        //     imul    r8, r9
+        //     mul     r9
+        //     mov     r10, rdx
+        //     mov     r11, rax
+        //     mov     rax, rcx
+        //     mul     r9
+        //     mov     rcx, rdx
+        //     mov     rbx, rax
+        //     mov     rax, rsi
+        //     mul     r9
+        //     add     rdx, rbx
+        //     adc     rcx, r11
+        //     adc     r10, r8
+        //     mov     qword ptr [rdi], rax
+        //     mov     qword ptr [rdi + 8], rdx
+        //     mov     qword ptr [rdi + 16], rcx
+        //     mov     qword ptr [rdi + 24], r10
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     ret
+        let r = math::wrapping_mul_arr_u128(&self.to_le_limbs(), &[n]);
+        Self::from_le_limbs(r)
     }
 
-    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full multiplication cannot do.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul_ulimb`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
     #[inline(always)]
-    pub const fn overflowing_mul_half(self, n: u64) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_half_u128(self.lo, self.hi, n);
-        (Self::new(lo, hi), overflowed)
+    pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
+        let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &[n]);
+        (Self::from_le_limbs(r), overflow)
     }
 
-    /// Multiply the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
     #[inline(always)]
-    pub const fn checked_mul_half(self, n: u64) -> Option<Self> {
-        let (value, overflowed) = self.overflowing_mul_half(n);
+    pub const fn checked_mul_ulimb(self, n: ULimb) -> Option<Self> {
+        let (value, overflowed) = self.overflowing_mul_ulimb(n);
         if overflowed {
             None
         } else {
@@ -1612,13 +2091,12 @@ impl u256 {
     #[inline]
     pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
         // NOTE: Our algorithm assumes little-endian order, which we might not have.
-        // So, we transmute to LE order prior to the call.
         let x = self.to_le_limbs();
         let y = n.to_le_limbs();
 
         let (div, rem) = math::div_rem_full(&x, &y);
-        let div = u256::from_le_limbs(div);
-        let rem = u256::from_le_limbs(rem);
+        let div = Self::from_le_limbs(div);
+        let rem = Self::from_le_limbs(rem);
 
         (div, rem)
     }
@@ -1649,7 +2127,7 @@ impl u256 {
         }
     }
 
-    /// Div/Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1661,15 +2139,15 @@ impl u256 {
     ///
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn div_rem_small(self, n: UWide) -> (Self, UWide) {
+    pub fn div_rem_uwide(self, n: UWide) -> (Self, UWide) {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_div_rem_small(n)
+            self.wrapping_div_rem_uwide(n)
         } else {
-            self.checked_div_rem_small(n).expect("attempt to divide with overflow")
+            self.checked_div_rem_uwide(n).expect("attempt to divide with overflow")
         }
     }
 
-    /// Div/Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1681,14 +2159,14 @@ impl u256 {
     ///
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn wrapping_div_rem_small(self, n: UWide) -> (Self, UWide) {
+    pub fn wrapping_div_rem_uwide(self, n: UWide) -> (Self, UWide) {
         let x = self.to_le_limbs();
-        let (div, rem) = math::div_rem_small(&x, n);
+        let (div, rem) = math::div_rem_wide(&x, n);
         let div = u256::from_le_limbs(div);
         (div, rem)
     }
 
-    /// Div/Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1696,15 +2174,15 @@ impl u256 {
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn checked_div_rem_small(self, n: UWide) -> Option<(Self, UWide)> {
+    pub fn checked_div_rem_uwide(self, n: UWide) -> Option<(Self, UWide)> {
         if n == 0 {
             None
         } else {
-            Some(self.wrapping_div_rem_small(n))
+            Some(self.wrapping_div_rem_uwide(n))
         }
     }
 
-    /// Div/Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1712,15 +2190,15 @@ impl u256 {
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn overflowing_div_rem_small(self, n: UWide) -> ((Self, UWide), bool) {
+    pub fn overflowing_div_rem_uwide(self, n: UWide) -> ((Self, UWide), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
         } else {
-            (self.wrapping_div_rem_small(n), false)
+            (self.wrapping_div_rem_uwide(n), false)
         }
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1728,15 +2206,15 @@ impl u256 {
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn div_small(self, n: UWide) -> Self {
+    pub fn div_uwide(self, n: UWide) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.div_rem_small(n).0
+            self.div_rem_uwide(n).0
         } else {
-            self.checked_div_small(n).expect("attempt to divide by zero")
+            self.checked_div_uwide(n).expect("attempt to divide by zero")
         }
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1744,11 +2222,11 @@ impl u256 {
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn wrapping_div_small(self, n: UWide) -> Self {
-        self.wrapping_div_rem_small(n).0
+    pub fn wrapping_div_uwide(self, n: UWide) -> Self {
+        self.wrapping_div_rem_uwide(n).0
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     /// Performance of this is highly variable: for small
@@ -1756,77 +2234,77 @@ impl u256 {
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn overflowing_div_small(self, n: UWide) -> (Self, bool) {
-        let (divrem, overflow) = self.overflowing_div_rem_small(n);
+    pub fn overflowing_div_uwide(self, n: UWide) -> (Self, bool) {
+        let (divrem, overflow) = self.overflowing_div_rem_uwide(n);
         (divrem.0, overflow)
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
+    /// Performance of this is highly variable: for wide
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn checked_div_small(self, n: UWide) -> Option<Self> {
-        Some(self.checked_div_rem_small(n)?.0)
+    pub fn checked_div_uwide(self, n: UWide) -> Option<Self> {
+        Some(self.checked_div_rem_uwide(n)?.0)
     }
 
-    /// Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
+    /// Performance of this is highly variable: for wide
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn rem_small(self, n: UWide) -> UWide {
+    pub fn rem_uwide(self, n: UWide) -> UWide {
         if cfg!(not(have_overflow_checks)) {
-            self.div_rem_small(n).1
+            self.div_rem_uwide(n).1
         } else {
-            self.checked_rem_small(n).expect("attempt to divide by zero")
+            self.checked_rem_uwide(n).expect("attempt to divide by zero")
         }
     }
 
-    /// Rem the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
+    /// Performance of this is highly variable: for wide
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn wrapping_rem_small(self, n: UWide) -> UWide {
-        self.wrapping_div_rem_small(n).1
+    pub fn wrapping_rem_uwide(self, n: UWide) -> UWide {
+        self.wrapping_div_rem_uwide(n).1
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
+    /// Performance of this is highly variable: for wide
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn overflowing_rem_small(self, n: UWide) -> (UWide, bool) {
-        let (divrem, overflow) = self.overflowing_div_rem_small(n);
+    pub fn overflowing_rem_uwide(self, n: UWide) -> (UWide, bool) {
+        let (divrem, overflow) = self.overflowing_div_rem_uwide(n);
         (divrem.1, overflow)
     }
 
-    /// Div the 256-bit integer by a small, 128-bit unsigned factor.
+    /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
+    /// Performance of this is highly variable: for wide
     /// divisors it can be very fast, for larger divisors
     /// due to the creation of the temporary divisor it
     /// can be significantly slower.
     #[inline(always)]
-    pub fn checked_rem_small(self, n: UWide) -> Option<UWide> {
-        Some(self.checked_div_rem_small(n)?.1)
+    pub fn checked_rem_uwide(self, n: UWide) -> Option<UWide> {
+        Some(self.checked_div_rem_uwide(n)?.1)
     }
 
-    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     ///
@@ -1834,15 +2312,15 @@ impl u256 {
     ///
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn div_rem_half(self, n: ULimb) -> (Self, ULimb) {
+    pub fn div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
         if cfg!(not(have_overflow_checks)) {
-            self.wrapping_div_rem_half(n)
+            self.wrapping_div_rem_ulimb(n)
         } else {
-            self.checked_div_rem_half(n).expect("attempt to divide with overflow")
+            self.checked_div_rem_ulimb(n).expect("attempt to divide with overflow")
         }
     }
 
-    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     ///
@@ -1850,109 +2328,109 @@ impl u256 {
     ///
     /// This panics if the divisor is 0.
     #[inline(always)]
-    pub fn wrapping_div_rem_half(self, n: ULimb) -> (Self, ULimb) {
+    pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
         let x = self.to_le_limbs();
-        let (div, rem) = math::div_rem_half(&x, n);
+        let (div, rem) = math::div_rem_limb(&x, n);
         let div = u256::from_le_limbs(div);
         (div, rem)
     }
 
-    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_rem_half(self, n: ULimb) -> Option<(Self, ULimb)> {
+    pub fn checked_div_rem_ulimb(self, n: ULimb) -> Option<(Self, ULimb)> {
         if n == 0 {
             None
         } else {
-            Some(self.wrapping_div_rem_half(n))
+            Some(self.wrapping_div_rem_ulimb(n))
         }
     }
 
-    /// Div/Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_rem_half(self, n: ULimb) -> ((Self, ULimb), bool) {
+    pub fn overflowing_div_rem_ulimb(self, n: ULimb) -> ((Self, ULimb), bool) {
         if n == 0 {
             ((Self::MAX, 0), true)
         } else {
-            (self.wrapping_div_rem_half(n), false)
+            (self.wrapping_div_rem_ulimb(n), false)
         }
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn div_half(self, n: ULimb) -> Self {
+    pub fn div_ulimb(self, n: ULimb) -> Self {
         if cfg!(not(have_overflow_checks)) {
-            self.div_rem_half(n).0
+            self.div_rem_ulimb(n).0
         } else {
-            self.checked_div_half(n).expect("attempt to divide by zero")
+            self.checked_div_ulimb(n).expect("attempt to divide by zero")
         }
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_div_half(self, n: ULimb) -> Self {
-        self.wrapping_div_rem_half(n).0
+    pub fn wrapping_div_ulimb(self, n: ULimb) -> Self {
+        self.wrapping_div_rem_ulimb(n).0
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_div_half(self, n: ULimb) -> (Self, bool) {
-        let (divrem, overflow) = self.overflowing_div_rem_half(n);
+    pub fn overflowing_div_ulimb(self, n: ULimb) -> (Self, bool) {
+        let (divrem, overflow) = self.overflowing_div_rem_ulimb(n);
         (divrem.0, overflow)
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_div_half(self, n: ULimb) -> Option<Self> {
-        Some(self.checked_div_rem_half(n)?.0)
+    pub fn checked_div_ulimb(self, n: ULimb) -> Option<Self> {
+        Some(self.checked_div_rem_ulimb(n)?.0)
     }
 
-    /// Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn rem_half(self, n: ULimb) -> ULimb {
+    pub fn rem_ulimb(self, n: ULimb) -> ULimb {
         if cfg!(not(have_overflow_checks)) {
-            self.div_rem_half(n).1
+            self.div_rem_ulimb(n).1
         } else {
-            self.checked_rem_half(n).expect("attempt to divide by zero")
+            self.checked_rem_ulimb(n).expect("attempt to divide by zero")
         }
     }
 
-    /// Rem the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Rem the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn wrapping_rem_half(self, n: ULimb) -> ULimb {
-        self.wrapping_div_rem_half(n).1
+    pub fn wrapping_rem_ulimb(self, n: ULimb) -> ULimb {
+        self.wrapping_div_rem_ulimb(n).1
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn overflowing_rem_half(self, n: ULimb) -> (ULimb, bool) {
-        let (divrem, overflow) = self.overflowing_div_rem_half(n);
+    pub fn overflowing_rem_ulimb(self, n: ULimb) -> (ULimb, bool) {
+        let (divrem, overflow) = self.overflowing_div_rem_ulimb(n);
         (divrem.1, overflow)
     }
 
-    /// Div the 256-bit integer by a half, 64-bit unsigned factor.
+    /// Div the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full division cannot do.
     #[inline(always)]
-    pub fn checked_rem_half(self, n: ULimb) -> Option<ULimb> {
-        Some(self.checked_div_rem_half(n)?.1)
+    pub fn checked_rem_ulimb(self, n: ULimb) -> Option<ULimb> {
+        Some(self.checked_div_rem_ulimb(n)?.1)
     }
 }
 
@@ -2246,7 +2724,7 @@ impl u256 {
         // Use the well known branchless algorithm from Hacker's Delight to compute
         // `(a + b) / 2` without overflowing: `((a ^ b) >> 1) + (a & b)`.
         let xor = bitxor(self, rhs);
-        let (lo, hi) = math::shr_u128(xor.lo, xor.hi, 1);
+        let (lo, hi) = math::shr_u128(xor.low(), xor.high(), 1);
         Self::new(lo, hi).wrapping_add(bitand(self, rhs))
     }
 
@@ -2433,11 +2911,11 @@ impl fmt::Binary for u256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for binary, since the value as always divisible.
         if f.alternate() {
-            write!(f, "{:#b}", self.hi)?;
+            write!(f, "{:#b}", self.high())?;
         } else {
-            write!(f, "{:b}", self.hi)?;
+            write!(f, "{:b}", self.high())?;
         }
-        write!(f, "{:b}", self.lo)
+        write!(f, "{:b}", self.low())
     }
 }
 
@@ -2485,8 +2963,8 @@ impl fmt::Display for u256 {
     #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if self.hi == 0 {
-            return fmt::Display::fmt(&self.hi, f);
+        if self.high() == 0 {
+            return fmt::Display::fmt(&self.high(), f);
         }
 
         let mut buffer = [0u8; 78];
@@ -2558,8 +3036,8 @@ impl fmt::LowerExp for u256 {
     #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if self.hi == 0 {
-            return fmt::LowerExp::fmt(&self.hi, f);
+        if self.high() == 0 {
+            return fmt::LowerExp::fmt(&self.high(), f);
         }
 
         let mut buffer = [0u8; 78];
@@ -2575,11 +3053,11 @@ impl fmt::LowerHex for u256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for hex, since the value as always divisible.
         if f.alternate() {
-            write!(f, "{:#x}", self.hi)?;
+            write!(f, "{:#x}", self.high())?;
         } else {
-            write!(f, "{:x}", self.hi)?;
+            write!(f, "{:x}", self.high())?;
         }
-        write!(f, "{:x}", self.lo)
+        write!(f, "{:x}", self.low())
     }
 }
 
@@ -2614,10 +3092,10 @@ impl fmt::Octal for u256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This is **NOT** divisible by 8, so `log(128, 8)` is not integral.
         // So, we can break it into pairs of u64.
-        let hi1 = (self.hi >> 64) as u64;
-        let hi0 = self.hi as u64;
-        let lo1 = (self.lo >> 64) as u64;
-        let lo0 = self.lo as u64;
+        let hi1 = (self.high() >> 64) as u64;
+        let hi0 = self.high() as u64;
+        let lo1 = (self.low() >> 64) as u64;
+        let lo0 = self.low() as u64;
 
         let alternate = f.alternate();
         let mut write = |x: u64, alt: bool| {
@@ -2698,12 +3176,12 @@ op_impl!(u256, Rem, RemAssign, rem, rem_assign);
 
 macro_rules! shift_const_impl {
     (@shl $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shl_u128($value.lo, $value.hi, $shift as u32);
+        let (lo, hi) = math::shl_u128($value.low(), $value.high(), $shift as u32);
         Self::new(lo, hi)
     }};
 
     (@shr $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shr_u128($value.lo, $value.hi, $shift as u32);
+        let (lo, hi) = math::shr_u128($value.low(), $value.high(), $shift as u32);
         Self::new(lo, hi)
     }};
 
@@ -2752,7 +3230,7 @@ macro_rules! shift_const_impl {
             let max = Self::from_u16(256);
             let other = other.as_u256();
             debug_assert!(lt(other, max), "attempt to shift left with overflow");
-            let shift = (other.lo & (u32::MAX as u128)) as u32;
+            let shift = (other.low() & (u32::MAX as u128)) as u32;
             shift_const_impl!(@shl self, shift)
         }
 
@@ -2763,7 +3241,7 @@ macro_rules! shift_const_impl {
             let max = Self::from_u16(256);
             let other = other.as_u256();
             debug_assert!(lt(other, max), "attempt to shift right with overflow");
-            let shift = other.lo & (u32::MAX as u128);
+            let shift = other.low() & (u32::MAX as u128);
             shift_const_impl!(@shr self, shift)
         }
     );
@@ -2793,7 +3271,7 @@ impl Shl for u256 {
     #[inline(always)]
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn shl(self, other: Self) -> Self::Output {
-        let shift = other.lo & (u32::MAX as u128);
+        let shift = other.low() & (u32::MAX as u128);
         shift_const_impl!(@shl self, shift)
     }
 }
@@ -2807,7 +3285,7 @@ impl Shr for u256 {
     #[inline(always)]
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn shr(self, other: Self) -> Self::Output {
-        let shift = other.lo & (u32::MAX as u128);
+        let shift = other.low() & (u32::MAX as u128);
         shift_const_impl!(@shr self, shift)
     }
 }
@@ -2979,7 +3457,7 @@ impl TryFrom<i256> for u256 {
 
     #[inline(always)]
     fn try_from(u: i256) -> Result<Self, TryFromIntError> {
-        if u.hi >= 0 {
+        if u.high() >= 0 {
             Ok(u.as_u256())
         } else {
             Err(TryFromIntError {})
@@ -2991,8 +3469,8 @@ impl fmt::UpperExp for u256 {
     #[inline]
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if self.hi == 0 {
-            return fmt::UpperExp::fmt(&self.hi, f);
+        if self.high() == 0 {
+            return fmt::UpperExp::fmt(&self.high(), f);
         }
 
         let mut buffer: [u8; 78] = [0u8; 78];
@@ -3008,78 +3486,78 @@ impl fmt::UpperHex for u256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         // NOTE: This works for hex, since the value as always divisible.
         if f.alternate() {
-            write!(f, "{:#X}", self.hi)?;
+            write!(f, "{:#X}", self.high())?;
         } else {
-            write!(f, "{:X}", self.hi)?;
+            write!(f, "{:X}", self.high())?;
         }
-        write!(f, "{:X}", self.lo)
+        write!(f, "{:X}", self.low())
     }
 }
 
 /// Const implementation of `BitAnd` for internal algorithm use.
 #[inline(always)]
 const fn bitand(lhs: u256, rhs: u256) -> u256 {
-    u256::new(lhs.lo & rhs.lo, lhs.hi & rhs.hi)
+    u256::new(lhs.low() & rhs.low(), lhs.high() & rhs.high())
 }
 
 /// Const implementation of `BitOr` for internal algorithm use.
 #[inline(always)]
 const fn bitor(lhs: u256, rhs: u256) -> u256 {
-    u256::new(lhs.lo | rhs.lo, lhs.hi | rhs.hi)
+    u256::new(lhs.low() | rhs.low(), lhs.high() | rhs.high())
 }
 
 /// Const implementation of `BitXor` for internal algorithm use.
 #[inline(always)]
 const fn bitxor(lhs: u256, rhs: u256) -> u256 {
-    u256::new(lhs.lo ^ rhs.lo, lhs.hi ^ rhs.hi)
+    u256::new(lhs.low() ^ rhs.low(), lhs.high() ^ rhs.high())
 }
 
 /// Const implementation of `Not` for internal algorithm use.
 #[inline(always)]
 const fn not(n: u256) -> u256 {
-    u256::new(!n.lo, !n.hi)
+    u256::new(!n.low(), !n.high())
 }
 
 /// Const implementation of `Eq` for internal algorithm use.
 #[inline(always)]
 const fn eq(lhs: u256, rhs: u256) -> bool {
-    lhs.lo == rhs.lo && lhs.hi == rhs.hi
+    lhs.low() == rhs.low() && lhs.high() == rhs.high()
 }
 
 /// Const implementation of `PartialOrd::lt` for internal algorithm use.
 #[inline(always)]
 pub(crate) const fn lt(lhs: u256, rhs: u256) -> bool {
-    lhs.hi < rhs.hi || (lhs.hi == rhs.hi && lhs.lo < rhs.lo)
+    lhs.high() < rhs.high() || (lhs.high() == rhs.high() && lhs.low() < rhs.low())
 }
 
 /// Const implementation of `PartialOrd::le` for internal algorithm use.
 #[inline(always)]
 const fn le(lhs: u256, rhs: u256) -> bool {
-    lhs.hi < rhs.hi || (lhs.hi == rhs.hi && lhs.lo <= rhs.lo)
+    lhs.high() < rhs.high() || (lhs.high() == rhs.high() && lhs.low() <= rhs.low())
 }
 
 /// Const implementation of `PartialOrd::gt` for internal algorithm use.
 #[inline(always)]
 const fn gt(lhs: u256, rhs: u256) -> bool {
-    lhs.hi > rhs.hi || (lhs.hi == rhs.hi && lhs.lo > rhs.lo)
+    lhs.high() > rhs.high() || (lhs.high() == rhs.high() && lhs.low() > rhs.low())
 }
 
 /// Const implementation of `PartialOrd::ge` for internal algorithm use.
 #[inline(always)]
 const fn ge(lhs: u256, rhs: u256) -> bool {
-    lhs.hi > rhs.hi || (lhs.hi == rhs.hi && lhs.lo >= rhs.lo)
+    lhs.high() > rhs.high() || (lhs.high() == rhs.high() && lhs.low() >= rhs.low())
 }
 
 /// Const implementation of `PartialOrd::cmp` for internal algorithm use.
 #[inline(always)]
 const fn cmp(lhs: u256, rhs: u256) -> Ordering {
-    if lhs.hi < rhs.hi {
+    if lhs.high() < rhs.high() {
         Ordering::Less
-    } else if lhs.hi > rhs.hi {
+    } else if lhs.high() > rhs.high() {
         Ordering::Greater
-    } else if lhs.lo < rhs.lo {
+    } else if lhs.low() < rhs.low() {
         Ordering::Less
-    } else if lhs.lo > rhs.lo {
+    } else if lhs.low() > rhs.low() {
         Ordering::Greater
     } else {
         Ordering::Equal
@@ -3094,81 +3572,20 @@ fn to_bytes(mut value: u256, buffer: &mut [u8; 78]) -> &[u8] {
     // only want to write until
     let mut rem: u64;
     let mut index = buffer.len();
-    while value.hi > 0 || value.lo > 10 && index > 1 {
+    while value.high() > 0 || value.low() > 10 && index > 1 {
         index -= 1;
-        (value, rem) = value.div_rem_half(10);
+        (value, rem) = value.div_rem_ulimb(10);
         buffer[index] = b'0' + rem as u8;
     }
     // always have one trailing digit
     index -= 1;
-    buffer[index] = b'0' + value.lo as u8;
+    buffer[index] = b'0' + value.low() as u8;
     &buffer[index..]
 }
 
 #[inline]
 fn to_string(value: u256, buffer: &mut [u8; 78]) -> Result<&str, Utf8Error> {
     str::from_utf8(to_bytes(value, buffer))
-}
-
-/// Flatten two 128-bit integers as bytes to flat, 32 bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn to_flat_bytes(x: [u8; 16], y: [u8; 16]) -> [u8; 32] {
-    // SAFETY: plain old data
-    unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([x, y]) }
-}
-
-/// Flatten a flat, 32 byte integer to two 128-bit integers as bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn from_flat_bytes(bytes: [u8; 32]) -> ([u8; 16], [u8; 16]) {
-    // SAFETY: plain old data
-    let r = unsafe { mem::transmute::<[u8; 32], [[u8; 16]; 2]>(bytes) };
-    (r[0], r[1])
-}
-
-/// Convert an array of limbs to the flat bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn from_limbs(limbs: [ULimb; LIMBS]) -> [u8; 32] {
-    // SAFETY: This is plain old data
-    unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) }
-}
-
-/// Convert flat bytes to an array of limbs.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn to_limbs(bytes: [u8; 32]) -> [ULimb; LIMBS] {
-    // SAFETY: This is plain old data
-    unsafe { mem::transmute(bytes) }
 }
 
 #[cfg(test)]

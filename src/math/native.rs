@@ -4,6 +4,7 @@
 //! fast integers.
 
 #![doc(hidden)]
+#![allow(clippy::useless_transmute)]
 
 // NOTE: These are named after the size of the types that are the
 // operands: for example, `wrapping_add_u8` takes 2x `u8`, so it's
@@ -14,24 +15,53 @@
 
 // Utility to split a value into low and high bits.
 // This also includes a variety to split into arrays.
+#[macro_export]
 macro_rules! split {
     ($u:ty, $h:ty, $v:expr) => {{
-        const MASK: $u = <$h>::MAX as $u;
-        const SHIFT: u32 = <$h>::BITS;
-        (($v & MASK) as $h, ($v >> SHIFT) as $h)
+        // FIXME: Using raw transmutes can allow vectorizing,
+        // restore to raw splits when possible.
+        //  let (lo, hi) = split!($u, $h, $v);
+        //  [lo, hi]
+        let bytes = $v.to_le_bytes();
+        // SAFETY: safe since this is plain old data
+        let v: [$h; 2] = unsafe { core::mem::transmute(bytes) };
+        v
     }};
 
-    (@arr2 $u:ty, $h:ty, $v:expr) => {{
-        let (lo, hi) = split!($u, $h, $v);
-        [lo, hi]
-    }};
-
-    (@arr4 $u:ty, $h:ty, $x:expr, $y:expr) => {{
-        let (x0, x1) = split!($u, $h, $x);
-        let (y0, y1) = split!($u, $h, $y);
-        [x0, x1, y0, y1]
+    ($u:ty, $h:ty, $x:expr, $y:expr) => {{
+        // FIXME: Using raw transmutes can allow vectorizing,
+        // restore to raw splits when possible.
+        //  let (x0, x1) = split!($u, $h, $x);
+        //  let (y0, y1) = split!($u, $h, $y);
+        //  [x0, x1, y0, y1]
+        let xb = $x.to_le_bytes();
+        let yb = $y.to_le_bytes();
+        // SAFETY: safe since this is plain old data
+        let v: [$h; 4] = unsafe { core::mem::transmute([xb, yb]) };
+        v
     }};
 }
+
+// Unsplit our array and shift bytes into place.
+#[macro_export]
+macro_rules! unsplit {
+    (@wrapping $u:ty, $v:expr, $shift:expr) => {{
+        let r = $v;
+        let lo = ((r[1] as $u) << $shift) | (r[0] as $u);
+        let hi = ((r[3] as $u) << $shift) | (r[2] as $u);
+        (lo, hi)
+    }};
+
+    (@overflow $u:ty, $v:expr, $shift:expr) => {{
+        let (r, o) = $v;
+        let lo = ((r[1] as $u) << $shift) | (r[0] as $u);
+        let hi = ((r[3] as $u) << $shift) | (r[2] as $u);
+        (lo, hi, o)
+    }};
+}
+
+pub(crate) use split;
+pub(crate) use unsplit;
 
 // BINARY OPS - UNSIGNED
 // ---------------------
@@ -40,9 +70,9 @@ macro_rules! add_unsigned_impl {
     (
         $u:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_small =>
-        $wrapping_small:ident,overflowing_small =>
-        $overflowing_small:ident $(,)?
+        $overflowing_full:ident,wrapping_wide =>
+        $wrapping_wide:ident,overflowing_wide =>
+        $overflowing_wide:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_add` for internal algorithm use.
         ///
@@ -202,7 +232,7 @@ macro_rules! add_unsigned_impl {
         ///    ret
         /// ```
         #[inline]
-        pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
+        pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
             // NOTE: This is significantly slower than implementing with overflowing.
             let (v0, c0) = x0.overflowing_add(y);
             let v1 = x1.wrapping_add(c0 as $u);
@@ -253,7 +283,7 @@ macro_rules! add_unsigned_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
+        pub const fn $overflowing_wide(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
             let (v0, c0) = x0.overflowing_add(y);
             let (v1, c1) = x1.overflowing_add(c0 as $u);
             (v0, v1, c1)
@@ -265,45 +295,45 @@ add_unsigned_impl!(
     u8,
     wrapping_full => wrapping_add_u8,
     overflowing_full => overflowing_add_u8,
-    wrapping_small => wrapping_add_small_u8,
-    overflowing_small => overflowing_add_small_u8
+    wrapping_wide => wrapping_add_wide_u8,
+    overflowing_wide => overflowing_add_wide_u8
 );
 add_unsigned_impl!(
     u16,
     wrapping_full => wrapping_add_u16,
     overflowing_full => overflowing_add_u16,
-    wrapping_small => wrapping_add_small_u16,
-    overflowing_small => overflowing_add_small_u16
+    wrapping_wide => wrapping_add_wide_u16,
+    overflowing_wide => overflowing_add_wide_u16
 );
 add_unsigned_impl!(
     u32,
     wrapping_full => wrapping_add_u32,
     overflowing_full => overflowing_add_u32,
-    wrapping_small => wrapping_add_small_u32,
-    overflowing_small => overflowing_add_small_u32
+    wrapping_wide => wrapping_add_wide_u32,
+    overflowing_wide => overflowing_add_wide_u32
 );
 add_unsigned_impl!(
     u64,
     wrapping_full => wrapping_add_u64,
     overflowing_full => overflowing_add_u64,
-    wrapping_small => wrapping_add_small_u64,
-    overflowing_small => overflowing_add_small_u64
+    wrapping_wide => wrapping_add_wide_u64,
+    overflowing_wide => overflowing_add_wide_u64
 );
 add_unsigned_impl!(
     u128,
     wrapping_full => wrapping_add_u128,
     overflowing_full => overflowing_add_u128,
-    wrapping_small => wrapping_add_small_u128,
-    overflowing_small => overflowing_add_small_u128
+    wrapping_wide => wrapping_add_wide_u128,
+    overflowing_wide => overflowing_add_wide_u128
 );
 
 macro_rules! sub_unsigned_impl {
     (
         $u:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_small =>
-        $wrapping_small:ident,overflowing_small =>
-        $overflowing_small:ident $(,)?
+        $overflowing_full:ident,wrapping_wide =>
+        $wrapping_wide:ident,overflowing_wide =>
+        $overflowing_wide:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
         ///
@@ -457,7 +487,7 @@ macro_rules! sub_unsigned_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
+        pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
             let (v0, c0) = x0.overflowing_sub(y);
             let v1 = x1.wrapping_sub(c0 as $u);
             (v0, v1)
@@ -507,7 +537,7 @@ macro_rules! sub_unsigned_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
+        pub const fn $overflowing_wide(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             // This is super efficient, it becomes an `add` and an `adc` (add carry).
             let (v0, c0) = x0.overflowing_sub(y);
@@ -521,36 +551,36 @@ sub_unsigned_impl!(
     u8,
     wrapping_full => wrapping_sub_u8,
     overflowing_full => overflowing_sub_u8,
-    wrapping_small => wrapping_sub_small_u8,
-    overflowing_small => overflowing_sub_small_u8
+    wrapping_wide => wrapping_sub_wide_u8,
+    overflowing_wide => overflowing_sub_wide_u8
 );
 sub_unsigned_impl!(
     u16,
     wrapping_full => wrapping_sub_u16,
     overflowing_full => overflowing_sub_u16,
-    wrapping_small => wrapping_sub_small_u16,
-    overflowing_small => overflowing_sub_small_u16
+    wrapping_wide => wrapping_sub_wide_u16,
+    overflowing_wide => overflowing_sub_wide_u16
 );
 sub_unsigned_impl!(
     u32,
     wrapping_full => wrapping_sub_u32,
     overflowing_full => overflowing_sub_u32,
-    wrapping_small => wrapping_sub_small_u32,
-    overflowing_small => overflowing_sub_small_u32
+    wrapping_wide => wrapping_sub_wide_u32,
+    overflowing_wide => overflowing_sub_wide_u32
 );
 sub_unsigned_impl!(
     u64,
     wrapping_full => wrapping_sub_u64,
     overflowing_full => overflowing_sub_u64,
-    wrapping_small => wrapping_sub_small_u64,
-    overflowing_small => overflowing_sub_small_u64
+    wrapping_wide => wrapping_sub_wide_u64,
+    overflowing_wide => overflowing_sub_wide_u64
 );
 sub_unsigned_impl!(
     u128,
     wrapping_full => wrapping_sub_u128,
     overflowing_full => overflowing_sub_u128,
-    wrapping_small => wrapping_sub_small_u128,
-    overflowing_small => overflowing_sub_small_u128
+    wrapping_wide => wrapping_sub_wide_u128,
+    overflowing_wide => overflowing_sub_wide_u128
 );
 
 macro_rules! mul_unsigned_impl {
@@ -559,12 +589,12 @@ macro_rules! mul_unsigned_impl {
         half => $h:ty,
         wrapping_array => $wrapping_array:ident,
         wrapping_full => $wrapping_full:ident,
-        wrapping_small => $wrapping_small:ident,
-        wrapping_half => $wrapping_half:ident,
+        wrapping_wide => $wrapping_wide:ident,
+        wrapping_limb => $wrapping_limb:ident,
         overflowing_array => $overflowing_array:ident,
         overflowing_full => $overflowing_full:ident,
-        overflowing_small => $overflowing_small:ident,
-        overflowing_half => $overflowing_half:ident $(,)?
+        overflowing_wide => $overflowing_wide:ident,
+        overflowing_limb => $overflowing_limb:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         ///
@@ -583,12 +613,10 @@ macro_rules! mul_unsigned_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        const fn $wrapping_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u) {
+        pub const fn $wrapping_array<const M: usize, const N: usize>(x: &[$h; M], y: &[$h; N]) -> [$h; M] {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
-            if M < N {
-                return $wrapping_array(y, x);
-            }
+            assert!(M >= N, "lhs must be >= than rhs");
 
             const SHIFT: u32 = <$h>::BITS;
             let mut r: [$h; M] = [0; M];
@@ -631,482 +659,36 @@ macro_rules! mul_unsigned_impl {
                 i += 1;
             }
 
-            let lo = ((r[1] as $u) << SHIFT) | (r[0] as $u);
-            let hi = ((r[3] as $u) << SHIFT) | (r[2] as $u);
-            (lo, hi)
+            r
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
-        /// # Assembly
-        ///
-        /// For a 128-bit multiplication (2x `u64` + 2x `u64`), algorithm (1) had
-        /// 6 `mul`, 6 `add`, and 6 bitshift instructions. Algorithm (3) had 10
-        /// `mul`, 12 `add`, and 12 bitshift instructions in the worst case, with
-        /// a minimum of 4 `mul` and 2 `add` instructions, along with a lot of
-        /// branching. That is, it was almost never worth it.
-        ///
-        /// However, for 256-bit multiplication, the switch flips, with algorithm
-        /// (1) having 10 `mul` and 14 `add` instructions. However, algorithm (3)
-        /// has in the worst case 10 `mul` and 15 `add` instructions, however,
-        /// because of branching in nearly every case, it has better performance
-        /// and optimizes nicely for small multiplications.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
-            // 128-Bit
-            // -------
-            // long_u64:
-            //     push    r15
-            //     push    r14
-            //     push    rbx
-            //     mov     r11, rdi
-            //     shr     r11, 32
-            //     mov     r8, rdx
-            //     shr     r8, 32
-            //     test    edi, edi
-            //     je      .LBB0_1
-            //     mov     ebx, edi
-            //     mov     r9, rcx
-            //     shr     r9, 32
-            //     mov     eax, edx
-            //     imul    rax, rbx
-            //     mov     r10d, eax
-            //     mov     r14, rax
-            //     shr     r14, 32
-            //     mov     rax, r8
-            //     imul    rax, rbx
-            //     add     rax, r14
-            //     mov     r14, rax
-            //     shr     r14, 32
-            //     mov     r15d, ecx
-            //     imul    r15, rbx
-            //     imul    r9d, edi
-            //     shl     r9, 32
-            //     add     r9, r15
-            //     add     r9, r14
-            //     movabs  rdi, -4294967296
-            //     test    r11, r11
-            //     je      .LBB0_5
-            // .LBB0_4:
-            //     mov     ebx, edx
-            //     imul    rbx, r11
-            //     mov     eax, eax
-            //     add     rax, rbx
-            //     mov     rbx, rax
-            //     shr     rbx, 32
-            //     mov     r14, r8
-            //     imul    r14, r11
-            //     mov     r15d, r9d
-            //     add     r15, r14
-            //     add     r15, rbx
-            //     mov     ebx, r15d
-            //     imul    r11d, ecx
-            //     shl     r11, 32
-            //     add     r11, r15
-            //     and     r11, rdi
-            //     add     r11, r9
-            //     and     r11, rdi
-            //     or      r11, rbx
-            //     mov     r9, r11
-            // .LBB0_5:
-            //     test    esi, esi
-            //     je      .LBB0_7
-            //     mov     ecx, esi
-            //     mov     r11d, edx
-            //     imul    r11, rcx
-            //     mov     ecx, r9d
-            //     add     rcx, r11
-            //     mov     r11d, ecx
-            //     imul    r8d, esi
-            //     shl     r8, 32
-            //     add     r8, rcx
-            //     and     r8, rdi
-            //     add     r8, r9
-            //     and     r8, rdi
-            //     or      r8, r11
-            //     mov     r9, r8
-            // .LBB0_7:
-            //     shr     rsi, 32
-            //     imul    edx, esi
-            //     shl     rdx, 32
-            //     test    rsi, rsi
-            //     cmove   rdx, rsi
-            //     add     rdx, r9
-            //     shl     rax, 32
-            //     or      rax, r10
-            //     pop     rbx
-            //     pop     r14
-            //     pop     r15
-            //     ret
-            // .LBB0_1:
-            //     xor     r9d, r9d
-            //     xor     eax, eax
-            //     xor     r10d, r10d
-            //     movabs  rdi, -4294967296
-            //     test    r11, r11
-            //     jne     .LBB0_4
-            //     jmp     .LBB0_5
-            //
-            // mulx_u64:
-            //     mov     eax, edi
-            //     imul    rcx, rdi
-            //     shr     rdi, 32
-            //     mov     r8d, edx
-            //     mov     r9, rdx
-            //     shr     r9, 32
-            //     mov     r10, r8
-            //     imul    r10, rax
-            //     imul    rax, r9
-            //     imul    r8, rdi
-            //     imul    r9, rdi
-            //     mov     edi, r10d
-            //     shr     r10, 32
-            //     add     r10, r8
-            //     mov     r8d, r10d
-            //     shr     r10, 32
-            //     add     r8, rax
-            //     mov     rax, r8
-            //     shl     rax, 32
-            //     or      rax, rdi
-            //     shr     r8, 32
-            //     imul    rdx, rsi
-            //     add     rdx, rcx
-            //     add     rdx, r9
-            //     add     rdx, r10
-            //     add     rdx, r8
-            //     ret
-
-            // 256-Bit
-            // -------
-            // long_u128:
-            //     push    r15
-            //     push    r14
-            //     push    r13
-            //     push    r12
-            //     push    rbx
-            //     mov     r12, rdx
-            //     mov     r15, qword ptr [rsp + 64]
-            //     mov     r11, qword ptr [rsp + 56]
-            //     mov     rbx, qword ptr [rsp + 48]
-            //     test    rsi, rsi
-            //     je      .LBB1_1
-            //     mov     rax, rbx
-            //     mul     rsi
-            //     mov     r14, rdx
-            //     mov     r9, rax
-            //     mov     rax, r11
-            //     mul     rsi
-            //     mov     r13, rdx
-            //     mov     r10, rax
-            //     add     r10, r14
-            //     adc     r13, 0
-            //     mov     rax, r15
-            //     mul     rsi
-            //     mov     r14, rax
-            //     imul    rsi, qword ptr [rsp + 72]
-            //     add     r14, r13
-            //     adc     rsi, rdx
-            //     test    r12, r12
-            //     je      .LBB1_5
-            // .LBB1_4:
-            //     mov     rax, rbx
-            //     mul     r12
-            //     mov     r13, rdx
-            //     add     r10, rax
-            //     adc     r13, 0
-            //     mov     rax, r11
-            //     mul     r12
-            //     add     rax, r13
-            //     adc     rdx, 0
-            //     imul    r15, r12
-            //     add     r14, rax
-            //     adc     r15, rdx
-            //     add     rsi, r15
-            // .LBB1_5:
-            //     test    rcx, rcx
-            //     je      .LBB1_7
-            //     mov     rax, rbx
-            //     mul     rcx
-            //     imul    r11, rcx
-            //     add     r14, rax
-            //     adc     r11, rdx
-            //     add     rsi, r11
-            // .LBB1_7:
-            //     test    r8, r8
-            //     je      .LBB1_9
-            //     imul    r8, rbx
-            //     add     rsi, r8
-            // .LBB1_9:
-            //     mov     qword ptr [rdi + 8], r10
-            //     mov     qword ptr [rdi], r9
-            //     mov     qword ptr [rdi + 24], rsi
-            //     mov     qword ptr [rdi + 16], r14
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     pop     r12
-            //     pop     r13
-            //     pop     r14
-            //     pop     r15
-            //     ret
-            // .LBB1_1:
-            //     xor     esi, esi
-            //     xor     r14d, r14d
-            //     xor     r10d, r10d
-            //     xor     r9d, r9d
-            //     test    r12, r12
-            //     jne     .LBB1_4
-            //     jmp     .LBB1_5
-            //
-            // mulx_u128:
-            //     push    rbp
-            //     push    r15
-            //     push    r14
-            //     push    r13
-            //     push    r12
-            //     push    rbx
-            //     mov     r13, rdx
-            //     mov     r12, qword ptr [rsp + 56]
-            //     mov     r14, qword ptr [rsp + 64]
-            //     mov     rax, r12
-            //     mul     rsi
-            //     mov     qword ptr [rsp - 24], rdx
-            //     mov     qword ptr [rsp - 8], rax
-            //     mov     rax, r14
-            //     mul     rsi
-            //     mov     rbx, rax
-            //     mov     qword ptr [rsp - 16], rdx
-            //     mov     rax, r12
-            //     mul     r13
-            //     mov     r15, rdx
-            //     mov     rbp, rax
-            //     mov     rax, r14
-            //     mul     r13
-            //     mov     r10, rax
-            //     mov     r9, rdx
-            //     mov     rax, qword ptr [rsp + 72]
-            //     imul    r13, rax
-            //     mul     rsi
-            //     mov     r11, rax
-            //     add     rdx, r13
-            //     imul    rsi, qword ptr [rsp + 80]
-            //     add     rsi, rdx
-            //     imul    r8, r12
-            //     mov     rax, r12
-            //     mul     rcx
-            //     add     rdx, r8
-            //     imul    r14, rcx
-            //     add     r14, rdx
-            //     add     rax, r10
-            //     adc     r14, r9
-            //     add     rax, r11
-            //     adc     r14, rsi
-            //     add     rbp, qword ptr [rsp - 24]
-            //     adc     rax, r15
-            //     adc     r14, 0
-            //     add     rbp, rbx
-            //     adc     rax, qword ptr [rsp - 16]
-            //     mov     rcx, qword ptr [rsp - 8]
-            //     mov     qword ptr [rdi], rcx
-            //     mov     qword ptr [rdi + 8], rbp
-            //     mov     qword ptr [rdi + 16], rax
-            //     adc     r14, 0
-            //     mov     qword ptr [rdi + 24], r14
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     pop     r12
-            //     pop     r13
-            //     pop     r14
-            //     pop     r15
-            //     pop     rbp
-            //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr4 $u, $h, y0, y1);
-            $wrapping_array(x, y)
+            // TODO: Remove
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y0, y1);
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - A small, unsigned factor to multiply by.
-        ///
-        /// This multiplies a wide value, say, an `u64` as `(u32, u32)`
-        /// pairs by a small value (`u32`) which can add optimizations
-        /// for scalar word processing.
-        ///
-        /// # Assembly
-        ///
-        /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
-        /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u128`
-        /// is at worst 8 `mul` and 12 `add` instructions, which optimizes quite nicely.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_small(x0: $u, x1: $u, y: $u) -> ($u, $u) {
-            // 256-Bit
-            // -------
-            // wrapping_mul_small_u128:
-            //     push    r15
-            //     push    r14
-            //     push    r12
-            //     push    rbx
-            //     mov     r14, rdx
-            //     mov     r11, qword ptr [rsp + 48]
-            //     mov     rbx, qword ptr [rsp + 40]
-            //     test    rsi, rsi
-            //     je      .LBB1_1
-            //     mov     rax, rbx
-            //     mul     rsi
-            //     mov     r12, rdx
-            //     mov     r15, rax
-            //     mov     rax, r11
-            //     mul     rsi
-            //     mov     r10, rdx
-            //     mov     r9, rax
-            //     add     r9, r12
-            //     adc     r10, 0
-            //     test    r14, r14
-            //     jne     .LBB1_5
-            // .LBB1_4:
-            //     xor     r14d, r14d
-            //     test    rcx, rcx
-            //     jne     .LBB1_7
-            //     jmp     .LBB1_8
-            // .LBB1_1:
-            //     xor     r9d, r9d
-            //     xor     r15d, r15d
-            //     xor     r10d, r10d
-            //     test    r14, r14
-            //     je      .LBB1_4
-            // .LBB1_5:
-            //     mov     rax, rbx
-            //     mul     r14
-            //     mov     rsi, rdx
-            //     add     r9, rax
-            //     adc     rsi, 0
-            //     mov     rax, r11
-            //     mul     r14
-            //     mov     r14, rdx
-            //     add     rax, rsi
-            //     adc     r14, 0
-            //     add     r10, rax
-            //     adc     r14, 0
-            //     test    rcx, rcx
-            //     je      .LBB1_8
-            // .LBB1_7:
-            //     mov     rax, rbx
-            //     mul     rcx
-            //     imul    r11, rcx
-            //     add     r10, rax
-            //     adc     r11, rdx
-            //     add     r14, r11
-            // .LBB1_8:
-            //     test    r8, r8
-            //     je      .LBB1_10
-            //     imul    r8, rbx
-            //     add     r14, r8
-            // .LBB1_10:
-            //     mov     qword ptr [rdi + 8], r9
-            //     mov     qword ptr [rdi], r15
-            //     mov     qword ptr [rdi + 24], r14
-            //     mov     qword ptr [rdi + 16], r10
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     pop     r12
-            //     pop     r14
-            //     pop     r15
-            //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr2 $u, $h, y);
-            $wrapping_array(x, y)
+        pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
+            // TODO: Remove
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y);
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - A small, unsigned factor to multiply by.
-        ///
-        /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
-        /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u64`
-        /// is always 4 `mul` and 3 `add` instructions without any branching. This is
-        /// extremely efficient.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_half(x0: $u, x1: $u, y: $h) -> ($u, $u) {
-            // 256-Bit
-            // -------
-            // wrapping_mul_half_u128:
-            //     push    rbx
-            //     mov     rax, rcx
-            //     mov     rcx, rdx
-            //     imul    r8, r9
-            //     mul     r9
-            //     mov     r10, rdx
-            //     mov     r11, rax
-            //     mov     rax, rcx
-            //     mul     r9
-            //     mov     rcx, rdx
-            //     mov     rbx, rax
-            //     mov     rax, rsi
-            //     mul     r9
-            //     add     rdx, rbx
-            //     adc     rcx, r11
-            //     adc     r10, r8
-            //     mov     qword ptr [rdi], rax
-            //     mov     qword ptr [rdi + 8], rdx
-            //     mov     qword ptr [rdi + 16], rcx
-            //     mov     qword ptr [rdi + 24], r10
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
+        pub const fn $wrapping_limb(x0: $u, x1: $u, y: $h) -> ($u, $u) {
+            let x = split!($u, $h, x0, x1);
             let y = [y];
-            $wrapping_array(x, y)
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -1126,12 +708,10 @@ macro_rules! mul_unsigned_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        const fn $overflowing_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u, bool) {
+        pub const fn $overflowing_array<const M: usize, const N: usize>(x: &[$h; M], y: &[$h; N]) -> ([$h; M], bool) {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
-            if M < N {
-                return $overflowing_array(y, x);
-            }
+            assert!(M >= N, "lhs must be >= than rhs");
 
             const SHIFT: u32 = <$h>::BITS;
             let mut r: [$h; M] = [0; M];
@@ -1177,103 +757,33 @@ macro_rules! mul_unsigned_impl {
                 i += 1;
             }
 
-            let lo = ((r[1] as $u) << SHIFT) | (r[0] as $u);
-            let hi = ((r[3] as $u) << SHIFT) | (r[2] as $u);
-            (lo, hi, overflowed)
+            (r, overflowed)
         }
 
-        /// Const implementation of `wrapping_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow and if the result overflowed.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
-        /// # Assembly
-        ///
-        /// The analysis here is practically identical to that of `wrapping_full`.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        /// Const implementation of `overflowing_mul` for internal algorithm use.
         #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr4 $u, $h, y0, y1);
-            $overflowing_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y0, y1);
+            let r = $overflowing_array(&x, &y);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow and if the result overflowed.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - A small, unsigned factor to multiply by.
-        ///
-        /// This multiplies a wide value, say, an `u64` as `(u32, u32)` pairs by a small
-        /// value (`u32`) which can add optimizations for scalar word processing.
-        ///
-        /// # Assembly
-        ///
-        /// The analysis here is practically identical to that of `wrapping_small`.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr2 $u, $h, y);
-            $overflowing_array(x, y)
+        pub const fn $overflowing_wide(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y);
+            let r = $overflowing_array(&x, &y);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
-        ///
-        /// Returns the value, wrapping on overflow and if the result overflowed.
-        ///
-        /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-        /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-        /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-        /// multiplication, however, algorithm (1) was better for smaller type sizes.
-        ///
-        /// This also optimized much better when multiplying by a single or a half-sized
-        /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-        /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-        /// 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - A small, unsigned factor to multiply by.
-        ///
-        /// # Assembly
-        ///
-        /// The analysis here is practically identical to that of `wrapping_half`.
-        ///
-        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_half(x0: $u, x1: $u, y: $h) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = [y];
-            $overflowing_array(x, y)
+        pub const fn $overflowing_limb(x0: $u, x1: $u, y: $h) -> ($u, $u, bool) {
+            let x = split!($u, $h, x0, x1);
+            let r = $overflowing_array(&x, &[y]);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
     };
 }
@@ -1283,50 +793,50 @@ macro_rules! mul_unsigned_impl {
 mul_unsigned_impl!(
     full => u16,
     half => u8,
-    wrapping_array => wrapping_arr_u16,
+    wrapping_array => wrapping_mul_arr_u16,
     wrapping_full => wrapping_mul_u16,
-    wrapping_small => wrapping_mul_small_u16,
-    wrapping_half => wrapping_mul_half_u16,
-    overflowing_array => overflowing_arr_u16,
+    wrapping_wide => wrapping_mul_wide_u16,
+    wrapping_limb => wrapping_mul_limb_u16,
+    overflowing_array => overflowing_mul_arr_u16,
     overflowing_full => overflowing_mul_u16,
-    overflowing_small => overflowing_mul_small_u16,
-    overflowing_half => overflowing_mul_half_u16,
+    overflowing_wide => overflowing_mul_wide_u16,
+    overflowing_limb => overflowing_mul_limb_u16,
 );
 mul_unsigned_impl!(
     full => u32,
     half => u16,
-    wrapping_array => wrapping_arr_u32,
+    wrapping_array => wrapping_mul_arr_u32,
     wrapping_full => wrapping_mul_u32,
-    wrapping_small => wrapping_mul_small_u32,
-    wrapping_half => wrapping_mul_half_u32,
-    overflowing_array => overflowing_arr_u32,
+    wrapping_wide => wrapping_mul_wide_u32,
+    wrapping_limb => wrapping_mul_limb_u32,
+    overflowing_array => overflowing_mul_arr_u32,
     overflowing_full => overflowing_mul_u32,
-    overflowing_small => overflowing_mul_small_u32,
-    overflowing_half => overflowing_mul_half_u32,
+    overflowing_wide => overflowing_mul_wide_u32,
+    overflowing_limb => overflowing_mul_limb_u32,
 );
 mul_unsigned_impl!(
     full => u64,
     half => u32,
-    wrapping_array => wrapping_arr_u64,
+    wrapping_array => wrapping_mul_arr_u64,
     wrapping_full => wrapping_mul_u64,
-    wrapping_small => wrapping_mul_small_u64,
-    wrapping_half => wrapping_mul_half_u64,
-    overflowing_array => overflowing_arr_u64,
+    wrapping_wide => wrapping_mul_wide_u64,
+    wrapping_limb => wrapping_mul_limb_u64,
+    overflowing_array => overflowing_mul_arr_u64,
     overflowing_full => overflowing_mul_u64,
-    overflowing_small => overflowing_mul_small_u64,
-    overflowing_half => overflowing_mul_half_u64,
+    overflowing_wide => overflowing_mul_wide_u64,
+    overflowing_limb => overflowing_mul_limb_u64,
 );
 mul_unsigned_impl!(
     full => u128,
     half => u64,
-    wrapping_array => wrapping_arr_u128,
+    wrapping_array => wrapping_mul_arr_u128,
     wrapping_full => wrapping_mul_u128,
-    wrapping_small => wrapping_mul_small_u128,
-    wrapping_half => wrapping_mul_half_u128,
-    overflowing_array => overflowing_arr_u128,
+    wrapping_wide => wrapping_mul_wide_u128,
+    wrapping_limb => wrapping_mul_limb_u128,
+    overflowing_array => overflowing_mul_arr_u128,
     overflowing_full => overflowing_mul_u128,
-    overflowing_small => overflowing_mul_small_u128,
-    overflowing_half => overflowing_mul_half_u128,
+    overflowing_wide => overflowing_mul_wide_u128,
+    overflowing_limb => overflowing_mul_limb_u128,
 );
 
 macro_rules! swap_unsigned_impl {
@@ -1794,11 +1304,11 @@ macro_rules! add_signed_impl {
         $u:ty,
         $s:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_usmall =>
-        $wrapping_usmall:ident,overflowing_usmall =>
-        $overflowing_usmall:ident,wrapping_ismall =>
-        $wrapping_ismall:ident,overflowing_ismall =>
-        $overflowing_ismall:ident $(,)?
+        $overflowing_full:ident,wrapping_uwide =>
+        $wrapping_uwide:ident,overflowing_uwide =>
+        $overflowing_uwide:ident,wrapping_iwide =>
+        $wrapping_iwide:ident,overflowing_iwide =>
+        $overflowing_iwide:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_add` for internal algorithm use.
         ///
@@ -1961,7 +1471,7 @@ macro_rules! add_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
+        pub const fn $wrapping_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let (v0, c0) = x0.overflowing_add(y);
             let v1 = x1.wrapping_add(c0 as $s);
             (v0, v1)
@@ -2011,7 +1521,7 @@ macro_rules! add_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
+        pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let (v0, c0) = x0.overflowing_add(y);
             let (v1, c1) = x1.overflowing_add(c0 as $s);
             (v0, v1, c1)
@@ -2067,7 +1577,7 @@ macro_rules! add_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
+        pub const fn $wrapping_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
             $wrapping_full(x0, x1, y0, y1)
@@ -2133,7 +1643,7 @@ macro_rules! add_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
+        pub const fn $overflowing_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
             $overflowing_full(x0, x1, y0, y1)
@@ -2146,50 +1656,50 @@ add_signed_impl!(
     i8,
     wrapping_full => wrapping_add_i8,
     overflowing_full => overflowing_add_i8,
-    wrapping_usmall => wrapping_add_usmall_i8,
-    overflowing_usmall => overflowing_add_usmall_i8,
-    wrapping_ismall => wrapping_add_ismall_i8,
-    overflowing_ismall => overflowing_add_ismall_i8
+    wrapping_uwide => wrapping_add_uwide_i8,
+    overflowing_uwide => overflowing_add_uwide_i8,
+    wrapping_iwide => wrapping_add_iwide_i8,
+    overflowing_iwide => overflowing_add_iwide_i8
 );
 add_signed_impl!(
     u16,
     i16,
     wrapping_full => wrapping_add_i16,
     overflowing_full => overflowing_add_i16,
-    wrapping_usmall => wrapping_add_usmall_i16,
-    overflowing_usmall => overflowing_add_usmall_i16,
-    wrapping_ismall => wrapping_add_ismall_i16,
-    overflowing_ismall => overflowing_add_ismall_i16
+    wrapping_uwide => wrapping_add_uwide_i16,
+    overflowing_uwide => overflowing_add_uwide_i16,
+    wrapping_iwide => wrapping_add_iwide_i16,
+    overflowing_iwide => overflowing_add_iwide_i16
 );
 add_signed_impl!(
     u32,
     i32,
     wrapping_full => wrapping_add_i32,
     overflowing_full => overflowing_add_i32,
-    wrapping_usmall => wrapping_add_usmall_i32,
-    overflowing_usmall => overflowing_add_usmall_i32,
-    wrapping_ismall => wrapping_add_ismall_i32,
-    overflowing_ismall => overflowing_add_ismall_i32
+    wrapping_uwide => wrapping_add_uwide_i32,
+    overflowing_uwide => overflowing_add_uwide_i32,
+    wrapping_iwide => wrapping_add_iwide_i32,
+    overflowing_iwide => overflowing_add_iwide_i32
 );
 add_signed_impl!(
     u64,
     i64,
     wrapping_full => wrapping_add_i64,
     overflowing_full => overflowing_add_i64,
-    wrapping_usmall => wrapping_add_usmall_i64,
-    overflowing_usmall => overflowing_add_usmall_i64,
-    wrapping_ismall => wrapping_add_ismall_i64,
-    overflowing_ismall => overflowing_add_ismall_i64
+    wrapping_uwide => wrapping_add_uwide_i64,
+    overflowing_uwide => overflowing_add_uwide_i64,
+    wrapping_iwide => wrapping_add_iwide_i64,
+    overflowing_iwide => overflowing_add_iwide_i64
 );
 add_signed_impl!(
     u128,
     i128,
     wrapping_full => wrapping_add_i128,
     overflowing_full => overflowing_add_i128,
-    wrapping_usmall => wrapping_add_usmall_i128,
-    overflowing_usmall => overflowing_add_usmall_i128,
-    wrapping_ismall => wrapping_add_ismall_i128,
-    overflowing_ismall => overflowing_add_ismall_i128
+    wrapping_uwide => wrapping_add_uwide_i128,
+    overflowing_uwide => overflowing_add_uwide_i128,
+    wrapping_iwide => wrapping_add_iwide_i128,
+    overflowing_iwide => overflowing_add_iwide_i128
 );
 
 macro_rules! sub_signed_impl {
@@ -2197,11 +1707,11 @@ macro_rules! sub_signed_impl {
         $u:ty,
         $s:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_usmall =>
-        $wrapping_usmall:ident,overflowing_usmall =>
-        $overflowing_usmall:ident,wrapping_ismall =>
-        $wrapping_ismall:ident,overflowing_ismall =>
-        $overflowing_ismall:ident $(,)?
+        $overflowing_full:ident,wrapping_uwide =>
+        $wrapping_uwide:ident,overflowing_uwide =>
+        $overflowing_uwide:ident,wrapping_iwide =>
+        $wrapping_iwide:ident,overflowing_iwide =>
+        $overflowing_iwide:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
         ///
@@ -2363,7 +1873,7 @@ macro_rules! sub_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
+        pub const fn $wrapping_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let (v0, c0) = x0.overflowing_sub(y);
             let v1 = x1.wrapping_sub(c0 as $s);
             (v0, v1)
@@ -2413,7 +1923,7 @@ macro_rules! sub_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
+        pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let (v0, c0) = x0.overflowing_sub(y);
             let (v1, c1) = x1.overflowing_sub(c0 as $s);
             (v0, v1, c1)
@@ -2470,7 +1980,7 @@ macro_rules! sub_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
+        pub const fn $wrapping_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
             $wrapping_full(x0, x1, y0, y1)
@@ -2534,7 +2044,7 @@ macro_rules! sub_signed_impl {
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
+        pub const fn $overflowing_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let (y0, y1) = (y as $u, hi as $s);
             $overflowing_full(x0, x1, y0, y1)
@@ -2547,50 +2057,50 @@ sub_signed_impl!(
     i8,
     wrapping_full => wrapping_sub_i8,
     overflowing_full => overflowing_sub_i8,
-    wrapping_usmall => wrapping_sub_usmall_i8,
-    overflowing_usmall => overflowing_sub_usmall_i8,
-    wrapping_ismall => wrapping_sub_ismall_i8,
-    overflowing_ismall => overflowing_sub_ismall_i8
+    wrapping_uwide => wrapping_sub_uwide_i8,
+    overflowing_uwide => overflowing_sub_uwide_i8,
+    wrapping_iwide => wrapping_sub_iwide_i8,
+    overflowing_iwide => overflowing_sub_iwide_i8
 );
 sub_signed_impl!(
     u16,
     i16,
     wrapping_full => wrapping_sub_i16,
     overflowing_full => overflowing_sub_i16,
-    wrapping_usmall => wrapping_sub_usmall_i16,
-    overflowing_usmall => overflowing_sub_usmall_i16,
-    wrapping_ismall => wrapping_sub_ismall_i16,
-    overflowing_ismall => overflowing_sub_ismall_i16
+    wrapping_uwide => wrapping_sub_uwide_i16,
+    overflowing_uwide => overflowing_sub_uwide_i16,
+    wrapping_iwide => wrapping_sub_iwide_i16,
+    overflowing_iwide => overflowing_sub_iwide_i16
 );
 sub_signed_impl!(
     u32,
     i32,
     wrapping_full => wrapping_sub_i32,
     overflowing_full => overflowing_sub_i32,
-    wrapping_usmall => wrapping_sub_usmall_i32,
-    overflowing_usmall => overflowing_sub_usmall_i32,
-    wrapping_ismall => wrapping_sub_ismall_i32,
-    overflowing_ismall => overflowing_sub_ismall_i32
+    wrapping_uwide => wrapping_sub_uwide_i32,
+    overflowing_uwide => overflowing_sub_uwide_i32,
+    wrapping_iwide => wrapping_sub_iwide_i32,
+    overflowing_iwide => overflowing_sub_iwide_i32
 );
 sub_signed_impl!(
     u64,
     i64,
     wrapping_full => wrapping_sub_i64,
     overflowing_full => overflowing_sub_i64,
-    wrapping_usmall => wrapping_sub_usmall_i64,
-    overflowing_usmall => overflowing_sub_usmall_i64,
-    wrapping_ismall => wrapping_sub_ismall_i64,
-    overflowing_ismall => overflowing_sub_ismall_i64
+    wrapping_uwide => wrapping_sub_uwide_i64,
+    overflowing_uwide => overflowing_sub_uwide_i64,
+    wrapping_iwide => wrapping_sub_iwide_i64,
+    overflowing_iwide => overflowing_sub_iwide_i64
 );
 sub_signed_impl!(
     u128,
     i128,
     wrapping_full => wrapping_sub_i128,
     overflowing_full => overflowing_sub_i128,
-    wrapping_usmall => wrapping_sub_usmall_i128,
-    overflowing_usmall => overflowing_sub_usmall_i128,
-    wrapping_ismall => wrapping_sub_ismall_i128,
-    overflowing_ismall => overflowing_sub_ismall_i128
+    wrapping_uwide => wrapping_sub_uwide_i128,
+    overflowing_uwide => overflowing_sub_uwide_i128,
+    wrapping_iwide => wrapping_sub_iwide_i128,
+    overflowing_iwide => overflowing_sub_iwide_i128
 );
 
 macro_rules! mul_signed_impl {
@@ -2629,13 +2139,13 @@ macro_rules! mul_signed_impl {
     // split into 4 limbs, as an abs
     (@split4 $u:ty, $h:ty, $x:expr, $y:expr, $abs:ident) => {{
         let (xa, ya) = $abs($x, $y);
-        split!(@arr4 $u, $h, xa, ya)
+        split!($u, $h, xa, ya)
     }};
 
     // split into 2 limbs, as an abs
     (@split2 $u:ty, $h:ty, $x:expr) => {{
         let xa = $x.unsigned_abs();
-        split!(@arr2 $u, $h, xa)
+        split!($u, $h, xa)
     }};
 
     (
@@ -2647,16 +2157,16 @@ macro_rules! mul_signed_impl {
         neg => $neg:ident,
         wrapping_array => $wrapping_array:ident,
         wrapping_full => $wrapping_full:ident,
-        wrapping_usmall => $wrapping_usmall:ident,
-        wrapping_ismall => $wrapping_ismall:ident,
-        wrapping_uhalf => $wrapping_uhalf:ident,
-        wrapping_ihalf => $wrapping_ihalf:ident,
+        wrapping_uwide => $wrapping_uwide:ident,
+        wrapping_iwide => $wrapping_iwide:ident,
+        wrapping_ulimb => $wrapping_ulimb:ident,
+        wrapping_ilimb => $wrapping_ilimb:ident,
         overflowing_array => $overflowing_array:ident,
         overflowing_full => $overflowing_full:ident,
-        overflowing_usmall => $overflowing_usmall:ident,
-        overflowing_ismall => $overflowing_ismall:ident,
-        overflowing_uhalf => $overflowing_uhalf:ident,
-        overflowing_ihalf => $overflowing_ihalf:ident,
+        overflowing_uwide => $overflowing_uwide:ident,
+        overflowing_iwide => $overflowing_iwide:ident,
+        overflowing_ulimb => $overflowing_ulimb:ident,
+        overflowing_ilimb => $overflowing_ilimb:ident,
     ) => {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         ///
@@ -2689,8 +2199,8 @@ macro_rules! mul_signed_impl {
         pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
-            let (lo, hi) = $wrapping_array(x, y);
-
+            let r = $wrapping_array(&x, &y);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y1, $s, $neg)
         }
 
@@ -2725,11 +2235,11 @@ macro_rules! mul_signed_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
+        pub const fn $wrapping_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let y = split!(@arr2 $u, $uh, y);
-            let (lo, hi) = $wrapping_array(x, y);
-
+            let y = split!($u, $uh, y);
+            let r = $wrapping_array(&x, &y);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, 0i32, $s, $neg)
         }
 
@@ -2764,11 +2274,11 @@ macro_rules! mul_signed_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
+        pub const fn $wrapping_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
-            let (lo, hi) = $wrapping_array(lhs, rhs);
-
+            let r = $wrapping_array(&lhs, &rhs);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y, $s, $neg)
         }
 
@@ -2803,10 +2313,10 @@ macro_rules! mul_signed_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s) {
+        pub const fn $wrapping_ulimb(x0: $u, x1: $s, y: $uh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi) = $wrapping_array(lhs, [y]);
-
+            let r = $wrapping_array(&lhs, &[y]);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, 0i32, $s, $neg)
         }
 
@@ -2841,10 +2351,10 @@ macro_rules! mul_signed_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $wrapping_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s) {
+        pub const fn $wrapping_ilimb(x0: $u, x1: $s, y: $sh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi) = $wrapping_array(lhs, [y.unsigned_abs()]);
-
+            let r = $wrapping_array(&lhs, &[y.unsigned_abs()]);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y, $s, $neg)
         }
 
@@ -2876,7 +2386,8 @@ macro_rules! mul_signed_impl {
         pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(x, y);
+            let r = $overflowing_array(&x, &y);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y1, $s, $neg)
         }
 
@@ -2904,15 +2415,15 @@ macro_rules! mul_signed_impl {
         ///
         /// # Assembly
         ///
-        /// The analysis here is practically identical to that of `wrapping_usmall`.
+        /// The analysis here is practically identical to that of `wrapping_uwide`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
+        pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let y = split!(@arr2 $u, $uh, y);
-            let (lo, hi, overflowed) = $overflowing_array(x, y);
-
+            let y = split!($u, $uh, y);
+            let r = $overflowing_array(&x, &y);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, 0i32, $s, $neg)
         }
 
@@ -2940,15 +2451,15 @@ macro_rules! mul_signed_impl {
         ///
         /// # Assembly
         ///
-        /// The analysis here is practically identical to that of `wrapping_ismall`.
+        /// The analysis here is practically identical to that of `wrapping_iwide`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
+        pub const fn $overflowing_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, rhs);
-
+            let r = $overflowing_array(&lhs, &rhs);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y, $s, $neg)
         }
 
@@ -2976,14 +2487,14 @@ macro_rules! mul_signed_impl {
         ///
         /// # Assembly
         ///
-        /// The analysis here is practically identical to that of `wrapping_uhalf`.
+        /// The analysis here is practically identical to that of `wrapping_ulimb`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s, bool) {
+        pub const fn $overflowing_ulimb(x0: $u, x1: $s, y: $uh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, [y]);
-
+            let r = $overflowing_array(&lhs, &[y]);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, 0i32, $s, $neg)
         }
 
@@ -3011,14 +2522,14 @@ macro_rules! mul_signed_impl {
         ///
         /// # Assembly
         ///
-        /// The analysis here is practically identical to that of `wrapping_ihalf`.
+        /// The analysis here is practically identical to that of `wrapping_ilimb`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        pub const fn $overflowing_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s, bool) {
+        pub const fn $overflowing_ilimb(x0: $u, x1: $s, y: $sh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, [y.unsigned_abs()]);
-
+            let r = $overflowing_array(&lhs, &[y.unsigned_abs()]);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y, $s, $neg)
         }
     };
@@ -3031,18 +2542,18 @@ mul_signed_impl!(
     sh => i8,
     abs => unsigned_abs_i16,
     neg => neg_i16,
-    wrapping_array => wrapping_arr_u16,
+    wrapping_array => wrapping_mul_arr_u16,
     wrapping_full => wrapping_mul_i16,
-    wrapping_usmall => wrapping_mul_usmall_i16,
-    wrapping_ismall => wrapping_mul_ismall_i16,
-    wrapping_uhalf => wrapping_mul_uhalf_i16,
-    wrapping_ihalf => wrapping_mul_ihalf_i16,
-    overflowing_array => overflowing_arr_u16,
+    wrapping_uwide => wrapping_mul_uwide_i16,
+    wrapping_iwide => wrapping_mul_iwide_i16,
+    wrapping_ulimb => wrapping_mul_ulimb_i16,
+    wrapping_ilimb => wrapping_mul_ilimb_i16,
+    overflowing_array => overflowing_mul_arr_u16,
     overflowing_full => overflowing_mul_i16,
-    overflowing_usmall => overflowing_mul_usmall_i16,
-    overflowing_ismall => overflowing_mul_ismall_i16,
-    overflowing_uhalf => overflowing_mul_uhalf_i16,
-    overflowing_ihalf => overflowing_mul_ihalf_i16,
+    overflowing_uwide => overflowing_mul_uwide_i16,
+    overflowing_iwide => overflowing_mul_iwide_i16,
+    overflowing_ulimb => overflowing_mul_ulimb_i16,
+    overflowing_ilimb => overflowing_mul_ilimb_i16,
 );
 mul_signed_impl!(
     u => u32,
@@ -3051,18 +2562,18 @@ mul_signed_impl!(
     sh => i16,
     abs => unsigned_abs_i32,
     neg => neg_i32,
-    wrapping_array => wrapping_arr_u32,
+    wrapping_array => wrapping_mul_arr_u32,
     wrapping_full => wrapping_mul_i32,
-    wrapping_usmall => wrapping_mul_usmall_i32,
-    wrapping_ismall => wrapping_mul_ismall_i32,
-    wrapping_uhalf => wrapping_mul_uhalf_i32,
-    wrapping_ihalf => wrapping_mul_ihalf_i32,
-    overflowing_array => overflowing_arr_u32,
+    wrapping_uwide => wrapping_mul_uwide_i32,
+    wrapping_iwide => wrapping_mul_iwide_i32,
+    wrapping_ulimb => wrapping_mul_ulimb_i32,
+    wrapping_ilimb => wrapping_mul_ilimb_i32,
+    overflowing_array => overflowing_mul_arr_u32,
     overflowing_full => overflowing_mul_i32,
-    overflowing_usmall => overflowing_mul_usmall_i32,
-    overflowing_ismall => overflowing_mul_ismall_i32,
-    overflowing_uhalf => overflowing_mul_uhalf_i32,
-    overflowing_ihalf => overflowing_mul_ihalf_i32,
+    overflowing_uwide => overflowing_mul_uwide_i32,
+    overflowing_iwide => overflowing_mul_iwide_i32,
+    overflowing_ulimb => overflowing_mul_ulimb_i32,
+    overflowing_ilimb => overflowing_mul_ilimb_i32,
 );
 mul_signed_impl!(
     u => u64,
@@ -3071,18 +2582,18 @@ mul_signed_impl!(
     sh => i32,
     abs => unsigned_abs_i64,
     neg => neg_i64,
-    wrapping_array => wrapping_arr_u64,
+    wrapping_array => wrapping_mul_arr_u64,
     wrapping_full => wrapping_mul_i64,
-    wrapping_usmall => wrapping_mul_usmall_i64,
-    wrapping_ismall => wrapping_mul_ismall_i64,
-    wrapping_uhalf => wrapping_mul_uhalf_i64,
-    wrapping_ihalf => wrapping_mul_ihalf_i64,
-    overflowing_array => overflowing_arr_u64,
+    wrapping_uwide => wrapping_mul_uwide_i64,
+    wrapping_iwide => wrapping_mul_iwide_i64,
+    wrapping_ulimb => wrapping_mul_ulimb_i64,
+    wrapping_ilimb => wrapping_mul_ilimb_i64,
+    overflowing_array => overflowing_mul_arr_u64,
     overflowing_full => overflowing_mul_i64,
-    overflowing_usmall => overflowing_mul_usmall_i64,
-    overflowing_ismall => overflowing_mul_ismall_i64,
-    overflowing_uhalf => overflowing_mul_uhalf_i64,
-    overflowing_ihalf => overflowing_mul_ihalf_i64,
+    overflowing_uwide => overflowing_mul_uwide_i64,
+    overflowing_iwide => overflowing_mul_iwide_i64,
+    overflowing_ulimb => overflowing_mul_ulimb_i64,
+    overflowing_ilimb => overflowing_mul_ilimb_i64,
 );
 mul_signed_impl!(
     u => u128,
@@ -3091,18 +2602,18 @@ mul_signed_impl!(
     sh => i64,
     abs => unsigned_abs_i128,
     neg => neg_i128,
-    wrapping_array => wrapping_arr_u128,
+    wrapping_array => wrapping_mul_arr_u128,
     wrapping_full => wrapping_mul_i128,
-    wrapping_usmall => wrapping_mul_usmall_i128,
-    wrapping_ismall => wrapping_mul_ismall_i128,
-    wrapping_uhalf => wrapping_mul_uhalf_i128,
-    wrapping_ihalf => wrapping_mul_ihalf_i128,
-    overflowing_array => overflowing_arr_u128,
+    wrapping_uwide => wrapping_mul_uwide_i128,
+    wrapping_iwide => wrapping_mul_iwide_i128,
+    wrapping_ulimb => wrapping_mul_ulimb_i128,
+    wrapping_ilimb => wrapping_mul_ilimb_i128,
+    overflowing_array => overflowing_mul_arr_u128,
     overflowing_full => overflowing_mul_i128,
-    overflowing_usmall => overflowing_mul_usmall_i128,
-    overflowing_ismall => overflowing_mul_ismall_i128,
-    overflowing_uhalf => overflowing_mul_uhalf_i128,
-    overflowing_ihalf => overflowing_mul_ihalf_i128,
+    overflowing_uwide => overflowing_mul_uwide_i128,
+    overflowing_iwide => overflowing_mul_iwide_i128,
+    overflowing_ulimb => overflowing_mul_ulimb_i128,
+    overflowing_ilimb => overflowing_mul_ilimb_i128,
 );
 
 macro_rules! shift_signed_impl {
@@ -3806,22 +3317,22 @@ mod tests {
     }
 
     #[test]
-    fn wrapping_mul_small_u32_test() {
-        assert_eq!(wrapping_mul_small_u32(67, 0, 64103990), (34, 1));
-        assert_eq!(wrapping_mul_small_u32(2, 0, 2147483648), (0, 1));
-        assert_eq!(wrapping_mul_small_u32(0, 2147483648, 2), (0, 0));
-        assert_eq!(wrapping_mul_small_u32(2, 2147483648, 2), (4, 0));
-        assert_eq!(wrapping_mul_small_u32(2147483647, 2147483647, 2), (4294967294, 4294967294));
+    fn wrapping_mul_wide_u32_test() {
+        assert_eq!(wrapping_mul_wide_u32(67, 0, 64103990), (34, 1));
+        assert_eq!(wrapping_mul_wide_u32(2, 0, 2147483648), (0, 1));
+        assert_eq!(wrapping_mul_wide_u32(0, 2147483648, 2), (0, 0));
+        assert_eq!(wrapping_mul_wide_u32(2, 2147483648, 2), (4, 0));
+        assert_eq!(wrapping_mul_wide_u32(2147483647, 2147483647, 2), (4294967294, 4294967294));
     }
 
     #[test]
-    fn overflowing_mul_small_u32_test() {
-        assert_eq!(overflowing_mul_small_u32(67, 0, 64103990), (34, 1, false));
-        assert_eq!(overflowing_mul_small_u32(2, 0, 2147483648), (0, 1, false));
-        assert_eq!(overflowing_mul_small_u32(0, 2147483648, 2), (0, 0, true));
-        assert_eq!(overflowing_mul_small_u32(2, 2147483648, 2), (4, 0, true));
+    fn overflowing_mul_wide_u32_test() {
+        assert_eq!(overflowing_mul_wide_u32(67, 0, 64103990), (34, 1, false));
+        assert_eq!(overflowing_mul_wide_u32(2, 0, 2147483648), (0, 1, false));
+        assert_eq!(overflowing_mul_wide_u32(0, 2147483648, 2), (0, 0, true));
+        assert_eq!(overflowing_mul_wide_u32(2, 2147483648, 2), (4, 0, true));
         assert_eq!(
-            overflowing_mul_small_u32(2147483647, 2147483647, 2),
+            overflowing_mul_wide_u32(2147483647, 2147483647, 2),
             (4294967294, 4294967294, false)
         );
     }

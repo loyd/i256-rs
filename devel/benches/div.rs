@@ -14,23 +14,23 @@ macro_rules! add_group {
 
             let seed = fastrand::u64(..);
             let mut rng = fastrand::Rng::with_seed(seed);
-            add_benches!(group, $strategy, rng, $prefix, wrapping_div);
+            add_benches!(group, $strategy, rng, $prefix, checked_div);
 
-            let small_data = get_small_data($strategy, &mut rng);
-            add_bench!(group, concat!($prefix, "::u256-small"), small_data.iter(), |x: &(
+            let wide_data = get_wide_data($strategy, &mut rng);
+            add_bench!(group, concat!($prefix, "::u256-wide"), wide_data.iter(), |x: &(
                 u256,
                 u128
             )| x
                 .0
-                .wrapping_div_small(x.1));
+                .checked_div_uwide(x.1));
 
-            let half_data = get_half_data($strategy, &mut rng);
-            add_bench!(group, concat!($prefix, "::u256-half"), half_data.iter(), |x: &(
+            let limb_data = get_limb_data($strategy, &mut rng);
+            add_bench!(group, concat!($prefix, "::u256-limb"), limb_data.iter(), |x: &(
                 u256,
                 u64
             )| x
                 .0
-                .wrapping_div_half(x.1));
+                .checked_div_ulimb(x.1));
         }
     };
 }
