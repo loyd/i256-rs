@@ -61,15 +61,22 @@ use crate::u256;
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct i256 {
+    // NOTE: This is currently FFI-safe (if we did repr(C)) but we
+    // intentionally make  no guarantees so we're free to re-arrange
+    // the layout.
     limbs: [ULimb; LIMBS],
 }
 
 impl i256 {
     /// The smallest value that can be represented by this integer type.
+    ///
+    /// See [`i128::MIN`].
     pub const MIN: Self = Self::new(0, i128::MIN);
 
     /// The largest value that can be represented by this integer type
     /// (2<sup>256</sup> - 1).
+    ///
+    /// See [`i128::MAX`].
     pub const MAX: Self = Self::new(u128::MAX, i128::MAX);
 
     /// The size of this integer type in bits.
@@ -80,15 +87,21 @@ impl i256 {
     /// # use i256::i256;
     /// assert_eq!(i256::BITS, 256);
     /// ```
+    ///
+    /// See [`i128::BITS`].
     pub const BITS: u32 = 256;
 
     /// Returns the number of ones in the binary representation of `self`.
+    ///
+    /// See [`i128::count_ones`].
     #[inline(always)]
     pub const fn count_ones(self) -> u32 {
         self.high().count_ones() + self.low().count_ones()
     }
 
     /// Returns the number of zeros in the binary representation of `self`.
+    ///
+    /// See [`i128::count_zeros`].
     #[inline(always)]
     pub const fn count_zeros(self) -> u32 {
         not(self).count_ones()
@@ -117,6 +130,8 @@ impl i256 {
     /// let max = i256::MAX;
     /// assert_eq!(max.leading_zeros(), 1);
     /// ```
+    ///
+    /// See [`i128::leading_zeros`].
     #[inline]
     pub const fn leading_zeros(self) -> u32 {
         let mut leading = (self.high() as u128).leading_zeros();
@@ -128,6 +143,8 @@ impl i256 {
 
     /// Returns the number of trailing zeros in the binary representation of
     /// `self`.
+    ///
+    /// See [`i128::trailing_zeros`].
     #[inline]
     pub const fn trailing_zeros(self) -> u32 {
         let mut trailing = self.low().trailing_zeros();
@@ -139,6 +156,8 @@ impl i256 {
 
     /// Returns the number of leading ones in the binary representation of
     /// `self`.
+    ///
+    /// See [`i128::leading_ones`].
     #[inline(always)]
     pub const fn leading_ones(self) -> u32 {
         not(self).leading_zeros()
@@ -146,6 +165,8 @@ impl i256 {
 
     /// Returns the number of trailing ones in the binary representation of
     /// `self`.
+    ///
+    /// See [`i128::trailing_ones`].
     #[inline(always)]
     pub const fn trailing_ones(self) -> u32 {
         not(self).trailing_zeros()
@@ -155,6 +176,8 @@ impl i256 {
     /// wrapping the truncated bits to the end of the resulting integer.
     ///
     /// Please note this isn't the same operation as the `<<` shifting operator!
+    ///
+    /// See [`i128::rotate_left`].
     #[inline(always)]
     pub const fn rotate_left(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_left_i128(self.low(), self.high(), n);
@@ -166,6 +189,8 @@ impl i256 {
     /// integer.
     ///
     /// Please note this isn't the same operation as the `>>` shifting operator!
+    ///
+    /// See [`i128::rotate_right`].
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_right_i128(self.low(), self.high(), n);
@@ -173,6 +198,8 @@ impl i256 {
     }
 
     /// Reverses the byte order of the integer.
+    ///
+    /// See [`i128::swap_bytes`].
     #[inline(always)]
     pub const fn swap_bytes(self) -> Self {
         let (lo, hi) = math::swap_bytes_i128(self.low(), self.high());
@@ -182,6 +209,8 @@ impl i256 {
     /// Reverses the order of bits in the integer. The least significant
     /// bit becomes the most significant bit, second least-significant bit
     /// becomes second most-significant bit, etc.
+    ///
+    /// See [`i128::reverse_bits`].
     #[inline(always)]
     pub const fn reverse_bits(self) -> Self {
         let (lo, hi) = math::reverse_bits_i128(self.low(), self.high());
@@ -192,6 +221,8 @@ impl i256 {
     ///
     /// On big endian this is a no-op. On little endian the bytes are
     /// swapped.
+    ///
+    /// See [`i128::from_be`].
     #[inline(always)]
     pub const fn from_be(x: Self) -> Self {
         if cfg!(target_endian = "big") {
@@ -205,6 +236,8 @@ impl i256 {
     ///
     /// On little endian this is a no-op. On big endian the bytes are
     /// swapped.
+    ///
+    /// See [`i128::from_le`].
     #[inline(always)]
     pub const fn from_le(x: Self) -> Self {
         if cfg!(target_endian = "little") {
@@ -218,6 +251,8 @@ impl i256 {
     ///
     /// On big endian this is a no-op. On little endian the bytes are
     /// swapped.
+    ///
+    /// See [`i128::to_be`].
     #[inline(always)]
     pub const fn to_be(self) -> Self {
         if cfg!(target_endian = "big") {
@@ -231,6 +266,8 @@ impl i256 {
     ///
     /// On little endian this is a no-op. On big endian the bytes are
     /// swapped.
+    ///
+    /// See [`i128::to_le`].
     #[inline(always)]
     pub const fn to_le(self) -> Self {
         if cfg!(target_endian = "little") {
@@ -242,6 +279,8 @@ impl i256 {
 
     /// Checked integer addition. Computes `self + rhs`, returning `None`
     /// if overflow occurred.
+    ///
+    /// See [`i128::checked_add`].
     #[inline(always)]
     pub const fn checked_add(self, rhs: Self) -> Option<Self> {
         let (value, overflowed) = self.overflowing_add(rhs);
@@ -254,6 +293,8 @@ impl i256 {
 
     /// Checked addition with an unsigned integer. Computes `self + rhs`,
     /// returning `None` if overflow occurred.
+    ///
+    /// See [`i128::checked_add_unsigned`].
     #[inline(always)]
     pub const fn checked_add_unsigned(self, rhs: u256) -> Option<Self> {
         let (value, overflowed) = self.overflowing_add_unsigned(rhs);
@@ -266,6 +307,8 @@ impl i256 {
 
     /// Checked integer subtraction. Computes `self - rhs`, returning `None`
     /// if overflow occurred.
+    ///
+    /// See [`i128::checked_sub`].
     #[inline(always)]
     pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
         let (value, overflowed) = self.overflowing_sub(rhs);
@@ -278,6 +321,8 @@ impl i256 {
 
     /// Checked subtraction with an unsigned integer. Computes `self - rhs`,
     /// returning `None` if overflow occurred.
+    ///
+    /// See [`i128::checked_sub_unsigned`].
     #[inline(always)]
     pub const fn checked_sub_unsigned(self, rhs: u256) -> Option<Self> {
         let (value, overflowed) = self.overflowing_sub_unsigned(rhs);
@@ -290,6 +335,8 @@ impl i256 {
 
     /// Checked integer multiplication. Computes `self * rhs`, returning `None`
     /// if overflow occurred.
+    ///
+    /// See [`i128::checked_mul`].
     #[inline(always)]
     pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
         let (value, overflowed) = self.overflowing_mul(rhs);
@@ -307,6 +354,8 @@ impl i256 {
 
     /// Checked integer division. Computes `self / rhs`, returning `None` if
     /// `rhs == 0` or the division results in overflow.
+    ///
+    /// See [`i128::checked_div`].
     #[inline(always)]
     pub fn checked_div(self, rhs: Self) -> Option<Self> {
         if self.is_div_none(rhs) {
@@ -318,6 +367,8 @@ impl i256 {
 
     /// Checked Euclidean division. Computes `self.div_euclid(rhs)`,
     /// returning `None` if `rhs == 0` or the division results in overflow.
+    ///
+    /// See [`i128::checked_div_euclid`].
     #[inline(always)]
     pub fn checked_div_euclid(self, rhs: Self) -> Option<Self> {
         if self.is_div_none(rhs) {
@@ -329,6 +380,8 @@ impl i256 {
 
     /// Checked integer remainder. Computes `self % rhs`, returning `None` if
     /// `rhs == 0` or the division results in overflow.
+    ///
+    /// See [`i128::checked_rem`].
     #[inline(always)]
     pub fn checked_rem(self, rhs: Self) -> Option<Self> {
         if self.is_div_none(rhs) {
@@ -340,6 +393,8 @@ impl i256 {
 
     /// Checked Euclidean remainder. Computes `self.rem_euclid(rhs)`, returning
     /// `None` if `rhs == 0` or the division results in overflow.
+    ///
+    /// See [`i128::checked_rem_euclid`].
     #[inline(always)]
     pub fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
         if self.is_div_none(rhs) {
@@ -349,6 +404,9 @@ impl i256 {
         }
     }
 
+    /// Checked negation. Computes `-self`, returning `None` if `self == MIN`.
+    ///
+    /// See [`i128::checked_neg`].
     #[inline(always)]
     pub const fn checked_neg(self) -> Option<Self> {
         let (value, overflowed) = self.overflowing_neg();
@@ -361,6 +419,8 @@ impl i256 {
 
     /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is
     /// larger than or equal to the number of bits in `self`.
+    ///
+    /// See [`i128::checked_shl`].
     #[inline(always)]
     pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
         // Not using overflowing_shl as that's a wrapping shift
@@ -373,6 +433,8 @@ impl i256 {
 
     /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs`
     /// is larger than or equal to the number of bits in `self`.
+    ///
+    /// See [`i128::checked_shr`].
     #[inline(always)]
     pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
         // Not using overflowing_shr as that's a wrapping shift
@@ -385,6 +447,8 @@ impl i256 {
 
     /// Checked absolute value. Computes `self.abs()`, returning `None` if
     /// `self == MIN`.
+    ///
+    /// See [`i128::checked_abs`].
     #[inline(always)]
     pub const fn checked_abs(self) -> Option<Self> {
         match self.overflowing_abs() {
@@ -395,6 +459,8 @@ impl i256 {
 
     /// Checked exponentiation. Computes `self.pow(exp)`, returning `None` if
     /// overflow occurred.
+    ///
+    /// See [`i128::checked_pow`].
     #[inline]
     pub const fn checked_pow(self, exp: u32) -> Option<Self> {
         match self.overflowing_pow(exp) {
@@ -414,6 +480,8 @@ impl i256 {
 
     /// Saturating integer addition. Computes `self + rhs`, saturating at the
     /// numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_add`].
     #[inline(always)]
     pub const fn saturating_add(self, rhs: Self) -> Self {
         match self.checked_add(rhs) {
@@ -425,6 +493,8 @@ impl i256 {
 
     /// Saturating addition with an unsigned integer. Computes `self + rhs`,
     /// saturating at the numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_add_unsigned`].
     #[inline(always)]
     pub const fn saturating_add_unsigned(self, rhs: u256) -> Self {
         // Overflow can only happen at the upper bound
@@ -437,6 +507,8 @@ impl i256 {
 
     /// Saturating integer subtraction. Computes `self - rhs`, saturating at the
     /// numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_sub`].
     #[inline(always)]
     pub const fn saturating_sub(self, rhs: Self) -> Self {
         match self.checked_sub(rhs) {
@@ -448,6 +520,8 @@ impl i256 {
 
     /// Saturating subtraction with an unsigned integer. Computes `self - rhs`,
     /// saturating at the numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_sub_unsigned`].
     #[inline(always)]
     pub const fn saturating_sub_unsigned(self, rhs: u256) -> Self {
         // Overflow can only happen at the lower bound
@@ -460,6 +534,8 @@ impl i256 {
 
     /// Saturating integer negation. Computes `-self`, returning `MAX` if `self
     /// == MIN` instead of overflowing.
+    ///
+    /// See [`i128::saturating_neg`].
     #[inline(always)]
     pub const fn saturating_neg(self) -> Self {
         Self::from_u8(0).saturating_sub(self)
@@ -467,6 +543,8 @@ impl i256 {
 
     /// Saturating absolute value. Computes `self.abs()`, returning `MAX` if
     /// `self == MIN` instead of overflowing.
+    ///
+    /// See [`i128::saturating_abs`].
     #[inline(always)]
     pub const fn saturating_abs(self) -> Self {
         match self.checked_abs() {
@@ -477,6 +555,8 @@ impl i256 {
 
     /// Saturating integer multiplication. Computes `self * rhs`, saturating at
     /// the numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_mul`].
     #[inline]
     pub const fn saturating_mul(self, rhs: Self) -> Self {
         match self.checked_mul(rhs) {
@@ -497,6 +577,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::saturating_div`].
     #[inline(always)]
     pub fn saturating_div(self, rhs: Self) -> Self {
         match self.overflowing_div(rhs) {
@@ -507,6 +589,8 @@ impl i256 {
 
     /// Saturating integer exponentiation. Computes `self.pow(exp)`,
     /// saturating at the numeric bounds instead of overflowing.
+    ///
+    /// See [`i128::saturating_pow`].
     #[inline]
     pub const fn saturating_pow(self, exp: u32) -> Self {
         match self.checked_pow(exp) {
@@ -518,6 +602,8 @@ impl i256 {
 
     /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at
     /// the boundary of the type.
+    ///
+    /// See [`i128::wrapping_add`].
     #[inline(always)]
     pub const fn wrapping_add(self, rhs: Self) -> Self {
         let (lo, hi) = math::wrapping_add_i128(self.low(), self.high(), rhs.low(), rhs.high());
@@ -526,6 +612,8 @@ impl i256 {
 
     /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around
     /// at the boundary of the type.
+    ///
+    /// See [`i128::wrapping_sub`].
     #[inline(always)]
     pub const fn wrapping_sub(self, rhs: Self) -> Self {
         let (lo, hi) = math::wrapping_sub_i128(self.low(), self.high(), rhs.low(), rhs.high());
@@ -534,6 +622,8 @@ impl i256 {
 
     /// Wrapping (modular) subtraction with an unsigned integer. Computes
     /// `self - rhs`, wrapping around at the boundary of the type.
+    ///
+    /// See [`i128::wrapping_sub_unsigned`].
     #[inline(always)]
     pub const fn wrapping_sub_unsigned(self, rhs: u256) -> Self {
         self.wrapping_sub(Self::from_u256(rhs))
@@ -541,6 +631,8 @@ impl i256 {
 
     /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping
     /// around at the boundary of the type.
+    ///
+    /// See [`i128::wrapping_mul`].
     #[inline(always)]
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
         let (lo, hi) = math::wrapping_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
@@ -559,6 +651,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::wrapping_div`].
     #[inline(always)]
     pub fn wrapping_div(self, rhs: Self) -> Self {
         self.wrapping_div_rem(rhs).0
@@ -575,6 +669,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::wrapping_div_euclid`].
     #[inline]
     pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
         let mut q = self.wrapping_div(rhs);
@@ -599,6 +695,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::wrapping_rem`].
     #[inline(always)]
     pub fn wrapping_rem(self, rhs: Self) -> Self {
         self.wrapping_div_rem(rhs).1
@@ -610,6 +708,8 @@ impl i256 {
     /// Wrapping will only occur in `MIN % -1` on a signed type (where `MIN` is
     /// the negative minimal value for the type). In this case, this method
     /// returns 0.
+    ///
+    /// See [`i128::wrapping_rem_euclid`].
     #[inline]
     pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
         let r = self.wrapping_rem(rhs);
@@ -635,6 +735,8 @@ impl i256 {
     /// a signed type (where `MIN` is the negative minimal value for the
     /// type); this is a positive value that is too large to represent
     /// in the type. In such a case, this function returns `MIN` itself.
+    ///
+    /// See [`i128::wrapping_neg`].
     #[inline(always)]
     pub const fn wrapping_neg(self) -> Self {
         // NOTE: This is identical to `add(not(x), 1i256)`
@@ -653,6 +755,8 @@ impl i256 {
     /// The primitive integer types all implement a
     /// [`rotate_left`](Self::rotate_left) function, which may be what you
     /// want instead.
+    ///
+    /// See [`i128::wrapping_shl`].
     #[inline(always)]
     pub const fn wrapping_shl(self, rhs: u32) -> Self {
         let (lo, hi) = math::shl_i128(self.low(), self.high(), rhs % 256);
@@ -669,6 +773,8 @@ impl i256 {
     /// end. The primitive integer types all implement a
     /// [`rotate_right`](Self::rotate_right) function, which may be what you
     /// want instead.
+    ///
+    /// See [`i128::wrapping_shr`].
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
         let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % 256);
@@ -682,6 +788,8 @@ impl i256 {
     /// absolute value of the negative minimal value for the type; this is a
     /// positive value that is too large to represent in the type. In such a
     /// case, this function returns `MIN` itself.
+    ///
+    /// See [`i128::wrapping_abs`].
     #[inline(always)]
     pub const fn wrapping_abs(self) -> Self {
         self.overflowing_abs().0
@@ -689,6 +797,8 @@ impl i256 {
 
     /// Computes the absolute value of `self` without any wrapping
     /// or panicking.
+    ///
+    /// See [`i128::unsigned_abs`].
     #[inline(always)]
     pub const fn unsigned_abs(self) -> u256 {
         self.wrapping_abs().as_u256()
@@ -696,6 +806,8 @@ impl i256 {
 
     /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
     /// wrapping around at the boundary of the type.
+    ///
+    /// See [`i128::wrapping_pow`].
     #[inline]
     pub const fn wrapping_pow(self, exp: u32) -> Self {
         // NOTE: We already implement `pow` as a wrapping function.
@@ -707,6 +819,8 @@ impl i256 {
     /// Returns a tuple of the addition along with a boolean indicating
     /// whether an arithmetic overflow would occur. If an overflow would have
     /// occurred then the wrapped value is returned.
+    ///
+    /// See [`i128::overflowing_add`].
     #[inline(always)]
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) =
@@ -719,6 +833,8 @@ impl i256 {
     /// Returns a tuple of the addition along with a boolean indicating
     /// whether an arithmetic overflow would occur. If an overflow would
     /// have occurred then the wrapped value is returned.
+    ///
+    /// See [`i128::overflowing_add_unsigned`].
     #[inline(always)]
     pub const fn overflowing_add_unsigned(self, rhs: u256) -> (Self, bool) {
         let rhs = rhs.as_i256();
@@ -731,6 +847,8 @@ impl i256 {
     /// Returns a tuple of the subtraction along with a boolean indicating
     /// whether an arithmetic overflow would occur. If an overflow would
     /// have occurred then the wrapped value is returned.
+    ///
+    /// See [`i128::overflowing_sub`].
     #[inline(always)]
     pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) =
@@ -743,6 +861,8 @@ impl i256 {
     /// Returns a tuple of the subtraction along with a boolean indicating
     /// whether an arithmetic overflow would occur. If an overflow would
     /// have occurred then the wrapped value is returned.
+    ///
+    /// See [`i128::overflowing_sub_unsigned`].
     #[inline(always)]
     pub const fn overflowing_sub_unsigned(self, rhs: u256) -> (Self, bool) {
         let rhs = rhs.as_i256();
@@ -755,6 +875,8 @@ impl i256 {
     /// Returns a tuple of the multiplication along with a boolean
     /// indicating whether an arithmetic overflow would occur. If an
     /// overflow would have occurred then the wrapped value is returned.
+    ///
+    /// See [`i128::overflowing_mul`].
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let (lo, hi, overflowed) =
@@ -771,6 +893,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::overflowing_div`].
     #[inline(always)]
     pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
         if eq(rhs, Self::from_i8(-1)) {
@@ -789,6 +913,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::overflowing_div_euclid`].
     #[inline(always)]
     pub fn overflowing_div_euclid(self, rhs: Self) -> (Self, bool) {
         if eq(self, Self::MIN) & eq(rhs, Self::from_i8(-1)) {
@@ -807,6 +933,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::overflowing_rem`].
     #[inline(always)]
     pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
         if eq(rhs, Self::from_i8(-1)) {
@@ -825,6 +953,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `rhs` is zero.
+    ///
+    /// See [`i128::overflowing_rem_euclid`].
     #[inline(always)]
     pub fn overflowing_rem_euclid(self, rhs: Self) -> (Self, bool) {
         if eq(self, Self::from_i8(-1)) {
@@ -841,6 +971,8 @@ impl i256 {
     /// value (e.g., `i32::MIN` for values of type `i32`), then the
     /// minimum value will be returned again and `true` will be returned for an
     /// overflow happening.
+    ///
+    /// See [`i128::overflowing_neg`].
     #[inline(always)]
     pub const fn overflowing_neg(self) -> (Self, bool) {
         if eq(self, Self::MIN) {
@@ -857,6 +989,8 @@ impl i256 {
     /// number of bits. If the shift value is too large, then value is
     /// masked (N-1) where N is the number of bits, and this value is then used
     /// to perform the shift.
+    ///
+    /// See [`i128::overflowing_shl`].
     #[inline(always)]
     pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
         (self.wrapping_shl(rhs), rhs >= Self::BITS)
@@ -869,6 +1003,8 @@ impl i256 {
     /// number of bits. If the shift value is too large, then value is
     /// masked (N-1) where N is the number of bits, and this value is then used
     /// to perform the shift.
+    ///
+    /// See [`i128::overflowing_shr`].
     #[inline(always)]
     pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
         (self.wrapping_shr(rhs), rhs >= Self::BITS)
@@ -878,6 +1014,8 @@ impl i256 {
     ///
     /// Returns a tuple of the absolute version of self along with a boolean
     /// indicating whether an overflow happened.
+    ///
+    /// See [`i128::overflowing_abs`].
     #[inline(always)]
     pub const fn overflowing_abs(self) -> (Self, bool) {
         match self.is_negative() {
@@ -890,6 +1028,8 @@ impl i256 {
     ///
     /// Returns a tuple of the exponentiation along with a bool indicating
     /// whether an overflow happened.
+    ///
+    /// See [`i128::overflowing_pow`].
     #[inline]
     pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {
         if exp == 0 {
@@ -918,6 +1058,8 @@ impl i256 {
     }
 
     /// Raises self to the power of `exp`, using exponentiation by squaring.
+    ///
+    /// See [`i128::pow`].
     #[inline]
     pub const fn pow(self, mut exp: u32) -> Self {
         if exp == 0 {
@@ -970,6 +1112,8 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
     /// flag.
+    ///
+    /// See [`i128::div_euclid`].
     #[inline(always)]
     pub fn div_euclid(self, rhs: Self) -> Self {
         if cfg!(not(have_overflow_checks)) {
@@ -990,6 +1134,8 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the
     /// `overflow-checks` flag.
+    ///
+    /// See [`i128::rem_euclid`].
     #[inline(always)]
     pub fn rem_euclid(self, rhs: Self) -> Self {
         if cfg!(not(have_overflow_checks)) {
@@ -1007,6 +1153,8 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
     /// flag.
+    ///
+    /// See [`i128::div_floor`].
     #[inline]
     pub fn div_floor(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
@@ -1033,6 +1181,8 @@ impl i256 {
     /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
     /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
     /// flag.
+    ///
+    /// See [`i128::div_ceil`].
     #[inline]
     pub fn div_ceil(self, rhs: Self) -> Self {
         let (d, r) = self.wrapping_div_rem(rhs);
@@ -1061,6 +1211,8 @@ impl i256 {
     /// On overflow, this function will panic if overflow checks are enabled
     /// (default in debug mode) and wrap if overflow checks are disabled
     /// (default in release mode).
+    ///
+    /// See [`i128::next_multiple_of`].
     #[inline]
     pub fn next_multiple_of(self, rhs: Self) -> Self {
         if eq(rhs, Self::from_i8(-1)) {
@@ -1087,6 +1239,8 @@ impl i256 {
     /// calculates the largest value less than or equal to `self` that is a
     /// multiple of `rhs`. Returns `None` if `rhs` is zero or the operation
     /// would result in overflow.
+    ///
+    /// See [`i128::checked_next_multiple_of`].
     #[inline]
     pub fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
         // This would otherwise fail when calculating `r` when self == T::MIN.
@@ -1122,6 +1276,8 @@ impl i256 {
     ///
     /// This function will panic if `self` is less than or equal to zero,
     /// or if `base` is less than 2.
+    ///
+    /// See [`i128::ilog`].
     #[inline(always)]
     pub fn ilog(self, base: Self) -> u32 {
         assert!(ge(base, Self::from_u8(2)), "base of integer logarithm must be at least 2");
@@ -1137,6 +1293,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function will panic if `self` is less than or equal to zero.
+    ///
+    /// See [`i128::ilog2`].
     #[inline(always)]
     pub const fn ilog2(self) -> u32 {
         if let Some(log) = self.checked_ilog2() {
@@ -1170,6 +1328,8 @@ impl i256 {
     /// This method might not be optimized owing to implementation details;
     /// `checked_ilog2` can produce results more efficiently for base 2, and
     /// `checked_ilog10` can produce results more efficiently for base 10.
+    ///
+    /// See [`i128::checked_ilog`].
     #[inline]
     pub fn checked_ilog(self, base: Self) -> Option<u32> {
         match le(self, Self::from_u8(0)) || le(base, Self::from_u8(1)) {
@@ -1181,6 +1341,8 @@ impl i256 {
     /// Returns the base 2 logarithm of the number, rounded down.
     ///
     /// Returns `None` if the number is negative or zero.
+    ///
+    /// See [`i128::checked_ilog2`].
     #[inline]
     pub const fn checked_ilog2(self) -> Option<u32> {
         match le(self, Self::from_u8(0)) {
@@ -1202,6 +1364,8 @@ impl i256 {
     // }
 
     /// Computes the absolute value of `self`.
+    ///
+    /// See [`i128::abs`].
     #[inline(always)]
     pub const fn abs(self) -> Self {
         match self.checked_abs() {
@@ -1214,6 +1378,8 @@ impl i256 {
     ///
     /// This function always returns the correct answer without overflow or
     /// panics by returning an unsigned integer.
+    ///
+    /// See [`i128::abs_diff`].
     #[inline(always)]
     pub const fn abs_diff(self, other: Self) -> u256 {
         if lt(self, other) {
@@ -1228,6 +1394,8 @@ impl i256 {
     ///  - `0` if the number is zero
     ///  - `1` if the number is positive
     ///  - `-1` if the number is negative
+    ///
+    /// See [`i128::signum`].
     #[inline(always)]
     pub const fn signum(self) -> Self {
         match cmp(self, Self::from_u8(0)) {
@@ -1239,6 +1407,8 @@ impl i256 {
 
     /// Returns `true` if `self` is positive and `false` if the number is zero
     /// or negative.
+    ///
+    /// See [`i128::is_positive`].
     #[inline(always)]
     pub const fn is_positive(self) -> bool {
         // NOTE: Because this is 2's complement, we can optimize like this.
@@ -1247,6 +1417,8 @@ impl i256 {
 
     /// Returns `true` if `self` is negative and `false` if the number is zero
     /// or positive.
+    ///
+    /// See [`i128::is_negative`].
     #[inline(always)]
     pub const fn is_negative(self) -> bool {
         // NOTE: Because this is 2's complement, we can optimize like this.
@@ -1255,6 +1427,8 @@ impl i256 {
 
     /// Returns the memory representation of this integer as a byte array in
     /// big-endian (network) byte order.
+    ///
+    /// See [`i128::to_be_bytes`].
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
         math::from_limbs(self.to_be_limbs())
@@ -1262,6 +1436,8 @@ impl i256 {
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
+    ///
+    /// See [`i128::to_le_bytes`].
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
         math::from_limbs(self.to_le_limbs())
@@ -1301,6 +1477,8 @@ impl i256 {
     /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
     /// instead.
     ///
+    /// See [`i128::to_ne_bytes`].
+    ///
     /// [`to_be_bytes`]: Self::to_be_bytes
     /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
@@ -1310,6 +1488,8 @@ impl i256 {
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in big endian.
+    ///
+    /// See [`i128::from_be_bytes`].
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
         Self::from_be_limbs(math::to_limbs(bytes))
@@ -1317,6 +1497,8 @@ impl i256 {
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
+    ///
+    /// See [`i128::from_le_bytes`].
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
         Self::from_le_limbs(math::to_limbs(bytes))
@@ -1328,6 +1510,8 @@ impl i256 {
     /// As the target platform's native endianness is used, portable code
     /// likely wants to use [`from_be_bytes`] or [`from_le_bytes`], as
     /// appropriate instead.
+    ///
+    /// See [`i128::from_ne_bytes`].
     ///
     /// [`from_be_bytes`]: Self::from_be_bytes
     /// [`from_le_bytes`]: Self::from_le_bytes
@@ -1389,6 +1573,8 @@ impl i256 {
     /// # Panics
     ///
     /// This function panics if `radix` is not in the range from 2 to 36.
+    ///
+    /// See [`i128::from_str_radix`].
     #[inline]
     pub const fn from_str_radix(src: &str, radix: u32) -> Result<Self, ParseIntError> {
         from_str_radix(src, radix)
@@ -2758,6 +2944,8 @@ impl i256 {
     ///
     /// This produces the same result as an `as` cast, but ensures that the
     /// bit-width remains the same.
+    ///
+    /// See [`i128::cast_unsigned`].
     #[inline(always)]
     pub const fn cast_unsigned(self) -> u256 {
         self.as_u256()
@@ -2770,6 +2958,8 @@ impl i256 {
     /// bit, and returns an output integer and a carry-out bit. This allows
     /// chaining together multiple additions to create a wider addition, and
     /// can be useful for bignum addition.
+    ///
+    /// See [`i128::carrying_add`].
     #[inline]
     #[must_use]
     pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
@@ -2786,6 +2976,8 @@ impl i256 {
     /// integer and a borrow-out bit. This allows chaining together multiple
     /// subtractions to create a wider subtraction, and can be useful for
     /// bignum subtraction.
+    ///
+    /// See [`i128::borrowing_sub`].
     #[inline]
     #[must_use]
     pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
@@ -2803,6 +2995,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_add`].
     #[inline]
     #[must_use]
     pub const fn strict_add(self, rhs: Self) -> Self {
@@ -2821,6 +3015,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_add_unsigned`].
     #[inline]
     #[must_use]
     pub const fn strict_add_unsigned(self, rhs: u256) -> Self {
@@ -2839,6 +3035,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_sub`].
     #[inline]
     #[must_use]
     pub const fn strict_sub(self, rhs: Self) -> Self {
@@ -2857,6 +3055,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_sub_unsigned`].
     #[inline]
     #[must_use]
     pub const fn strict_sub_unsigned(self, rhs: u256) -> Self {
@@ -2875,6 +3075,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_mul`].
     #[inline]
     #[must_use]
     pub const fn strict_mul(self, rhs: Self) -> Self {
@@ -2898,7 +3100,9 @@ impl i256 {
     ///
     /// The only case where such an overflow can occur is when one divides `MIN
     /// / -1` on a signed type (where `MIN` is the negative minimal value
-    /// for the typ
+    /// for the type.
+    ///
+    /// See [`i128::strict_div`].
     #[inline]
     #[must_use]
     pub fn strict_div(self, rhs: Self) -> Self {
@@ -2924,6 +3128,8 @@ impl i256 {
     /// / -1` on a signed type (where `MIN` is the negative minimal value
     /// for the type); this is equivalent to `-MIN`, a positive value
     /// that is too large to represent in the type.
+    ///
+    /// See [`i128::strict_div_euclid`].
     #[inline]
     #[must_use]
     pub fn strict_div_euclid(self, rhs: Self) -> Self {
@@ -2948,6 +3154,8 @@ impl i256 {
     /// The only case where such an overflow can occur is `x % y` for `MIN / -1`
     /// on a signed type (where `MIN` is the negative minimal value), which
     /// is invalid due to implementation artifacts.
+    ///
+    /// See [`i128::strict_rem`].
     #[inline]
     #[must_use]
     pub fn strict_rem(self, rhs: Self) -> Self {
@@ -2972,6 +3180,8 @@ impl i256 {
     /// The only case where such an overflow can occur is `x % y` for `MIN / -1`
     /// on a signed type (where `MIN` is the negative minimal value), which
     /// is invalid due to implementation artifacts.
+    ///
+    /// See [`i128::strict_rem_euclid`].
     #[inline]
     #[must_use]
     pub fn strict_rem_euclid(self, rhs: Self) -> Self {
@@ -2989,6 +3199,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_neg`].
     #[inline]
     #[must_use]
     pub const fn strict_neg(self) -> Self {
@@ -3007,6 +3219,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_abs`].
     #[inline]
     #[must_use]
     pub const fn strict_abs(self) -> Self {
@@ -3025,6 +3239,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_pow`].
     #[inline]
     #[must_use]
     pub const fn strict_pow(self, rhs: u32) -> Self {
@@ -3043,6 +3259,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_shl`].
     #[inline]
     #[must_use]
     pub const fn strict_shl(self, rhs: u32) -> Self {
@@ -3061,6 +3279,8 @@ impl i256 {
     ///
     /// This function will always panic on overflow, regardless of whether
     /// overflow checks are enabled.
+    ///
+    /// See [`i128::strict_shr`].
     #[inline]
     #[must_use]
     pub const fn strict_shr(self, rhs: u32) -> Self {
@@ -3076,6 +3296,8 @@ impl i256 {
     /// sufficiently-large unsigned integral type. This implies that the
     /// result is always rounded towards negative infinity and that no
     /// overflow will ever occur.
+    ///
+    /// See [`i128::midpoint`].
     #[inline]
     #[must_use]
     pub const fn midpoint(self, rhs: Self) -> Self {
@@ -3103,9 +3325,11 @@ impl i256 {
     ///
     /// This results in undefined behavior when the value overflows.
     ///
-    /// [`checked_add`]: [Self::checked_add]
-    /// [`wrapping_add`]: [Self::wrapping_add]
-    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
+    /// See [`i128::unchecked_add`].
+    ///
+    /// [`checked_add`]: Self::checked_add
+    /// [`wrapping_add`]: Self::wrapping_add
+    /// [`unwrap_unchecked`]: Option::unwrap_unchecked
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_add(self, rhs: Self) -> Self {
@@ -3129,9 +3353,11 @@ impl i256 {
     ///
     /// This results in undefined behavior when the value overflows.
     ///
-    /// [`checked_sub`]: [Self::checked_sub]
-    /// [`wrapping_sub`]: [Self::wrapping_sub]
-    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
+    /// See [`i128::unchecked_sub`].
+    ///
+    /// [`checked_sub`]: Self::checked_sub
+    /// [`wrapping_sub`]: Self::wrapping_sub
+    /// [`unwrap_unchecked`]: Option::unwrap_unchecked
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_sub(self, rhs: Self) -> Self {
@@ -3155,9 +3381,11 @@ impl i256 {
     ///
     /// This results in undefined behavior when the value overflows.
     ///
-    /// [`checked_mul`]: [Self::checked_mul]
-    /// [`wrapping_mul`]: [Self::wrapping_mul]
-    /// [`unwrap_unchecked`]: [Option::unwrap_unchecked]
+    /// See [`i128::unchecked_mul`].
+    ///
+    /// [`checked_mul`]: Self::checked_mul
+    /// [`wrapping_mul`]: Self::wrapping_mul
+    /// [`unwrap_unchecked`]: Option::unwrap_unchecked
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_mul(self, rhs: Self) -> Self {
@@ -3173,6 +3401,8 @@ impl i256 {
     /// # Safety
     ///
     /// This results in undefined behavior when the value overflows.
+    ///
+    /// See [`i128::unchecked_neg`].
     #[must_use]
     #[inline(always)]
     pub unsafe fn unchecked_neg(self) -> Self {
@@ -3192,7 +3422,9 @@ impl i256 {
     /// or equal to the number of bits in `self`,
     /// i.e. when [`checked_shl`] would return `None`.
     ///
-    /// [`checked_shl`]: [Self::checked_shl]
+    /// See [`i128::unchecked_shl`].
+    ///
+    /// [`checked_shl`]: Self::checked_shl
     #[must_use]
     #[inline(always)]
     pub const unsafe fn unchecked_shl(self, rhs: u32) -> Self {
@@ -3212,7 +3444,9 @@ impl i256 {
     /// or equal to the number of bits in `self`,
     /// i.e. when [`checked_shr`] would return `None`.
     ///
-    /// [`checked_shr`]: [Self::checked_shr]
+    /// See [`i128::unchecked_shr`].
+    ///
+    /// [`checked_shr`]: Self::checked_shr
     #[must_use]
     #[inline(always)]
     pub const unsafe fn unchecked_shr(self, rhs: u32) -> Self {
