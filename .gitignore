@@ -24,3 +24,5 @@ Cargo.lock
 
 /target
 TODO.md
+*.profraw
+tarpaulin-report.html
