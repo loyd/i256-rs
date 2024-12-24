@@ -29,13 +29,13 @@ jobs:
       run: cargo test
 
     - name: Format Check
-      if: ${{ matrix.target == 'nightly' }}
+      if: ${{ matrix.rust == 'nightly' }}
       run: |
         cargo +nightly fmt -- --check
         cargo +nightly clippy --all-features -- --deny warnings
 
     - name: Run Quickcheck Tests
-      if: ${{ matrix.rust != '1.59.0' }}
+      if: ${{ matrix.rust == 'nightly' }}
       run: |
         cd devel
         cargo test
