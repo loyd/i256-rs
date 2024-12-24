@@ -58,8 +58,8 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct u256 {
-    pub(crate) lo: u128,
-    pub(crate) hi: u128,
+    lo: u128,
+    hi: u128,
 }
 
 impl u256 {

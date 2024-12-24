@@ -16,14 +16,9 @@ use core::mem;
 
 // Utility to split a value into low and high bits.
 // This also includes a variety to split into arrays.
+// TODO: Can likely remove
 macro_rules! split {
     ($u:ty, $h:ty, $v:expr) => {{
-        const MASK: $u = <$h>::MAX as $u;
-        const SHIFT: u32 = <$h>::BITS;
-        (($v & MASK) as $h, ($v >> SHIFT) as $h)
-    }};
-
-    (@arr2 $u:ty, $h:ty, $v:expr) => {{
         // FIXME: Using raw transmutes can allow vectorizing,
         // restore to raw splits when possible.
         //  let (lo, hi) = split!($u, $h, $v);
@@ -34,7 +29,7 @@ macro_rules! split {
         v
     }};
 
-    (@arr4 $u:ty, $h:ty, $x:expr, $y:expr) => {{
+    ($u:ty, $h:ty, $x:expr, $y:expr) => {{
         // FIXME: Using raw transmutes can allow vectorizing,
         // restore to raw splits when possible.
         //  let (x0, x1) = split!($u, $h, $x);
@@ -45,6 +40,23 @@ macro_rules! split {
         // SAFETY: safe since this is plain old data
         let v: [$h; 4] = unsafe { mem::transmute([xb, yb]) };
         v
+    }};
+}
+
+// Unsplit our array and shift bytes into place.
+macro_rules! unsplit {
+    (@wrapping $u:ty, $v:expr, $shift:expr) => {{
+        let r = $v;
+        let lo = ((r[1] as $u) << $shift) | (r[0] as $u);
+        let hi = ((r[3] as $u) << $shift) | (r[2] as $u);
+        (lo, hi)
+    }};
+
+    (@overflow $u:ty, $v:expr, $shift:expr) => {{
+        let (r, o) = $v;
+        let lo = ((r[1] as $u) << $shift) | (r[0] as $u);
+        let hi = ((r[3] as $u) << $shift) | (r[2] as $u);
+        (lo, hi, o)
     }};
 }
 
@@ -598,12 +610,10 @@ macro_rules! mul_unsigned_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        const fn $wrapping_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u) {
+        pub const fn $wrapping_array<const M: usize, const N: usize>(x: &[$h; M], y: &[$h; N]) -> [$h; M] {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
-            if M < N {
-                return $wrapping_array(y, x);
-            }
+            assert!(M >= N, "lhs must be >= than rhs");
 
             const SHIFT: u32 = <$h>::BITS;
             let mut r: [$h; M] = [0; M];
@@ -646,9 +656,7 @@ macro_rules! mul_unsigned_impl {
                 i += 1;
             }
 
-            let lo = ((r[1] as $u) << SHIFT) | (r[0] as $u);
-            let hi = ((r[3] as $u) << SHIFT) | (r[2] as $u);
-            (lo, hi)
+            r
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -953,9 +961,10 @@ macro_rules! mul_unsigned_impl {
             //     pop     r15
             //     pop     rbp
             //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr4 $u, $h, y0, y1);
-            $wrapping_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y0, y1);
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -1062,9 +1071,10 @@ macro_rules! mul_unsigned_impl {
             //     pop     r14
             //     pop     r15
             //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr2 $u, $h, y);
-            $wrapping_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y);
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -1119,9 +1129,10 @@ macro_rules! mul_unsigned_impl {
             //     mov     rax, rdi
             //     pop     rbx
             //     ret
-            let x = split!(@arr4 $u, $h, x0, x1);
+            let x = split!($u, $h, x0, x1);
             let y = [y];
-            $wrapping_array(x, y)
+            let r = $wrapping_array(&x, &y);
+            unsplit!(@wrapping $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -1141,12 +1152,10 @@ macro_rules! mul_unsigned_impl {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
-        const fn $overflowing_array<const M: usize, const N: usize>(x: [$h; M], y: [$h; N]) -> ($u, $u, bool) {
+        pub const fn $overflowing_array<const M: usize, const N: usize>(x: &[$h; M], y: &[$h; N]) -> ([$h; M], bool) {
             // NOTE: This assumes our multiplier is at least the multiplicand
             // dimensions, so we can just invert it in the other case.
-            if M < N {
-                return $overflowing_array(y, x);
-            }
+            assert!(M >= N, "lhs must be >= than rhs");
 
             const SHIFT: u32 = <$h>::BITS;
             let mut r: [$h; M] = [0; M];
@@ -1192,9 +1201,7 @@ macro_rules! mul_unsigned_impl {
                 i += 1;
             }
 
-            let lo = ((r[1] as $u) << SHIFT) | (r[0] as $u);
-            let hi = ((r[3] as $u) << SHIFT) | (r[2] as $u);
-            (lo, hi, overflowed)
+            (r, overflowed)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -1223,9 +1230,10 @@ macro_rules! mul_unsigned_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
         pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr4 $u, $h, y0, y1);
-            $overflowing_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y0, y1);
+            let r = $overflowing_array(&x, &y);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -1256,9 +1264,10 @@ macro_rules! mul_unsigned_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
         pub const fn $overflowing_small(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = split!(@arr2 $u, $h, y);
-            $overflowing_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let y = split!($u, $h, y);
+            let r = $overflowing_array(&x, &y);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -1286,9 +1295,9 @@ macro_rules! mul_unsigned_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline]
         pub const fn $overflowing_half(x0: $u, x1: $u, y: $h) -> ($u, $u, bool) {
-            let x = split!(@arr4 $u, $h, x0, x1);
-            let y = [y];
-            $overflowing_array(x, y)
+            let x = split!($u, $h, x0, x1);
+            let r = $overflowing_array(&x, &[y]);
+            unsplit!(@overflow $u, r, <$h>::BITS)
         }
     };
 }
@@ -2644,13 +2653,13 @@ macro_rules! mul_signed_impl {
     // split into 4 limbs, as an abs
     (@split4 $u:ty, $h:ty, $x:expr, $y:expr, $abs:ident) => {{
         let (xa, ya) = $abs($x, $y);
-        split!(@arr4 $u, $h, xa, ya)
+        split!($u, $h, xa, ya)
     }};
 
     // split into 2 limbs, as an abs
     (@split2 $u:ty, $h:ty, $x:expr) => {{
         let xa = $x.unsigned_abs();
-        split!(@arr2 $u, $h, xa)
+        split!($u, $h, xa)
     }};
 
     (
@@ -2704,8 +2713,8 @@ macro_rules! mul_signed_impl {
         pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
-            let (lo, hi) = $wrapping_array(x, y);
-
+            let r = $wrapping_array(&x, &y);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y1, $s, $neg)
         }
 
@@ -2742,9 +2751,9 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $wrapping_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let y = split!(@arr2 $u, $uh, y);
-            let (lo, hi) = $wrapping_array(x, y);
-
+            let y = split!($u, $uh, y);
+            let r = $wrapping_array(&x, &y);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, 0i32, $s, $neg)
         }
 
@@ -2782,8 +2791,8 @@ macro_rules! mul_signed_impl {
         pub const fn $wrapping_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
-            let (lo, hi) = $wrapping_array(lhs, rhs);
-
+            let r = $wrapping_array(&lhs, &rhs);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y, $s, $neg)
         }
 
@@ -2820,8 +2829,8 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $wrapping_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi) = $wrapping_array(lhs, [y]);
-
+            let r = $wrapping_array(&lhs, &[y]);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, 0i32, $s, $neg)
         }
 
@@ -2858,8 +2867,8 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $wrapping_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi) = $wrapping_array(lhs, [y.unsigned_abs()]);
-
+            let r = $wrapping_array(&lhs, &[y.unsigned_abs()]);
+            let (lo, hi) = unsplit!(@wrapping $u, r, <$uh>::BITS);
             mul_signed_impl!(@wsign, lo, hi, x1, y, $s, $neg)
         }
 
@@ -2891,7 +2900,8 @@ macro_rules! mul_signed_impl {
         pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let y = mul_signed_impl!(@split4 $u, $uh, y0, y1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(x, y);
+            let r = $overflowing_array(&x, &y);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y1, $s, $neg)
         }
 
@@ -2925,9 +2935,9 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $overflowing_usmall(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
             let x = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let y = split!(@arr2 $u, $uh, y);
-            let (lo, hi, overflowed) = $overflowing_array(x, y);
-
+            let y = split!($u, $uh, y);
+            let r = $overflowing_array(&x, &y);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, 0i32, $s, $neg)
         }
 
@@ -2962,8 +2972,8 @@ macro_rules! mul_signed_impl {
         pub const fn $overflowing_ismall(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
             let rhs = mul_signed_impl!(@split2 $u, $uh, y);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, rhs);
-
+            let r = $overflowing_array(&lhs, &rhs);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y, $s, $neg)
         }
 
@@ -2997,8 +3007,8 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $overflowing_uhalf(x0: $u, x1: $s, y: $uh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, [y]);
-
+            let r = $overflowing_array(&lhs, &[y]);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, 0i32, $s, $neg)
         }
 
@@ -3032,8 +3042,8 @@ macro_rules! mul_signed_impl {
         #[inline]
         pub const fn $overflowing_ihalf(x0: $u, x1: $s, y: $sh) -> ($u, $s, bool) {
             let lhs = mul_signed_impl!(@split4 $u, $uh, x0, x1, $abs);
-            let (lo, hi, overflowed) = $overflowing_array(lhs, [y.unsigned_abs()]);
-
+            let r = $overflowing_array(&lhs, &[y.unsigned_abs()]);
+            let (lo, hi, overflowed) = unsplit!(@overflow $u, r, <$uh>::BITS);
             mul_signed_impl!(@osign, lo, hi, overflowed, x1, y, $s, $neg)
         }
     };
