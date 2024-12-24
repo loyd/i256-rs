@@ -191,18 +191,6 @@ macro_rules! add_benches {
     }};
 }
 
-// TODO: Can probably remove
-macro_rules! native_op {
-    ($t:ident, $w:ident, $name:ident, $op:ident) => {
-        fn $name(x0: $t, x1: $t, y0: $t, y1: $t) -> ($t, $t) {
-            let x: $w = (x0 as $w) | (x1 as $w) << $t::BITS;
-            let y: $w = (y0 as $w) | (y1 as $w) << $t::BITS;
-            let z = x.$op(y);
-            (z as $t, (z >> $t::BITS) as $t)
-        }
-    };
-}
-
 pub fn get_bnum_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(Bnum256, Bnum256)> {
     u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
         .iter()
@@ -237,19 +225,12 @@ pub fn get_half_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u64)> {
     x.iter().zip(y.iter()).map(|(x, y)| (u256::new(x[0], x[1]), y[0])).collect()
 }
 
-// TODO: FIX THESE...
 pub fn to_bnum(x: u128, y: u128) -> Bnum256 {
     let buf = [x.to_le_bytes(), y.to_le_bytes()];
     // SAFETY: plain old data
     let slc = unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>(buf) };
     Bnum256::from_le_slice(&slc).unwrap()
 }
-
-// TODO: Restore
-//pub fn bnum_from_u64(x0: u64, x1: u64, y0: u64, y1: u64) -> Bnum256 {
-//    bnum_from_u128(x0 as u128 | (x1 as u128) << 64, y0 as u128 | (y1 as u128)
-// << 64)
-//}
 
 pub fn to_cryptobi(lo: u128, hi: u128) -> CryptoU256 {
     // SAFETY: plain old data

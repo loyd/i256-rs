@@ -58,8 +58,10 @@ const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct u256 {
-    lo: u128,
-    hi: u128,
+    // TODO: FIX
+    limbs: [ULimb; LIMBS],
+    //lo: u128,
+    //hi: u128,
 }
 
 impl u256 {
@@ -1075,20 +1077,14 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
-        // NOTE: the layout of `i128` is implementation-defined.
-        let lo = self.low().to_be_bytes();
-        let hi = self.high().to_be_bytes();
-        to_flat_bytes(hi, lo)
+        from_limbs(self.to_be_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
-        // NOTE: the layout of `i128` is implementation-defined.
-        let lo = self.low().to_le_bytes();
-        let hi = self.high().to_le_bytes();
-        to_flat_bytes(lo, hi)
+        from_limbs(self.to_le_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1113,14 +1109,14 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_limbs(self) -> [ULimb; LIMBS] {
-        to_limbs(self.to_be_bytes())
+        self.to_be().limbs
     }
 
     /// Returns the memory representation of this as a series of limbs in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_limbs(self) -> [ULimb; LIMBS] {
-        to_limbs(self.to_le_bytes())
+        self.to_le().limbs
     }
 
     /// Returns the memory representation of this as a series of limbs.
@@ -1144,16 +1140,14 @@ impl u256 {
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        let (hi, lo) = from_flat_bytes(bytes);
-        Self::new(u128::from_be_bytes(lo), u128::from_be_bytes(hi))
+        Self::from_be_limbs(to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        let (lo, hi) = from_flat_bytes(bytes);
-        Self::new(u128::from_le_bytes(lo), u128::from_le_bytes(hi))
+        Self::from_le_limbs(to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1167,25 +1161,42 @@ impl u256 {
     /// [`from_le_bytes`]: Self::from_le_bytes
     #[inline(always)]
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
-        if cfg!(target_endian = "big") {
-            Self::from_be_bytes(bytes)
-        } else {
-            Self::from_le_bytes(bytes)
+        Self::from_ne_limbs(to_limbs(bytes))
+    }
+
+    #[inline(always)]
+    const fn swap(limbs: [ULimb; LIMBS]) -> [ULimb; LIMBS] {
+        let mut res = [0; LIMBS];
+        let mut i = 0;
+        while i < LIMBS {
+            res[i] = limbs[LIMBS - i - 1];
+            i += 1;
         }
+        res
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in big endian.
     #[inline(always)]
     pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        Self::from_be_bytes(from_limbs(limbs))
+        let limbs = if cfg!(target_endian = "big") {
+            limbs
+        } else {
+            Self::swap(limbs)
+        };
+        Self { limbs }
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in little endian.
     #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        Self::from_le_bytes(from_limbs(limbs))
+        let limbs = if cfg!(target_endian = "big") {
+            Self::swap(limbs)
+        } else {
+            limbs
+        };
+        Self { limbs }
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1199,11 +1210,7 @@ impl u256 {
     /// [`from_le_limbs`]: Self::from_le_limbs
     #[inline(always)]
     pub const fn from_ne_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        if cfg!(target_endian = "big") {
-            Self::from_be_limbs(limbs)
-        } else {
-            Self::from_le_limbs(limbs)
-        }
+        Self { limbs }
     }
 
     /// Converts a string slice in a given base to an integer.
@@ -1239,22 +1246,31 @@ impl u256 {
     /// Create a new `u256` from the low and high bits.
     #[inline(always)]
     pub const fn new(lo: u128, hi: u128) -> Self {
-        Self {
-            lo,
-            hi,
-        }
+        Self::from_le_bytes(to_flat_bytes(lo.to_le_bytes(), hi.to_le_bytes()))
     }
 
     /// Get the high 128 bits of the signed integer.
     #[inline(always)]
     pub const fn high(self) -> u128 {
-        self.hi
+        if cfg!(target_endian = "big") {
+            let (hi, _) = from_flat_bytes(self.to_be_bytes());
+            u128::from_be_bytes(hi)
+        } else {
+            let (_, hi) = from_flat_bytes(self.to_le_bytes());
+            u128::from_le_bytes(hi)
+        }
     }
 
     /// Get the low 128 bits of the signed integer.
     #[inline(always)]
     pub const fn low(self) -> u128 {
-        self.lo
+        if cfg!(target_endian = "big") {
+            let (_, lo) = from_flat_bytes(self.to_be_bytes());
+            u128::from_be_bytes(lo)
+        } else {
+            let (lo, _) = from_flat_bytes(self.to_le_bytes());
+            u128::from_le_bytes(lo)
+        }
     }
 
     /// Create the 256-bit unsigned integer to a `u8`, as if by an `as` cast.
@@ -3156,6 +3172,7 @@ const fn from_limbs(limbs: [ULimb; LIMBS]) -> [u8; 32] {
     unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) }
 }
 
+// TODO: Remove this
 /// Convert flat bytes to an array of limbs.
 ///
 /// We keep this as a standalone function since Rust can sometimes
