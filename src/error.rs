@@ -44,9 +44,24 @@ pub enum IntErrorKind {
 
 impl ParseIntError {
     /// Outputs the detailed cause of parsing an integer failing.
+    #[inline]
     #[must_use]
     pub const fn kind(&self) -> &IntErrorKind {
         &self.kind
+    }
+
+    /// Create a new error.
+    #[inline]
+    pub(crate) const fn new(kind: IntErrorKind) -> Self {
+        Self {
+            kind,
+        }
+    }
+}
+
+impl fmt::Debug for ParseIntError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
