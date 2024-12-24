@@ -6,8 +6,6 @@
 #![doc(hidden)]
 #![allow(clippy::useless_transmute)]
 
-use core::mem;
-
 // NOTE: These are named after the size of the types that are the
 // operands: for example, `wrapping_add_u8` takes 2x `u8`, so it's
 // a 16-bit addition.
@@ -26,7 +24,7 @@ macro_rules! split {
         //  [lo, hi]
         let bytes = $v.to_le_bytes();
         // SAFETY: safe since this is plain old data
-        let v: [$h; 2] = unsafe { mem::transmute(bytes) };
+        let v: [$h; 2] = unsafe { core::mem::transmute(bytes) };
         v
     }};
 
@@ -39,7 +37,7 @@ macro_rules! split {
         let xb = $x.to_le_bytes();
         let yb = $y.to_le_bytes();
         // SAFETY: safe since this is plain old data
-        let v: [$h; 4] = unsafe { mem::transmute([xb, yb]) };
+        let v: [$h; 4] = unsafe { core::mem::transmute([xb, yb]) };
         v
     }};
 }

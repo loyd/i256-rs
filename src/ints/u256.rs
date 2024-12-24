@@ -16,17 +16,14 @@
 
 use core::cmp::Ordering;
 use core::str::{FromStr, Utf8Error};
-use core::{fmt, mem, str};
+use core::{fmt, str};
 use core::{ops::*, panic};
 
 use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
 use crate::i256;
 use crate::ints::i256::lt as i256_lt;
-use crate::math::{self, ULimb, UWide};
+use crate::math::{self, ULimb, UWide, LIMBS};
 use crate::numtypes::*;
-
-// The number of limbs in the integer.
-const LIMBS: usize = (u256::BITS / ULimb::BITS) as usize;
 
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
@@ -1368,14 +1365,14 @@ impl u256 {
     /// big-endian (network) byte order.
     #[inline(always)]
     pub const fn to_be_bytes(self) -> [u8; 32] {
-        from_limbs(self.to_be_limbs())
+        math::from_limbs(self.to_be_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
     /// little-endian byte order.
     #[inline(always)]
     pub const fn to_le_bytes(self) -> [u8; 32] {
-        from_limbs(self.to_le_limbs())
+        math::from_limbs(self.to_le_limbs())
     }
 
     /// Returns the memory representation of this integer as a byte array in
@@ -1389,11 +1386,7 @@ impl u256 {
     /// [`to_le_bytes`]: Self::to_le_bytes
     #[inline(always)]
     pub const fn to_ne_bytes(self) -> [u8; 32] {
-        if cfg!(target_endian = "big") {
-            self.to_be_bytes()
-        } else {
-            self.to_le_bytes()
-        }
+        math::from_limbs(self.to_ne_limbs())
     }
 
     /// Returns the memory representation of this as a series of limbs in
@@ -1420,25 +1413,21 @@ impl u256 {
     /// [`to_le_limbs`]: Self::to_le_limbs
     #[inline(always)]
     pub const fn to_ne_limbs(self) -> [ULimb; LIMBS] {
-        if cfg!(target_endian = "big") {
-            self.to_be_limbs()
-        } else {
-            self.to_le_limbs()
-        }
+        self.limbs
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in big endian.
     #[inline(always)]
     pub const fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_be_limbs(to_limbs(bytes))
+        Self::from_be_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its representation
     /// as a byte array in little endian.
     #[inline(always)]
     pub const fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_le_limbs(to_limbs(bytes))
+        Self::from_le_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its memory representation
@@ -1452,31 +1441,17 @@ impl u256 {
     /// [`from_le_bytes`]: Self::from_le_bytes
     #[inline(always)]
     pub const fn from_ne_bytes(bytes: [u8; 32]) -> Self {
-        Self::from_ne_limbs(to_limbs(bytes))
-    }
-
-    #[inline(always)]
-    const fn swap(limbs: [ULimb; LIMBS]) -> [ULimb; LIMBS] {
-        let mut res = [0; LIMBS];
-        let mut i = 0;
-        while i < LIMBS {
-            res[i] = limbs[LIMBS - i - 1];
-            i += 1;
-        }
-        res
+        Self::from_ne_limbs(math::to_limbs(bytes))
     }
 
     /// Creates a native endian integer value from its representation
     /// as limbs in big endian.
     #[inline(always)]
     pub const fn from_be_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        let limbs = if cfg!(target_endian = "big") {
-            limbs
+        if cfg!(target_endian = "big") {
+            Self::from_ne_limbs(limbs)
         } else {
-            Self::swap(limbs)
-        };
-        Self {
-            limbs,
+            Self::from_ne_limbs(math::swap_limbs(limbs))
         }
     }
 
@@ -1484,13 +1459,10 @@ impl u256 {
     /// as limbs in little endian.
     #[inline(always)]
     pub const fn from_le_limbs(limbs: [ULimb; LIMBS]) -> Self {
-        let limbs = if cfg!(target_endian = "big") {
-            Self::swap(limbs)
+        if cfg!(target_endian = "big") {
+            Self::from_ne_limbs(math::swap_limbs(limbs))
         } else {
-            limbs
-        };
-        Self {
-            limbs,
+            Self::from_ne_limbs(limbs)
         }
     }
 
@@ -1543,17 +1515,21 @@ impl u256 {
     /// Create a new `u256` from the low and high bits.
     #[inline(always)]
     pub const fn new(lo: u128, hi: u128) -> Self {
-        Self::from_le_bytes(to_flat_bytes(lo.to_le_bytes(), hi.to_le_bytes()))
+        if cfg!(target_endian = "big") {
+            Self::from_be_bytes(math::to_flat_bytes(hi.to_be_bytes(), lo.to_be_bytes()))
+        } else {
+            Self::from_le_bytes(math::to_flat_bytes(lo.to_le_bytes(), hi.to_le_bytes()))
+        }
     }
 
     /// Get the high 128 bits of the signed integer.
     #[inline(always)]
     pub const fn high(self) -> u128 {
         if cfg!(target_endian = "big") {
-            let (hi, _) = from_flat_bytes(self.to_be_bytes());
+            let (hi, _) = math::from_flat_bytes(self.to_be_bytes());
             u128::from_be_bytes(hi)
         } else {
-            let (_, hi) = from_flat_bytes(self.to_le_bytes());
+            let (_, hi) = math::from_flat_bytes(self.to_le_bytes());
             u128::from_le_bytes(hi)
         }
     }
@@ -1562,10 +1538,10 @@ impl u256 {
     #[inline(always)]
     pub const fn low(self) -> u128 {
         if cfg!(target_endian = "big") {
-            let (_, lo) = from_flat_bytes(self.to_be_bytes());
+            let (_, lo) = math::from_flat_bytes(self.to_be_bytes());
             u128::from_be_bytes(lo)
         } else {
-            let (lo, _) = from_flat_bytes(self.to_le_bytes());
+            let (lo, _) = math::from_flat_bytes(self.to_le_bytes());
             u128::from_le_bytes(lo)
         }
     }
@@ -3422,68 +3398,6 @@ fn to_bytes(mut value: u256, buffer: &mut [u8; 78]) -> &[u8] {
 #[inline]
 fn to_string(value: u256, buffer: &mut [u8; 78]) -> Result<&str, Utf8Error> {
     str::from_utf8(to_bytes(value, buffer))
-}
-
-/// Flatten two 128-bit integers as bytes to flat, 32 bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn to_flat_bytes(x: [u8; 16], y: [u8; 16]) -> [u8; 32] {
-    // SAFETY: plain old data
-    unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>([x, y]) }
-}
-
-/// Flatten a flat, 32 byte integer to two 128-bit integers as bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn from_flat_bytes(bytes: [u8; 32]) -> ([u8; 16], [u8; 16]) {
-    // SAFETY: plain old data
-    let r = unsafe { mem::transmute::<[u8; 32], [[u8; 16]; 2]>(bytes) };
-    (r[0], r[1])
-}
-
-/// Convert an array of limbs to the flat bytes.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn from_limbs(limbs: [ULimb; LIMBS]) -> [u8; 32] {
-    // SAFETY: This is plain old data
-    unsafe { mem::transmute::<[ULimb; LIMBS], [u8; 32]>(limbs) }
-}
-
-// TODO: Remove this
-/// Convert flat bytes to an array of limbs.
-///
-/// We keep this as a standalone function since Rust can sometimes
-/// vectorize this in a way using purely safe Rust cannot, which
-/// improves performance while ensuring we are very careful.
-/// These are guaranteed to be plain old [`data`] with a fixed size
-/// alignment, and padding.
-///
-/// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-#[inline(always)]
-const fn to_limbs(bytes: [u8; 32]) -> [ULimb; LIMBS] {
-    // SAFETY: This is plain old data
-    unsafe { mem::transmute(bytes) }
 }
 
 #[cfg(test)]
