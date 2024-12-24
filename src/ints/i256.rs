@@ -1511,6 +1511,20 @@ impl i256 {
         value.as_i256()
     }
 
+    /// Create the 256-bit signed integer from an unsigned limb, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn from_ulimb(value: ULimb) -> Self {
+        Self::from_u128(value as u128)
+    }
+
+    /// Create the 256-bit signed integer from an unsigned wide type, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn from_uwide(value: UWide) -> Self {
+        Self::from_u128(value as u128)
+    }
+
     /// Create the 256-bit signed integer to an `i8`, as if by an `as` cast.
     #[inline(always)]
     pub const fn from_i8(value: i8) -> Self {
@@ -1540,6 +1554,20 @@ impl i256 {
     pub const fn from_i128(value: i128) -> Self {
         let (lo, hi) = math::as_iwide_i128(value);
         Self::new(lo, hi)
+    }
+
+    /// Create the 256-bit signed integer from a signed limb, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn from_ilimb(value: ILimb) -> Self {
+        Self::from_i128(value as i128)
+    }
+
+    /// Create the 256-bit signed integer from a signed wide type, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn from_iwide(value: IWide) -> Self {
+        Self::from_i128(value as i128)
     }
 
     /// Convert the 256-bit signed integer to an `u8`, as if by an `as` cast.
@@ -1579,6 +1607,20 @@ impl i256 {
         u256::new(lo, hi)
     }
 
+    /// Convert the 256-bit signed integer to an unsigned limb, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn as_ulimb(&self) -> ULimb {
+        self.as_u128() as ULimb
+    }
+
+    /// Convert the 256-bit signed integer to an unsigned wide type, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn as_uwide(&self) -> UWide {
+        self.as_u128() as UWide
+    }
+
     /// Convert the 256-bit signed integer to an `i8`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_i8(&self) -> i8 {
@@ -1613,6 +1655,20 @@ impl i256 {
     #[inline(always)]
     pub const fn as_i256(&self) -> i256 {
         *self
+    }
+
+    /// Convert the 256-bit signed integer to a signed limb, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn as_ilimb(&self) -> ILimb {
+        self.as_i128() as ILimb
+    }
+
+    /// Convert the 256-bit signed integer to a signed wide type, as if by an `as` cast.
+    #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
+    pub const fn as_iwide(&self) -> IWide {
+        self.as_i128() as IWide
     }
 
     /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
