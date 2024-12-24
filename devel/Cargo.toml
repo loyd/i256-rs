@@ -14,7 +14,7 @@ path = ".."
 default-features = false
 
 [dev-dependencies]
-bnum = "0.12.0"
+bnum = { version = "0.12.0", features = ["nightly"] }
 crypto-bigint = "0.5.5"
 criterion = { version = "0.5.0", features = ["html_reports"] }
 fastrand = "2.1.0"

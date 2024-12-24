@@ -1,3 +1,6 @@
+#[macro_use]
+mod util;
+
 use i256::math::{div_rem_full, div_rem_limb, div_rem_wide};
 use quickcheck::quickcheck;
 
@@ -74,6 +77,14 @@ quickcheck! {
             let div = num / (den as u128);
             let rem = num % (den as u128);
             actual == (div, rem as u64)
+        } else {
+            true
+        }
+    }
+
+    fn u256_div_quickcheck(x0: u128, x1: u128, y0: u128, y1: u128) -> bool {
+        if y0 != 0 && y1 != 0 {
+            unsigned_op_equal!(wrap x0, x1, y0, y1, wrapping_div)
         } else {
             true
         }

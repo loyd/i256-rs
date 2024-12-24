@@ -665,7 +665,6 @@ macro_rules! mul_unsigned_impl {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
-            // TODO: Remove
             let x = split!($u, $h, x0, x1);
             let y = split!($u, $h, y0, y1);
             let r = $wrapping_array(&x, &y);
@@ -675,7 +674,6 @@ macro_rules! mul_unsigned_impl {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         #[inline]
         pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
-            // TODO: Remove
             let x = split!($u, $h, x0, x1);
             let y = split!($u, $h, y);
             let r = $wrapping_array(&x, &y);
@@ -1424,10 +1422,23 @@ macro_rules! add_signed_impl {
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_add(y0);
             // FIXME: Move to `carrying_add` once stable.
+
+            // NOTE: There's a **VERY** specific edge-case where we can
+            // have overflow but no overflow occurred:
+            // 1. We have an overflow in our lo borrowing sub.
+            // 2. We "overflow" in our hi borrowing sub exactly to `MAX`
+            // 3. We then add 1 and overflow to `MIN`.
+            //
+            // In short, we have `-1 + MIN + 1`, as a case, and we wrap to
+            // `MAX`, which then wraps back to `MIN`, exactly what we
+            // needed.
+
             let (v1, c1) = x1.overflowing_add(y1);
             let (v1, c2) = v1.overflowing_add(c0 as $s);
 
-            (v0, v1, c1 | c2)
+            // `c0 == 0`, then `c2 == 0`, so always want `c1`
+            // `c0 == 1`, then only want `c1` or `c2`, not both
+            (v0, v1, c1 ^ c2)
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
@@ -1825,11 +1836,23 @@ macro_rules! sub_signed_impl {
             // NOTE: When we ignore the carry in the caller, this optimizes the same.
             debug_assert!(<$u>::BITS == <$s>::BITS);
             let (v0, c0) = x0.overflowing_sub(y0);
-            // FIXME: Move to `borrowing_sub` once stable.
+
+            // NOTE: There's a **VERY** specific edge-case where we can
+            // have overflow but no overflow occurred:
+            // 1. We have an overflow in our lo borrowing sub.
+            // 2. We "overflow" in our hi borrowing sub exactly to `MIN`
+            // 3. We then subtract 1 and overflow to `MAX`.
+            //
+            // In short, we have `0 - MIN - 1`, as a case, and we wrap to
+            // `MIN - 1`, which then wraps back to `MAX`, exactly what
+            // we needed.
+
             let (v1, c1) = x1.overflowing_sub(y1);
             let (v1, c2) = v1.overflowing_sub(c0 as $s);
 
-            (v0, v1, c1 | c2)
+            // `c0 == 0`, then `c2 == 0`, so always want `c1`
+            // `c0 == 1`, then only want `c1` or `c2`, not both
+            (v0, v1, c1 ^ c2)
         }
 
         /// Const implementation to subtract a small, unsigned number to the wider type.
@@ -1924,6 +1947,8 @@ macro_rules! sub_signed_impl {
         /// ```
         #[inline]
         pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
+            // NOTE: Since this is always X - Y, the end result has to
+            // be the same sign, which is as expected.
             let (v0, c0) = x0.overflowing_sub(y);
             let (v1, c1) = x1.overflowing_sub(c0 as $s);
             (v0, v1, c1)
