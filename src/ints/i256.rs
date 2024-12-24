@@ -1203,7 +1203,10 @@ impl i256 {
     /// Computes the absolute value of `self`.
     #[inline(always)]
     pub const fn abs(self) -> Self {
-        self.checked_abs().expect("attempt to negate with overflow")
+        match self.checked_abs() {
+            Some(value) => value,
+            None => panic!("attempt to negate with overflow"),
+        }
     }
 
     /// Computes the absolute difference between `self` and `other`.
