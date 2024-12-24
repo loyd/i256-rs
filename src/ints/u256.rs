@@ -1106,15 +1106,16 @@ impl u256 {
     /// indicating whether an arithmetic overflow would occur. If an
     /// overflow would have occurred then the wrapped value is returned.
     ///
-    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
     ///
-    /// This also optimized much better when multiplying by a single or a half-sized
-    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-    /// 1 limb.
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only 1 limb.
     ///
     /// * `x0` - The lower half of x.
     /// * `x1` - The upper half of x.
@@ -1822,21 +1823,23 @@ impl u256 {
     ///
     /// This allows optimizations a full multiplication cannot do.
     ///
-    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
     ///
-    /// This also optimized much better when multiplying by a single or a half-sized
-    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-    /// 1 limb.
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only 1 limb.
     ///
     /// # Assembly
     ///
-    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
-    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u128`
-    /// is at worst 8 `mul` and 12 `add` instructions, which optimizes quite nicely.
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in
+    /// the worst case 10 `mul` and 15 `add` instructions, while `(u128,
+    /// u128) + u128` is at worst 8 `mul` and 12 `add` instructions, which
+    /// optimizes quite nicely.
     ///
     /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
@@ -1923,19 +1926,21 @@ impl u256 {
     ///
     /// This allows optimizations a full multiplication cannot do.
     ///
-    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
     ///
-    /// This also optimized much better when multiplying by a single or a half-sized
-    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-    /// 1 limb.
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only 1 limb.
     ///
     /// # Assembly
     ///
-    /// The analysis here is practically identical to that of [`wrapping_mul_uwide`].
+    /// The analysis here is practically identical to that of
+    /// [`wrapping_mul_uwide`].
     ///
     /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     /// [`wrapping_mul_uwide`]: Self::wrapping_mul_uwide
@@ -1978,20 +1983,21 @@ impl u256 {
     ///
     /// This allows optimizations a full multiplication cannot do.
     ///
-    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
     ///
-    /// This also optimized much better when multiplying by a single or a half-sized
-    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-    /// 1 limb.
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only 1 limb.
     ///
-    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
-    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u64`
-    /// is always 4 `mul` and 3 `add` instructions without any branching. This is
-    /// extremely efficient.
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in
+    /// the worst case 10 `mul` and 15 `add` instructions, while `(u128,
+    /// u128) + u64` is always 4 `mul` and 3 `add` instructions without any
+    /// branching. This is extremely efficient.
     ///
     /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
@@ -2028,19 +2034,21 @@ impl u256 {
 
     /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
-    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
-    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
-    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
-    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach
+    /// (1), a flat, fixed-width long multiplication (2), and a
+    /// short-circuiting long multiplication (3). Algorithm (3) had the best
+    /// performance for 128-bit multiplication, however, algorithm (1) was
+    /// better for smaller type sizes.
     ///
-    /// This also optimized much better when multiplying by a single or a half-sized
-    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
-    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
-    /// 1 limb.
+    /// This also optimized much better when multiplying by a single or a
+    /// half-sized item: rather than using 4 limbs, if we're multiplying
+    /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+    /// for `(u128, u128) * u64`, only 1 limb.
     ///
     /// # Assembly
     ///
-    /// The analysis here is practically identical to that of [`wrapping_mul_ulimb`].
+    /// The analysis here is practically identical to that of
+    /// [`wrapping_mul_ulimb`].
     ///
     /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
