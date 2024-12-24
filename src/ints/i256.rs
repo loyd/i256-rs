@@ -1474,6 +1474,18 @@ impl i256 {
         }
     }
 
+    /// Get if the integer is even.
+    #[inline(always)]
+    pub const fn is_even(self) -> bool {
+        self.low() % 2 == 0
+    }
+
+    /// Get if the integer is off.
+    #[inline(always)]
+    pub const fn is_off(self) -> bool {
+        !self.is_even()
+    }
+
     /// Create the 256-bit signed integer to a `u8`, as if by an `as` cast.
     #[inline(always)]
     pub const fn from_u8(value: u8) -> Self {
