@@ -38,3 +38,4 @@ mod numtypes;
 pub use error::{IntErrorKind, ParseIntError, TryFromIntError};
 pub use ints::i256::{i256, i256 as I256};
 pub use ints::u256::{u256, u256 as U256};
+pub use math::{ILimb, IWide, ULimb, UWide};

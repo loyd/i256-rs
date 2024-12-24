@@ -19,7 +19,8 @@ use core::str::{FromStr, Utf8Error};
 use core::{fmt, str};
 use core::{ops::*, panic};
 
-use crate::error::{IntErrorKind, ParseIntError, TryFromIntError};
+use super::macros::from_str_radix_impl;
+use crate::error::{ParseIntError, TryFromIntError};
 use crate::i256;
 use crate::ints::i256::lt as i256_lt;
 use crate::math::{self, ILimb, IWide, ULimb, UWide, LIMBS};
@@ -1517,20 +1518,14 @@ impl u256 {
     /// * `a-z`
     /// * `A-Z`
     ///
+    /// This only has rudimentary optimizations.
+    ///
     /// # Panics
     ///
     /// This function panics if `radix` is not in the range from 2 to 36.
     #[inline]
     pub const fn from_str_radix(src: &str, radix: u32) -> Result<Self, ParseIntError> {
-        if radix < 2 || radix > 36 {
-            panic!("from_str_radix_int: must lie in the range `[2, 36]`");
-        }
-        if src.is_empty() {
-            return Err(ParseIntError {
-                kind: IntErrorKind::Empty,
-            });
-        }
-        todo!();
+        from_str_radix(src, radix)
     }
 }
 
@@ -3672,6 +3667,8 @@ fn to_string(value: u256, buffer: &mut [u8; 78]) -> Result<&str, Utf8Error> {
     str::from_utf8(to_bytes(value, buffer))
 }
 
+from_str_radix_impl!(u256, false);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3729,5 +3726,65 @@ mod tests {
         let value = u256::new(0, 1);
         let result = format!("{:E}", value);
         assert_eq!("3.40282366920938463463374607431768211456E38", result);
+    }
+
+    #[inline(always)]
+    fn parse(expected: u256, radix: u32, s: &str) {
+        // check a full roundtrip
+        let res: Result<u256, ParseIntError> = u256::from_str_radix(s, radix);
+        assert!(res.is_ok());
+        let actual = res.unwrap();
+        assert_eq!(expected, actual);
+
+        let as_str = actual.to_string();
+        let res: Result<u256, ParseIntError> = u256::from_str_radix(&as_str, 10);
+        assert!(res.is_ok());
+        let actual = res.unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn from_str_radix_test() {
+        let cases = [
+            (
+                u256::MAX,
+                10,
+                "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            ),
+            (
+                u256::MAX,
+                10,
+                "+115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            ),
+            (u256::MAX, 16, "+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+            (0xffffffffffffffffu128.into(), 16, "+ffffffffffffffff"),
+            (0x123456789ab123u128.into(), 10, "5124095576027427"),
+            (0x123456789ab123u128.into(), 16, "+123456789ab123"),
+        ];
+        for case in cases {
+            parse(case.0, case.1, case.2);
+        }
+
+        let failing = [
+            (10, "-15"),
+            (16, "-0xFF"),
+            (16, "+0xFF"),
+            (16, "0xFF"),
+            (10, "FF"),
+            (10, "a9"),
+            (10, "12.34"),
+            (10, "1234_67"),
+            (10, "115792089237316195423570985008687907853269984665640564039457584007913129639936"),
+        ];
+        for case in failing {
+            let res: Result<u256, ParseIntError> = u256::from_str_radix(case.1, case.0);
+            assert!(res.is_err());
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn from_str_radix_neg_test() {
+        _ = u256::from_str_radix("-123", 10).unwrap();
     }
 }
