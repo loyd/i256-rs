@@ -399,7 +399,7 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     // SAFETY: Safe since we've validated the parameters. This is
     // never UB, since providing a 0 divisor is valid and just leads
     // to a division [`error`](https://www.felixcloutier.com/x86/div).
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(feature = "noasm")))]
     unsafe {
         let mut quot = lo;
         let mut rem = hi;
@@ -413,11 +413,18 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
         (quot, rem)
     }
 
-    #[cfg(not(target_arch = "x86_64"))]
+    // NOTE: We've tried a lot to optimize this. Rust's codegen
+    // or LLVM's intrinsics make this not worth it, in fact, every
+    // attempt has backfired spectacularly. We've tried:
+    // - https://github.com/ridiculousfish/libdivide/blob/af1db19/libdivide.h#L491
+    // - https://codebrowser.dev/llvm/compiler-rt/lib/builtins/udivmodti4.c.html#22
+    //
+    // What we have is simple and fast.
+    #[cfg(any(not(target_arch = "x86_64"), feature = "noasm"))]
     {
-        let x = ((hi as UWide) << ULimb::BITS) + (lo as UWide);
-        let y = divisor as UWide;
-        ((x / y) as ULimb, (x % y) as ULimb)
+        let x = ((hi as u128) << 64) + (lo as u128);
+        let y = divisor as u128;
+        ((x / y) as u64, (x % y) as u64)
     }
 }
 
