@@ -1,11 +1,15 @@
 #![allow(dead_code, unused_macros, unused_macro_rules)]
 
-use core::mem;
+use std::mem;
 
-use bnum::types::U256;
+pub use bnum::types::U256 as Bnum256;
+pub use crypto_bigint::U256 as CryptoU256;
 use fastrand::Rng;
+pub use i256::u256;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+const DEFAULT_COUNT: usize = 10000;
+
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
 pub enum RandomGen {
     // Generic
     Uniform,
@@ -148,58 +152,46 @@ signed_rng! {
     i128 0 1000 5316911983139663491615228241121378304 170141183460469231731687303715884105727 -1000 1000 -170141183460469231731687303715884105727 -5316911983139663491615228241121378304 ;
 }
 
-macro_rules! op_generator {
-    (@2 $group:ident, $name:expr, $func:ident, $iter:expr) => {{
+macro_rules! add_bench {
+    ($group:ident, $name:expr, $iter:expr, $func:expr) => {{
         $group.bench_function($name, |bench| {
             bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x[0], x[1]));
-                })
-            })
-        });
-    }};
-
-    (@3 $group:ident, $name:expr, $func:ident, $iter:expr) => {{
-        $group.bench_function($name, |bench| {
-            bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x[0], x[1], x[2]));
-                })
-            })
-        });
-    }};
-
-    (@4 $group:ident, $name:expr, $func:ident, $iter:expr) => {{
-        $group.bench_function($name, |bench| {
-            bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x[0], x[1], x[2], x[3]));
-                })
-            })
-        });
-    }};
-
-    (@2tup $group:ident, $name:expr, $func:ident, $iter:expr) => {{
-        $group.bench_function($name, |bench| {
-            bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x.0, x.1));
-                })
-            })
-        });
-    }};
-
-    (@3tup $group:ident, $name:expr, $func:ident, $iter:expr) => {{
-        $group.bench_function($name, |bench| {
-            bench.iter(|| {
-                $iter.for_each(|&x| {
-                    criterion::black_box($func(x.0, x.1, x.2));
+                $iter.for_each(|x| {
+                    criterion::black_box($func(x));
                 })
             })
         });
     }};
 }
 
+macro_rules! add_benches {
+    ($group:ident, $strategy:expr, $rng:ident, $prefix:literal, $op:ident) => {{
+        let bnum_data = get_bnum_data($strategy, &mut $rng);
+        let crypto_data = get_crypto_data($strategy, &mut $rng);
+        let i256_data = get_i256_data($strategy, &mut $rng);
+
+        add_bench!($group, concat!($prefix, "::u256-bnum"), bnum_data.iter(), |x: &(
+            Bnum256,
+            Bnum256
+        )| x
+            .0
+            .$op(x.1));
+        add_bench!($group, concat!($prefix, "::u256-crypto"), crypto_data.iter(), |x: &(
+            CryptoU256,
+            CryptoU256
+        )| x
+            .0
+            .$op(&x.1));
+        add_bench!($group, concat!($prefix, "::u256-i256"), i256_data.iter(), |x: &(
+            u256,
+            u256
+        )| x
+            .0
+            .$op(x.1));
+    }};
+}
+
+// TODO: Can probably remove
 macro_rules! native_op {
     ($t:ident, $w:ident, $name:ident, $op:ident) => {
         fn $name(x0: $t, x1: $t, y0: $t, y1: $t) -> ($t, $t) {
@@ -211,19 +203,56 @@ macro_rules! native_op {
     };
 }
 
-pub fn bnum_from_u128(x: u128, y: u128) -> U256 {
+pub fn get_bnum_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(Bnum256, Bnum256)> {
+    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
+        .iter()
+        .map(|x| (to_bnum(x[0], x[1]), to_bnum(x[2], x[3])))
+        .collect()
+}
+
+pub fn get_crypto_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(CryptoU256, CryptoU256)> {
+    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
+        .iter()
+        .map(|x| (to_cryptobi(x[0], x[1]), to_cryptobi(x[2], x[3])))
+        .collect()
+}
+
+pub fn get_i256_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u256)> {
+    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
+        .iter()
+        .map(|x| (u256::new(x[0], x[1]), u256::new(x[2], x[3])))
+        .collect()
+}
+
+pub fn get_small_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u128)> {
+    u128::gen_n::<3>(strategy, rng, DEFAULT_COUNT)
+        .iter()
+        .map(|x| (u256::new(x[0], x[1]), x[2]))
+        .collect()
+}
+
+pub fn get_half_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u64)> {
+    let x = u128::gen_n::<2>(strategy, rng, DEFAULT_COUNT);
+    let y = u64::gen_n::<1>(strategy, rng, DEFAULT_COUNT);
+    x.iter().zip(y.iter()).map(|(x, y)| (u256::new(x[0], x[1]), y[0])).collect()
+}
+
+// TODO: FIX THESE...
+pub fn to_bnum(x: u128, y: u128) -> Bnum256 {
     let buf = [x.to_le_bytes(), y.to_le_bytes()];
     // SAFETY: plain old data
     let slc = unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>(buf) };
-    U256::from_le_slice(&slc).unwrap()
+    Bnum256::from_le_slice(&slc).unwrap()
 }
 
-pub fn bnum_from_u64(x0: u64, x1: u64, y0: u64, y1: u64) -> U256 {
-    bnum_from_u128(x0 as u128 | (x1 as u128) << 64, y0 as u128 | (y1 as u128) << 64)
-}
+// TODO: Restore
+//pub fn bnum_from_u64(x0: u64, x1: u64, y0: u64, y1: u64) -> Bnum256 {
+//    bnum_from_u128(x0 as u128 | (x1 as u128) << 64, y0 as u128 | (y1 as u128)
+// << 64)
+//}
 
-pub fn cryptobi_from_u128(lo: u128, hi: u128) -> crypto_bigint::U256 {
+pub fn to_cryptobi(lo: u128, hi: u128) -> CryptoU256 {
     // SAFETY: plain old data
     let bytes: [u8; 32] = unsafe { mem::transmute([lo.to_le_bytes(), hi.to_le_bytes()]) };
-    crypto_bigint::U256::from_le_slice(&bytes)
+    CryptoU256::from_le_slice(&bytes)
 }
