@@ -772,7 +772,7 @@ impl i256 {
     /// This function will panic if `rhs` is zero.
     #[inline(always)]
     pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
-        if eq(self, Self::MIN) & eq(rhs, Self::from_i8(-1)) {
+        if eq(rhs, Self::from_i8(-1)) {
             (self, true)
         } else {
             (self.wrapping_div(rhs), false)
