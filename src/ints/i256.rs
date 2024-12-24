@@ -1511,14 +1511,16 @@ impl i256 {
         value.as_i256()
     }
 
-    /// Create the 256-bit signed integer from an unsigned limb, as if by an `as` cast.
+    /// Create the 256-bit signed integer from an unsigned limb, as if by an
+    /// `as` cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn from_ulimb(value: ULimb) -> Self {
         Self::from_u128(value as u128)
     }
 
-    /// Create the 256-bit signed integer from an unsigned wide type, as if by an `as` cast.
+    /// Create the 256-bit signed integer from an unsigned wide type, as if by
+    /// an `as` cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn from_uwide(value: UWide) -> Self {
@@ -1556,14 +1558,16 @@ impl i256 {
         Self::new(lo, hi)
     }
 
-    /// Create the 256-bit signed integer from a signed limb, as if by an `as` cast.
+    /// Create the 256-bit signed integer from a signed limb, as if by an `as`
+    /// cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn from_ilimb(value: ILimb) -> Self {
         Self::from_i128(value as i128)
     }
 
-    /// Create the 256-bit signed integer from a signed wide type, as if by an `as` cast.
+    /// Create the 256-bit signed integer from a signed wide type, as if by an
+    /// `as` cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn from_iwide(value: IWide) -> Self {
@@ -1607,14 +1611,16 @@ impl i256 {
         u256::new(lo, hi)
     }
 
-    /// Convert the 256-bit signed integer to an unsigned limb, as if by an `as` cast.
+    /// Convert the 256-bit signed integer to an unsigned limb, as if by an `as`
+    /// cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn as_ulimb(&self) -> ULimb {
         self.as_u128() as ULimb
     }
 
-    /// Convert the 256-bit signed integer to an unsigned wide type, as if by an `as` cast.
+    /// Convert the 256-bit signed integer to an unsigned wide type, as if by an
+    /// `as` cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn as_uwide(&self) -> UWide {
@@ -1657,14 +1663,16 @@ impl i256 {
         *self
     }
 
-    /// Convert the 256-bit signed integer to a signed limb, as if by an `as` cast.
+    /// Convert the 256-bit signed integer to a signed limb, as if by an `as`
+    /// cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn as_ilimb(&self) -> ILimb {
         self.as_i128() as ILimb
     }
 
-    /// Convert the 256-bit signed integer to a signed wide type, as if by an `as` cast.
+    /// Convert the 256-bit signed integer to a signed wide type, as if by an
+    /// `as` cast.
     #[inline(always)]
     #[allow(clippy::unnecessary_cast)]
     pub const fn as_iwide(&self) -> IWide {
@@ -2093,11 +2101,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`div_rem`]
+    /// or [`div_rem_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`div_rem`]: Self::div_rem
+    /// [`div_rem_ulimb`]: Self::div_rem_ulimb
     #[inline]
     pub fn div_rem_uwide(self, n: UWide) -> (Self, UWide) {
         if cfg!(not(have_overflow_checks)) {
@@ -2109,12 +2121,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do. This always
-    /// wraps, which can never happen in practice.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_div_rem`]
+    /// or [`wrapping_div_rem_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`wrapping_div_rem`]: Self::wrapping_div_rem
+    /// [`wrapping_div_rem_ulimb`]: Self::wrapping_div_rem_ulimb
     #[inline]
     pub fn wrapping_div_rem_uwide(self, n: UWide) -> (Self, UWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
@@ -2126,11 +2141,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_div_rem`]
+    /// or [`checked_div_rem_ulimb`] if possible.
+    ///
+    /// [`checked_div_rem`]: Self::checked_div_rem
+    /// [`checked_div_rem_ulimb`]: Self::checked_div_rem_ulimb
     #[inline]
     pub fn checked_div_rem_uwide(self, n: UWide) -> Option<(Self, UWide)> {
         if n == 0 {
@@ -2142,11 +2157,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_div_rem`]
+    /// or [`overflowing_div_rem_ulimb`] if possible.
+    ///
+    /// [`overflowing_div_rem`]: Self::overflowing_div_rem
+    /// [`overflowing_div_rem_ulimb`]: Self::overflowing_div_rem_ulimb
     #[inline]
     pub fn overflowing_div_rem_uwide(self, n: UWide) -> ((Self, UWide), bool) {
         if n == 0 {
@@ -2158,11 +2173,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`div_rem`]
+    /// or [`div_rem_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`div_rem`]: Self::div_rem
+    /// [`div_rem_ilimb`]: Self::div_rem_ilimb
     #[inline]
     pub fn div_rem_iwide(self, n: IWide) -> (Self, IWide) {
         if cfg!(not(have_overflow_checks)) {
@@ -2174,12 +2193,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do. This always
-    /// wraps, which can never happen in practice.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_div_rem`]
+    /// or [`wrapping_div_rem_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`wrapping_div_rem`]: Self::wrapping_div_rem
+    /// [`wrapping_div_rem_ilimb`]: Self::wrapping_div_rem_ilimb
     #[inline]
     pub fn wrapping_div_rem_iwide(self, n: IWide) -> (Self, IWide) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
@@ -2200,11 +2222,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_div_rem`]
+    /// or [`checked_div_rem_ulimb`] if possible.
+    ///
+    /// [`checked_div_rem`]: Self::checked_div_rem
+    /// [`checked_div_rem_ulimb`]: Self::checked_div_rem_ulimb
     #[inline]
     pub fn checked_div_rem_iwide(self, n: IWide) -> Option<(Self, IWide)> {
         if n == 0 {
@@ -2216,11 +2238,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_div_rem`]
+    /// or [`overflowing_div_rem_ulimb`] if possible.
+    ///
+    /// [`overflowing_div_rem`]: Self::overflowing_div_rem
+    /// [`overflowing_div_rem_ulimb`]: Self::overflowing_div_rem_ulimb
     #[inline]
     pub fn overflowing_div_rem_iwide(self, n: IWide) -> ((Self, IWide), bool) {
         if n == 0 {
@@ -2232,11 +2254,15 @@ impl i256 {
 
     /// Div the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`div`]
+    /// or [`div_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`div`]: Self::div
+    /// [`div_ulimb`]: Self::div_ulimb
     #[inline(always)]
     pub fn div_uwide(self, n: UWide) -> Self {
         self.div_rem_uwide(n).0
@@ -2244,11 +2270,15 @@ impl i256 {
 
     /// Div the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_div`]
+    /// or [`wrapping_div_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`wrapping_div`]: Self::wrapping_div
+    /// [`wrapping_div_ulimb`]: Self::wrapping_div_ulimb
     #[inline(always)]
     pub fn wrapping_div_uwide(self, n: UWide) -> Self {
         self.wrapping_div_rem_uwide(n).0
@@ -2256,11 +2286,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_div`]
+    /// or [`checked_div_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`checked_div`]: Self::checked_div
+    /// [`checked_div_ulimb`]: Self::checked_div_ulimb
     #[inline(always)]
     pub fn checked_div_uwide(self, n: UWide) -> Option<Self> {
         Some(self.checked_div_rem_uwide(n)?.0)
@@ -2268,11 +2302,15 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_div`]
+    /// or [`overflowing_div_ulimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`overflowing_div`]: Self::overflowing_div
+    /// [`overflowing_div_ulimb`]: Self::overflowing_div_ulimb
     #[inline(always)]
     pub fn overflowing_div_uwide(self, n: UWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_uwide(n);
@@ -2281,11 +2319,15 @@ impl i256 {
 
     /// Div the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`div`]
+    /// or [`div_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`div`]: Self::div
+    /// [`div_ilimb`]: Self::div_ilimb
     #[inline(always)]
     pub fn div_iwide(self, n: IWide) -> Self {
         self.div_rem_iwide(n).0
@@ -2293,23 +2335,27 @@ impl i256 {
 
     /// Div the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_div`]
+    /// or [`wrapping_div_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`wrapping_div`]: Self::wrapping_div
+    /// [`wrapping_div_ilimb`]: Self::wrapping_div_ilimb
     #[inline(always)]
     pub fn wrapping_div_iwide(self, n: IWide) -> Self {
         self.wrapping_div_rem_iwide(n).0
     }
 
-    /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
+    /// Div the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_div`]
+    /// or [`checked_div_ilimb`] if possible.
+    ///
+    /// [`checked_div`]: Self::checked_div
+    /// [`checked_div_ilimb`]: Self::checked_div_ilimb
     #[inline(always)]
     pub fn checked_div_iwide(self, n: IWide) -> Option<Self> {
         Some(self.checked_div_rem_iwide(n)?.0)
@@ -2317,11 +2363,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_div`]
+    /// or [`overflowing_div_ilimb`] if possible.
+    ///
+    /// [`overflowing_div`]: Self::overflowing_div
+    /// [`overflowing_div_ilimb`]: Self::overflowing_div_ilimb
     #[inline(always)]
     pub fn overflowing_div_iwide(self, n: IWide) -> (Self, bool) {
         let (value, overflowed) = self.overflowing_div_rem_iwide(n);
@@ -2330,11 +2376,11 @@ impl i256 {
 
     /// Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`rem`]
+    /// or [`rem_ulimb`] if possible.
+    ///
+    /// [`rem`]: Self::rem
+    /// [`rem_ulimb`]: Self::rem_ulimb
     #[inline(always)]
     pub fn rem_uwide(self, n: UWide) -> UWide {
         self.wrapping_div_rem_uwide(n).1
@@ -2342,11 +2388,11 @@ impl i256 {
 
     /// Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_rem`]
+    /// or [`wrapping_rem_ulimb`] if possible.
+    ///
+    /// [`wrapping_rem`]: Self::wrapping_rem
+    /// [`wrapping_rem_ulimb`]: Self::wrapping_rem_ulimb
     #[inline(always)]
     pub fn wrapping_rem_uwide(self, n: UWide) -> UWide {
         self.wrapping_div_rem_uwide(n).1
@@ -2354,11 +2400,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_rem`]
+    /// or [`checked_rem_ulimb`] if possible.
+    ///
+    /// [`checked_rem`]: Self::checked_rem
+    /// [`checked_rem_ulimb`]: Self::checked_rem_ulimb
     #[inline(always)]
     pub fn checked_rem_uwide(self, n: UWide) -> Option<UWide> {
         Some(self.checked_div_rem_uwide(n)?.1)
@@ -2366,11 +2412,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_rem`]
+    /// or [`overflowing_rem_ulimb`] if possible.
+    ///
+    /// [`overflowing_rem`]: Self::overflowing_rem
+    /// [`overflowing_rem_ulimb`]: Self::overflowing_rem_ulimb
     #[inline(always)]
     pub fn overflowing_rem_uwide(self, n: UWide) -> (UWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_uwide(n);
@@ -2379,11 +2425,15 @@ impl i256 {
 
     /// Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`rem`]
+    /// or [`rem_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`rem`]: Self::rem
+    /// [`rem_ilimb`]: Self::rem_ilimb
     #[inline(always)]
     pub fn rem_iwide(self, n: IWide) -> IWide {
         self.div_rem_iwide(n).1
@@ -2391,11 +2441,15 @@ impl i256 {
 
     /// Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`wrapping_rem`]
+    /// or [`wrapping_rem_ilimb`] if possible.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the divisor is 0.
+    ///
+    /// [`wrapping_rem`]: Self::wrapping_rem
+    /// [`wrapping_rem_ilimb`]: Self::wrapping_rem_ilimb
     #[inline(always)]
     pub fn wrapping_rem_iwide(self, n: IWide) -> IWide {
         self.wrapping_div_rem_iwide(n).1
@@ -2403,11 +2457,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`checked_rem`]
+    /// or [`checked_rem_ilimb`] if possible.
+    ///
+    /// [`checked_rem`]: Self::checked_rem
+    /// [`checked_rem_ilimb`]: Self::checked_rem_ilimb
     #[inline(always)]
     pub fn checked_rem_iwide(self, n: IWide) -> Option<IWide> {
         Some(self.checked_div_rem_iwide(n)?.1)
@@ -2415,11 +2469,11 @@ impl i256 {
 
     /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
     ///
-    /// This allows optimizations a full division cannot do.
-    /// Performance of this is highly variable: for small
-    /// divisors it can be very fast, for larger divisors
-    /// due to the creation of the temporary divisor it
-    /// can be significantly slower.
+    /// This is a convenience function: always prefer [`overflowing_rem`]
+    /// or [`overflowing_rem_ilimb`] if possible.
+    ///
+    /// [`overflowing_rem`]: Self::overflowing_rem
+    /// [`overflowing_rem_ilimb`]: Self::overflowing_rem_ilimb
     #[inline(always)]
     pub fn overflowing_rem_iwide(self, n: IWide) -> (IWide, bool) {
         let (value, overflowed) = self.overflowing_div_rem_iwide(n);
