@@ -1105,6 +1105,28 @@ impl u256 {
     /// Returns a tuple of the multiplication along with a boolean
     /// indicating whether an arithmetic overflow would occur. If an
     /// overflow would have occurred then the wrapped value is returned.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// * `x0` - The lower half of x.
+    /// * `x1` - The upper half of x.
+    /// * `y0` - The lower half of y.
+    /// * `y1` - The upper half of y.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul`]: Self::wrapping_mul
     #[inline(always)]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
         let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &rhs.to_le_limbs());
@@ -1799,8 +1821,99 @@ impl u256 {
     /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
+    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u128`
+    /// is at worst 8 `mul` and 12 `add` instructions, which optimizes quite nicely.
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
     pub const fn wrapping_mul_uwide(self, n: UWide) -> Self {
+        // 256-Bit
+        // -------
+        // wrapping_mul:
+        //     push    r15
+        //     push    r14
+        //     push    r12
+        //     push    rbx
+        //     mov     r14, rdx
+        //     mov     r11, qword ptr [rsp + 48]
+        //     mov     rbx, qword ptr [rsp + 40]
+        //     test    rsi, rsi
+        //     je      .LBB1_1
+        //     mov     rax, rbx
+        //     mul     rsi
+        //     mov     r12, rdx
+        //     mov     r15, rax
+        //     mov     rax, r11
+        //     mul     rsi
+        //     mov     r10, rdx
+        //     mov     r9, rax
+        //     add     r9, r12
+        //     adc     r10, 0
+        //     test    r14, r14
+        //     jne     .LBB1_5
+        // .LBB1_4:
+        //     xor     r14d, r14d
+        //     test    rcx, rcx
+        //     jne     .LBB1_7
+        //     jmp     .LBB1_8
+        // .LBB1_1:
+        //     xor     r9d, r9d
+        //     xor     r15d, r15d
+        //     xor     r10d, r10d
+        //     test    r14, r14
+        //     je      .LBB1_4
+        // .LBB1_5:
+        //     mov     rax, rbx
+        //     mul     r14
+        //     mov     rsi, rdx
+        //     add     r9, rax
+        //     adc     rsi, 0
+        //     mov     rax, r11
+        //     mul     r14
+        //     mov     r14, rdx
+        //     add     rax, rsi
+        //     adc     r14, 0
+        //     add     r10, rax
+        //     adc     r14, 0
+        //     test    rcx, rcx
+        //     je      .LBB1_8
+        // .LBB1_7:
+        //     mov     rax, rbx
+        //     mul     rcx
+        //     imul    r11, rcx
+        //     add     r10, rax
+        //     adc     r11, rdx
+        //     add     r14, r11
+        // .LBB1_8:
+        //     test    r8, r8
+        //     je      .LBB1_10
+        //     imul    r8, rbx
+        //     add     r14, r8
+        // .LBB1_10:
+        //     mov     qword ptr [rdi + 8], r9
+        //     mov     qword ptr [rdi], r15
+        //     mov     qword ptr [rdi + 24], r14
+        //     mov     qword ptr [rdi + 16], r10
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     pop     r12
+        //     pop     r14
+        //     pop     r15
+        //     ret
         let n = math::split!(UWide, ULimb, n);
         let r = math::wrapping_mul_arr_u128(&self.to_le_limbs(), &n);
         Self::from_le_limbs(r)
@@ -1809,6 +1922,23 @@ impl u256 {
     /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul_uwide`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul_uwide`]: Self::wrapping_mul_uwide
     #[inline(always)]
     pub const fn overflowing_mul_uwide(self, n: UWide) -> (Self, bool) {
         let n = math::split!(UWide, ULimb, n);
@@ -1847,15 +1977,73 @@ impl u256 {
     /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
     /// This allows optimizations a full multiplication cannot do.
+    ///
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in the
+    /// worst case 10 `mul` and 15 `add` instructions, while `(u128, u128) + u64`
+    /// is always 4 `mul` and 3 `add` instructions without any branching. This is
+    /// extremely efficient.
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
     #[inline(always)]
     pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
+        // 256-Bit
+        // -------
+        // wrapping_mul:
+        //     push    rbx
+        //     mov     rax, rcx
+        //     mov     rcx, rdx
+        //     imul    r8, r9
+        //     mul     r9
+        //     mov     r10, rdx
+        //     mov     r11, rax
+        //     mov     rax, rcx
+        //     mul     r9
+        //     mov     rcx, rdx
+        //     mov     rbx, rax
+        //     mov     rax, rsi
+        //     mul     r9
+        //     add     rdx, rbx
+        //     adc     rcx, r11
+        //     adc     r10, r8
+        //     mov     qword ptr [rdi], rax
+        //     mov     qword ptr [rdi + 8], rdx
+        //     mov     qword ptr [rdi + 16], rcx
+        //     mov     qword ptr [rdi + 24], r10
+        //     mov     rax, rdi
+        //     pop     rbx
+        //     ret
         let r = math::wrapping_mul_arr_u128(&self.to_le_limbs(), &[n]);
         Self::from_le_limbs(r)
     }
 
     /// Multiply the 256-bit integer by a 64-bit unsigned factor.
     ///
-    /// This allows optimizations a full multiplication cannot do.
+    /// Many different algorithms were attempted, with a soft [`mulx`] approach (1),
+    /// a flat, fixed-width long multiplication (2), and a short-circuiting long
+    /// multiplication (3). Algorithm (3) had the best performance for 128-bit
+    /// multiplication, however, algorithm (1) was better for smaller type sizes.
+    ///
+    /// This also optimized much better when multiplying by a single or a half-sized
+    /// item: rather than using 4 limbs, if we're multiplying `(u128, u128) * u128`,
+    /// we can use 2 limbs for the right operand, and for `(u128, u128) * u64`, only
+    /// 1 limb.
+    ///
+    /// # Assembly
+    ///
+    /// The analysis here is practically identical to that of [`wrapping_mul_ulimb`].
+    ///
+    /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+    /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
     #[inline(always)]
     pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
         let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &[n]);
