@@ -665,7 +665,6 @@ macro_rules! mul_unsigned_impl {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         #[inline]
         pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
-            // TODO: Remove
             let x = split!($u, $h, x0, x1);
             let y = split!($u, $h, y0, y1);
             let r = $wrapping_array(&x, &y);
@@ -675,7 +674,6 @@ macro_rules! mul_unsigned_impl {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         #[inline]
         pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
-            // TODO: Remove
             let x = split!($u, $h, x0, x1);
             let y = split!($u, $h, y);
             let r = $wrapping_array(&x, &y);

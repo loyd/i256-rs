@@ -65,7 +65,7 @@ pub struct i256 {
 
 impl i256 {
     /// The smallest value that can be represented by this integer type.
-    pub const MIN: Self = Self::new(0, 0);
+    pub const MIN: Self = Self::new(0, i128::MIN);
 
     /// The largest value that can be represented by this integer type
     /// (2<sup>256</sup> - 1).
@@ -107,7 +107,10 @@ impl i256 {
     /// let n = i256::MAX >> 2i32;
     /// assert_eq!(n.leading_zeros(), 3);
     ///
-    /// let zero = i256::MIN;
+    /// let min = i256::MIN;
+    /// assert_eq!(min.leading_zeros(), 0);
+    ///
+    /// let zero = i256::from_u8(0);
     /// assert_eq!(zero.leading_zeros(), 256);
     ///
     /// let max = i256::MAX;
@@ -126,9 +129,9 @@ impl i256 {
     /// `self`.
     #[inline]
     pub const fn trailing_zeros(self) -> u32 {
-        let mut trailing = self.high().trailing_zeros();
+        let mut trailing = self.low().trailing_zeros();
         if trailing == u128::BITS {
-            trailing += self.low().trailing_zeros();
+            trailing += self.high().trailing_zeros();
         }
         trailing
     }
@@ -319,7 +322,7 @@ impl i256 {
         if self.is_div_none(rhs) {
             None
         } else {
-            Some(self.div_euclid(rhs))
+            Some(self.wrapping_div_euclid(rhs))
         }
     }
 
@@ -383,10 +386,9 @@ impl i256 {
     /// `self == MIN`.
     #[inline(always)]
     pub const fn checked_abs(self) -> Option<Self> {
-        if self.is_negative() {
-            self.checked_neg()
-        } else {
-            Some(self)
+        match self.overflowing_abs() {
+            (value, false) => Some(value),
+            _ => None,
         }
     }
 
@@ -395,7 +397,7 @@ impl i256 {
     #[inline]
     pub const fn checked_pow(self, exp: u32) -> Option<Self> {
         match self.overflowing_pow(exp) {
-            (value, true) => Some(value),
+            (value, false) => Some(value),
             _ => None,
         }
     }
@@ -413,10 +415,10 @@ impl i256 {
     /// numeric bounds instead of overflowing.
     #[inline(always)]
     pub const fn saturating_add(self, rhs: Self) -> Self {
-        if self.is_negative() {
-            self.saturating_sub_unsigned(rhs.wrapping_abs().as_u256())
-        } else {
-            self.saturating_add_unsigned(rhs.as_u256())
+        match self.checked_add(rhs) {
+            Some(value) => value,
+            None if self.is_negative() => Self::MIN,
+            None => Self::MAX,
         }
     }
 
@@ -436,10 +438,10 @@ impl i256 {
     /// numeric bounds instead of overflowing.
     #[inline(always)]
     pub const fn saturating_sub(self, rhs: Self) -> Self {
-        if self.is_negative() {
-            self.saturating_add_unsigned(rhs.wrapping_abs().as_u256())
-        } else {
-            self.saturating_sub_unsigned(rhs.as_u256())
+        match self.checked_sub(rhs) {
+            Some(value) => value,
+            None if self.is_negative() => Self::MIN,
+            None => Self::MAX,
         }
     }
 
@@ -466,10 +468,9 @@ impl i256 {
     /// `self == MIN` instead of overflowing.
     #[inline(always)]
     pub const fn saturating_abs(self) -> Self {
-        if self.is_negative() {
-            self.saturating_neg()
-        } else {
-            self
+        match self.checked_abs() {
+            Some(value) => value,
+            None => Self::MAX,
         }
     }
 
@@ -682,11 +683,7 @@ impl i256 {
     /// case, this function returns `MIN` itself.
     #[inline(always)]
     pub const fn wrapping_abs(self) -> Self {
-        if self.is_negative() {
-            self.wrapping_neg()
-        } else {
-            self
-        }
+        self.overflowing_abs().0
     }
 
     /// Computes the absolute value of `self` without any wrapping
@@ -882,7 +879,10 @@ impl i256 {
     /// indicating whether an overflow happened.
     #[inline(always)]
     pub const fn overflowing_abs(self) -> (Self, bool) {
-        (self.wrapping_abs(), eq(self, Self::MIN))
+        match self.is_negative() {
+            true => self.overflowing_neg(),
+            false => (self, false),
+        }
     }
 
     /// Raises self to the power of `exp`, using exponentiation by squaring.
@@ -1203,11 +1203,7 @@ impl i256 {
     /// Computes the absolute value of `self`.
     #[inline(always)]
     pub const fn abs(self) -> Self {
-        if self.is_negative() {
-            self.wrapping_neg()
-        } else {
-            self
-        }
+        self.checked_abs().expect("attempt to negate with overflow")
     }
 
     /// Computes the absolute difference between `self` and `other`.
@@ -2616,7 +2612,7 @@ impl i256 {
     /// This produces the same result as an `as` cast, but ensures that the
     /// bit-width remains the same.
     #[inline(always)]
-    pub const fn cast_signed(self) -> u256 {
+    pub const fn cast_unsigned(self) -> u256 {
         self.as_u256()
     }
 
@@ -2930,8 +2926,9 @@ impl i256 {
     /// Calculates the middle point of `self` and `rhs`.
     ///
     /// `midpoint(a, b)` is `(a + b) / 2` as if it were performed in a
-    /// sufficiently-large unsigned integral type. This implies that the result
-    /// is always rounded towards zero and that no overflow will ever occur.
+    /// sufficiently-large unsigned integral type. This implies that the
+    /// result is always rounded towards negative infinity and that no
+    /// overflow will ever occur.
     #[inline]
     #[must_use]
     pub const fn midpoint(self, rhs: Self) -> Self {

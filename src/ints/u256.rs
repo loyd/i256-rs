@@ -121,9 +121,9 @@ impl u256 {
     /// `self`.
     #[inline(always)]
     pub const fn trailing_zeros(self) -> u32 {
-        let mut trailing = self.high().trailing_zeros();
+        let mut trailing = self.low().trailing_zeros();
         if trailing == u128::BITS {
-            trailing += self.low().trailing_zeros();
+            trailing += self.high().trailing_zeros();
         }
         trailing
     }
@@ -561,7 +561,7 @@ impl u256 {
     pub const fn saturating_sub(self, rhs: Self) -> Self {
         match self.checked_sub(rhs) {
             Some(v) => v,
-            None => Self::MAX,
+            None => Self::MIN,
         }
     }
 
@@ -1343,12 +1343,12 @@ impl u256 {
 
     #[inline]
     const fn one_less_than_next_power_of_two(self) -> Self {
-        if eq(self, Self::MIN) {
+        if le(self, Self::from_u8(1)) {
             return Self::MIN;
         }
         let p = self.wrapping_sub(Self::from_u8(1));
         let z = p.leading_zeros();
-        Self::MAX.shr_u32(z)
+        Self::MAX.wrapping_shr(z)
     }
 
     /// Returns the smallest power of two greater than or equal to `self`.
@@ -2972,7 +2972,7 @@ impl fmt::Display for u256 {
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.high() == 0 {
-            return fmt::Display::fmt(&self.high(), f);
+            return fmt::Display::fmt(&self.low(), f);
         }
 
         let mut buffer = [0u8; 78];
@@ -3045,7 +3045,7 @@ impl fmt::LowerExp for u256 {
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.high() == 0 {
-            return fmt::LowerExp::fmt(&self.high(), f);
+            return fmt::LowerExp::fmt(&self.low(), f);
         }
 
         let mut buffer = [0u8; 78];
@@ -3478,7 +3478,7 @@ impl fmt::UpperExp for u256 {
     #[allow(clippy::bind_instead_of_map)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if self.high() == 0 {
-            return fmt::UpperExp::fmt(&self.high(), f);
+            return fmt::UpperExp::fmt(&self.low(), f);
         }
 
         let mut buffer: [u8; 78] = [0u8; 78];
