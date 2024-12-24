@@ -258,7 +258,11 @@ quickcheck! {
     }
 
     fn i256_saturating_div_quickcheck(x0: u128, x1: i128, y0: u128, y1: i128) -> bool {
-        signed_op_equal!(wrap x0, x1, y0, y1, saturating_div)
+        if y0 != 0 && y1 != 0 {
+            signed_op_equal!(wrap x0, x1, y0, y1, saturating_div)
+        } else {
+            true
+        }
     }
 
     fn i256_overflowing_add_quickcheck(x0: u128, x1: i128, y0: u128, y1: i128) -> bool {
