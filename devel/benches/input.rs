@@ -212,14 +212,14 @@ pub fn get_i256_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u256)> {
         .collect()
 }
 
-pub fn get_small_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u128)> {
+pub fn get_wide_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u128)> {
     u128::gen_n::<3>(strategy, rng, DEFAULT_COUNT)
         .iter()
         .map(|x| (u256::new(x[0], x[1]), x[2]))
         .collect()
 }
 
-pub fn get_half_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u64)> {
+pub fn get_limb_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u64)> {
     let x = u128::gen_n::<2>(strategy, rng, DEFAULT_COUNT);
     let y = u64::gen_n::<1>(strategy, rng, DEFAULT_COUNT);
     x.iter().zip(y.iter()).map(|(x, y)| (u256::new(x[0], x[1]), y[0])).collect()
