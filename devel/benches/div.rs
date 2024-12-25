@@ -6,6 +6,9 @@ use core::time::Duration;
 use criterion::{criterion_group, criterion_main, Criterion};
 use input::*;
 
+// Just chosen from a fixed point, first 4 digits of pi.
+const DIV_FACTOR: u64 = 3141;
+
 macro_rules! add_group {
     ($name:ident, $strategy:expr, $prefix:literal) => {
         fn $name(criterion: &mut Criterion) {
@@ -31,6 +34,13 @@ macro_rules! add_group {
             )| x
                 .0
                 .checked_div_ulimb(x.1));
+
+            add_bench!(group, concat!($prefix, "::u256-limb-const"), limb_data.iter(), |x: &(
+                u256,
+                u64
+            )| x
+                .0
+                .checked_div_ulimb(DIV_FACTOR));
         }
     };
 }
