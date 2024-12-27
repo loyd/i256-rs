@@ -51,7 +51,7 @@ macro_rules! to_str_radix_define {
             let mut rem: u64;
             let mut index = buffer.len();
             let limit = Self::from_u32(radix);
-            while self.gt_const(limit) && index > start_index {
+            while self.ge_const(limit) && index > start_index {
                 index -= 1;
                 (self, rem) = self.div_rem_ulimb(radix as ULimb);
                 buffer[index] = $crate::write::digit_to_char(rem as u32, radix);
@@ -71,5 +71,3 @@ macro_rules! to_str_radix_define {
         }
     };
 }
-
-pub(crate) use to_str_radix_define;

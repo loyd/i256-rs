@@ -1676,7 +1676,7 @@ macro_rules! int_wide_ops_define {
 }
 
 macro_rules! int_traits_define {
-    ($t:ty) => {
+    (type => $t:ty,unsigned_type => $u_t:ty) => {
         traits_define!($t);
 
         impl Neg for $t {
@@ -1781,9 +1781,30 @@ macro_rules! int_traits_define {
                 core::fmt::UpperHex::fmt(&self.as_unsigned(), f)
             }
         }
+
+        from_trait_define!($t, i8, from_i8);
+        from_trait_define!($t, i16, from_i16);
+        from_trait_define!($t, i32, from_i32);
+        from_trait_define!($t, i64, from_i64);
+        from_trait_define!($t, i128, from_i128);
+
+        impl TryFrom<$u_t> for $t {
+            type Error = TryFromIntError;
+
+            #[inline(always)]
+            fn try_from(u: $u_t) -> Result<Self, TryFromIntError> {
+                if u < Self::MAX.as_unsigned() {
+                    Ok(u.as_signed())
+                } else {
+                    Err(TryFromIntError {})
+                }
+            }
+        }
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
 macro_rules! int_impl_define {
     (
         self => $self:ty,
@@ -1833,27 +1854,3 @@ macro_rules! int_impl_define {
         int_wide_ops_define!(@all);
     };
 }
-
-pub(crate) use int_associated_consts_define;
-pub(crate) use int_bigint_define;
-pub(crate) use int_bitops_define;
-pub(crate) use int_byte_order_define;
-pub(crate) use int_casts_define;
-pub(crate) use int_checked_define;
-pub(crate) use int_cmp_define;
-pub(crate) use int_extensions_define;
-pub(crate) use int_high_low_define;
-pub(crate) use int_limb_ops_define;
-pub(crate) use int_ops_define;
-pub(crate) use int_overflowing_define;
-pub(crate) use int_saturating_define;
-pub(crate) use int_strict_define;
-pub(crate) use int_traits_define;
-pub(crate) use int_unbounded_define;
-pub(crate) use int_unchecked_define;
-pub(crate) use int_wide_ops_define;
-pub(crate) use int_wrapping_define;
-
-// Our high-level API
-#[rustfmt::skip]
-pub(crate) use int_impl_define;

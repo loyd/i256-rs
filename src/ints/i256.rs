@@ -21,12 +21,8 @@
 
 use core::ops::*;
 
-use super::int_macros::*;
 use super::shared_macros::*;
-use crate::math;
-use crate::parse::from_str_radix_define;
-use crate::write::to_str_radix_define;
-use crate::{u256, ILimb, IWide, TryFromIntError, ULimb, UWide};
+use crate::{math, u256, ILimb, IWide, TryFromIntError, ULimb, UWide};
 
 int_define!(
     name => i256,
@@ -258,6 +254,12 @@ impl i256 {
         value
     }
 
+    /// Create the 256-bit signed integer from an `i256`, as if by an `as` cast.
+    #[inline(always)]
+    pub const fn from_signed(value: i256) -> Self {
+        Self::from_i256(value)
+    }
+
     /// Convert the 256-bit signed integer to an `u128`, as if by an `as` cast.
     #[inline(always)]
     pub const fn as_u128(&self) -> u128 {
@@ -287,6 +289,12 @@ impl i256 {
     #[inline(always)]
     pub const fn as_i256(&self) -> i256 {
         *self
+    }
+
+    /// Convert the 256-bit signed integer to an `u256`, as if by an `as` cast.
+    #[inline(always)]
+    pub const fn as_signed(&self) -> Self {
+        self.as_i256()
     }
 
     /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
@@ -518,58 +526,16 @@ impl i256 {
     }
 }
 
-int_traits_define!(i256);
-
-impl From<bool> for i256 {
-    #[inline(always)]
-    fn from(small: bool) -> Self {
-        Self::new(small as u128, 0)
-    }
-}
-
-impl From<char> for i256 {
-    #[inline(always)]
-    fn from(c: char) -> Self {
-        Self::new(c as u128, 0)
-    }
-}
-
-from_trait_define!(i256, u8, from_u8);
-from_trait_define!(i256, u16, from_u16);
-from_trait_define!(i256, u32, from_u32);
-from_trait_define!(i256, u64, from_u64);
-from_trait_define!(i256, u128, from_u128);
-from_trait_define!(i256, i8, from_i8);
-from_trait_define!(i256, i16, from_i16);
-from_trait_define!(i256, i32, from_i32);
-from_trait_define!(i256, i64, from_i64);
-from_trait_define!(i256, i128, from_i128);
+int_traits_define!(type => i256, unsigned_type => u256);
 
 macro_rules! shift_const_impl {
     (@shl $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shl_i128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
+        $value.wrapping_shl($shift as u32)
     }};
 
     (@shr $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shr_i128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
+        $value.wrapping_shr($shift as u32)
     }};
-
-    (@nomod $t:ty, $shl:ident, $shr:ident) => (
-        /// Const evaluation of shl.
-        #[inline(always)]
-        pub const fn $shl(self, other: $t) -> Self {
-            let other = other as u32;
-            shift_const_impl!(@shl self, other)
-        }
-
-        /// Const evaluation of shr.
-        pub const fn $shr(self, other: $t) -> Self {
-            let other = other as u32;
-            shift_const_impl!(@shr self, other)
-        }
-    );
 
     ($t:ty, $shl:ident, $shr:ident) => (
         /// Const evaluation of shl.
@@ -577,8 +543,9 @@ macro_rules! shift_const_impl {
         /// This behavior is wrapping: if `other >= 256`, this wraps.
         #[inline(always)]
         pub const fn $shl(self, other: $t) -> Self {
-            debug_assert!(other < 256, "attempt to shift left with overflow");
-            let other = other as u32;
+           if cfg!(have_overflow_checks) {
+                assert!(other < Self::BITS as $t && other > 0, "attempt to shift left with overflow");
+            }
             shift_const_impl!(@shl self, other)
         }
 
@@ -586,8 +553,9 @@ macro_rules! shift_const_impl {
         ///
         /// This behavior is wrapping: if `other >= 256`, this wraps.
         pub const fn $shr(self, other: $t) -> Self {
-            debug_assert!(other < 256, "attempt to shift right with overflow");
-            let other = other as u32;
+            if cfg!(have_overflow_checks) {
+                assert!(other < Self::BITS as $t && other > 0, "attempt to shift right with overflow");
+            }
             shift_const_impl!(@shr self, other)
         }
     );
@@ -598,10 +566,12 @@ macro_rules! shift_const_impl {
         /// This behavior is wrapping: if `other >= 256`, this wraps.
         #[inline(always)]
         pub const fn $shl(self, other: $t) -> Self {
-            let max = u256::from_u16(256);
-            let other = other.as_u256();
-            debug_assert!(other.lt_const(max), "attempt to shift left with overflow");
-            let shift = (other.low() & (u32::MAX as u128)) as u32;
+            if cfg!(have_overflow_checks) {
+                let is_overflow = other.ge_const(<$t>::from_u32(Self::BITS)) || other.lt_const(<$t>::from_u32(0));
+                assert!(!is_overflow, "attempt to shift left with overflow");
+            }
+
+            let shift = other.as_unsigned().as_u32();
             shift_const_impl!(@shl self, shift)
         }
 
@@ -609,10 +579,12 @@ macro_rules! shift_const_impl {
         ///
         /// This behavior is wrapping: if `other >= 256`, this wraps.
         pub const fn $shr(self, other: $t) -> Self {
-            let max = u256::from_u16(256);
-            let other = other.as_u256();
-            debug_assert!(other.lt_const(max), "attempt to shift left with overflow");
-            let shift = (other.low() & (u32::MAX as u128)) as u32;
+            if cfg!(have_overflow_checks) {
+                let is_overflow = other.ge_const(<$t>::from_u32(Self::BITS)) || other.lt_const(<$t>::from_u32(0));
+                assert!(!is_overflow, "attempt to shift right with overflow");
+            }
+
+            let shift = other.as_unsigned().as_u32();
             shift_const_impl!(@shr self, shift)
         }
     );
@@ -620,14 +592,14 @@ macro_rules! shift_const_impl {
 
 // Const implementations for Shl
 impl i256 {
-    shift_const_impl!(@nomod i8, shl_i8, shr_i8);
+    shift_const_impl!(i8, shl_i8, shr_i8);
     shift_const_impl!(i16, shl_i16, shr_i16);
     shift_const_impl!(i32, shl_i32, shr_i32);
     shift_const_impl!(i64, shl_i64, shr_i64);
     shift_const_impl!(i128, shl_i128, shr_i128);
     shift_const_impl!(@256 i256, shl_i256, shr_i256);
     shift_const_impl!(isize, shl_isize, shr_isize);
-    shift_const_impl!(@nomod u8, shl_u8, shr_u8);
+    shift_const_impl!(u8, shl_u8, shr_u8);
     shift_const_impl!(u16, shl_u16, shr_u16);
     shift_const_impl!(u32, shl_u32, shr_u32);
     shift_const_impl!(u64, shl_u64, shr_u64);
@@ -635,34 +607,6 @@ impl i256 {
     shift_const_impl!(@256 u256, shl_u256, shr_u256);
     shift_const_impl!(usize, shl_usize, shr_usize);
 }
-
-impl Shl for i256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shl(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shl self, shift)
-    }
-}
-
-ref_trait_define!(i256, Shl, shl, other: &i256);
-binop_ref_trait_define!(i256, Shl, shl);
-
-impl Shr for i256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shr(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shr self, shift)
-    }
-}
-
-ref_trait_define!(i256, Shr, shr, other: &i256);
-binop_ref_trait_define!(i256, Shr, shr);
 
 macro_rules! shift_impl {
     (@mod $($t:ty)*) => ($(
@@ -672,29 +616,6 @@ macro_rules! shift_impl {
             #[inline(always)]
             #[allow(clippy::suspicious_arithmetic_impl)]
             fn shl(self, other: $t) -> Self::Output {
-                let shift = other % 256;
-                shift_const_impl!(@shl self, shift)
-            }
-        }
-
-        impl Shr<$t> for i256 {
-            type Output = Self;
-
-            #[inline(always)]
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn shr(self, other: $t) -> Self::Output {
-                let shift = other % 256;
-                shift_const_impl!(@shr self, shift)
-            }
-        }
-    )*);
-
-    (@nomod $($t:ty)*) => ($(
-        impl Shl<$t> for i256 {
-            type Output = Self;
-
-            #[inline(always)]
-            fn shl(self, other: $t) -> Self::Output {
                 shift_const_impl!(@shl self, other)
             }
         }
@@ -703,6 +624,7 @@ macro_rules! shift_impl {
             type Output = Self;
 
             #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
             fn shr(self, other: $t) -> Self::Output {
                 shift_const_impl!(@shr self, other)
             }
@@ -716,8 +638,7 @@ macro_rules! shift_impl {
             #[inline(always)]
             #[allow(clippy::suspicious_arithmetic_impl)]
             fn shl(self, other: $t) -> Self::Output {
-                let shift = other % u256::from_u16(256);
-                let shift = shift.as_u32();
+                let shift = other.as_u32();
                 shift_const_impl!(@shl self, shift)
             }
         }
@@ -728,8 +649,7 @@ macro_rules! shift_impl {
             #[inline(always)]
             #[allow(clippy::suspicious_arithmetic_impl)]
             fn shr(self, other: $t) -> Self::Output {
-                let shift = other % u256::from_u16(256);
-                let shift = shift.as_u32();
+                let shift = other.as_u32();
                 shift_const_impl!(@shr self, shift)
             }
         }
@@ -784,23 +704,9 @@ macro_rules! shift_impl {
     )*);
 }
 
-shift_impl! { @nomod i8 u8 }
-shift_impl! { @mod i16 i32 i64 i128 isize u16 u32 u64 u128 usize }
+shift_impl! { @mod i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
 shift_impl! { @256 u256 }
 shift_impl! { i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 u256 usize }
-
-impl TryFrom<u256> for i256 {
-    type Error = TryFromIntError;
-
-    #[inline(always)]
-    fn try_from(u: u256) -> Result<Self, TryFromIntError> {
-        if u < Self::MAX.as_u256() {
-            Ok(Self::from_u256(u))
-        } else {
-            Err(TryFromIntError {})
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

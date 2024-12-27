@@ -2371,6 +2371,34 @@ macro_rules! traits_define {
             }
         }
 
+        impl Shl for $t {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: Self) -> Self::Output {
+                let shift = other.low() as u32 & u32::MAX;
+                self.wrapping_shl(shift)
+            }
+        }
+
+        ref_trait_define!($t, Shl, shl, other: &$t);
+        binop_ref_trait_define!($t, Shl, shl);
+
+        impl Shr for $t {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: Self) -> Self::Output {
+                let shift = other.low() as u32 & u32::MAX;
+                self.wrapping_shr(shift)
+            }
+        }
+
+        ref_trait_define!($t, Shr, shr, other: &$t);
+        binop_ref_trait_define!($t, Shr, shr);
+
         binop_trait_define!($t, Sub, SubAssign, sub, sub_assign);
 
         impl core::fmt::Debug for $t {
@@ -2379,7 +2407,44 @@ macro_rules! traits_define {
                 core::fmt::Display::fmt(self, f)
             }
         }
+
+        impl From<bool> for $t {
+            #[inline(always)]
+            fn from(small: bool) -> Self {
+                Self::from_u8(small as u8)
+            }
+        }
+
+        impl From<char> for $t {
+            #[inline(always)]
+            fn from(c: char) -> Self {
+                Self::from_u32(c as u32)
+            }
+        }
+
+        from_trait_define!($t, u8, from_u8);
+        from_trait_define!($t, u16, from_u16);
+        from_trait_define!($t, u32, from_u32);
+        from_trait_define!($t, u64, from_u64);
+        from_trait_define!($t, u128, from_u128);
     };
+}
+
+macro_rules! try_from_define {
+    (base => $base:ty, from => $($t:ty)*) => ($(
+        impl TryFrom<$t> for $base {
+            type Error = $crate::TryFromIntError;
+
+            #[inline(always)]
+            fn try_from(u: $t) -> Result<Self, $crate::TryFromIntError> {
+                if u >= 0 {
+                    Ok(Self::from_u128(u as u128))
+                } else {
+                    Err($crate::TryFromIntError {})
+                }
+            }
+        }
+    )*);
 }
 
 // Internal implementation helpers.
@@ -2405,6 +2470,7 @@ pub(crate) use ref_trait_define;
 pub(crate) use saturating_define;
 pub(crate) use strict_define;
 pub(crate) use traits_define;
+pub(crate) use try_from_define;
 pub(crate) use unbounded_define;
 pub(crate) use unchecked_define;
 pub(crate) use wide_index;

@@ -17,12 +17,7 @@
 use core::ops::*;
 
 use super::shared_macros::*;
-use super::uint_macros::*;
-use crate::i256;
-use crate::math;
-use crate::parse::from_str_radix_define;
-use crate::write::to_str_radix_define;
-use crate::{TryFromIntError, ULimb, UWide};
+use crate::{i256, math, ULimb, UWide};
 
 int_define!(
     name => u256,
@@ -519,6 +514,13 @@ impl u256 {
         value
     }
 
+    /// Create the 256-bit unsigned integer from a `u256`, as if by an `as`
+    /// cast.
+    #[inline(always)]
+    pub const fn from_unsigned(value: u256) -> Self {
+        Self::from_u256(value)
+    }
+
     /// Create the 256-bit unsigned integer from an `i128`, as if by an `as`
     /// cast.
     #[inline(always)]
@@ -553,6 +555,13 @@ impl u256 {
     #[inline(always)]
     pub const fn as_u256(&self) -> Self {
         *self
+    }
+
+    /// Convert the 256-bit unsigned integer to an `u256`, as if by an `as`
+    /// cast.
+    #[inline(always)]
+    pub const fn as_unsigned(&self) -> Self {
+        self.as_u256()
     }
 
     /// Convert the 256-bit unsigned integer to an `i128`, as if by an `as`
@@ -855,114 +864,15 @@ impl u256 {
     }
 }
 
-uint_traits_define!(u256);
-
-impl core::fmt::Binary for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for binary, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#b}", self.high())?;
-        } else {
-            core::write!(f, "{:b}", self.high())?;
-        }
-        core::write!(f, "{:b}", self.low())
-    }
-}
-
-impl core::fmt::Display for u256 {
-    #[inline]
-    #[allow(clippy::bind_instead_of_map)]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        if self.high() == 0 {
-            return core::fmt::Display::fmt(&self.low(), f);
-        }
-
-        let mut buffer = [0u8; Self::BITS as usize];
-        let bytes = self.to_str_radix(&mut buffer, 10);
-        let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
-        core::write!(f, "{}", formatted)
-    }
-}
-impl From<bool> for u256 {
-    #[inline(always)]
-    fn from(small: bool) -> Self {
-        Self::new(small as u128, 0)
-    }
-}
-
-impl From<char> for u256 {
-    #[inline(always)]
-    fn from(c: char) -> Self {
-        Self::new(c as u128, 0)
-    }
-}
-
-from_trait_define!(u256, u8, from_u8);
-from_trait_define!(u256, u16, from_u16);
-from_trait_define!(u256, u32, from_u32);
-from_trait_define!(u256, u64, from_u64);
-from_trait_define!(u256, u128, from_u128);
-
-impl core::fmt::LowerHex for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for hex, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#x}", self.high())?;
-        } else {
-            core::write!(f, "{:x}", self.high())?;
-        }
-        core::write!(f, "{:x}", self.low())
-    }
-}
-
-impl core::fmt::Octal for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This is **NOT** divisible by 8, so `log(128, 8)` is not integral.
-        // So, we can break it into pairs of u64.
-        let hi1 = (self.high() >> 64) as u64;
-        let hi0 = self.high() as u64;
-        let lo1 = (self.low() >> 64) as u64;
-        let lo0 = self.low() as u64;
-
-        let alternate = f.alternate();
-        let mut write = |x: u64, alt: bool| {
-            if alt {
-                core::write!(f, "{:#o}", x)
-            } else {
-                core::write!(f, "{:o}", x)
-            }
-        };
-        if hi1 != 0 {
-            write(hi1, alternate)?;
-            write(hi0, false)?;
-            write(lo1, false)?;
-            write(lo0, false)
-        } else if hi0 != 0 {
-            write(hi0, alternate)?;
-            write(lo1, false)?;
-            write(lo0, false)
-        } else if lo1 != 0 {
-            write(lo1, alternate)?;
-            write(lo0, false)
-        } else {
-            // NOTE: Always write at least a 0
-            write(lo0, alternate)
-        }
-    }
-}
+uint_traits_define!(type => u256, signed_type => i256);
 
 macro_rules! shift_const_impl {
     (@shl $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shl_u128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
+        $value.wrapping_shl($shift as u32)
     }};
 
     (@shr $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shr_u128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
+        $value.wrapping_shr($shift as u32)
     }};
 
     (@nomod $t:ty, $shl:ident, $shr:ident) => (
@@ -1044,34 +954,6 @@ impl u256 {
     shift_const_impl!(@256 u256, shl_u256, shr_u256);
     shift_const_impl!(usize, shl_usize, shr_usize);
 }
-
-impl Shl for u256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shl(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shl self, shift)
-    }
-}
-
-ref_trait_define!(u256, Shl, shl, other: &u256);
-binop_ref_trait_define!(u256, Shl, shl);
-
-impl Shr for u256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shr(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shr self, shift)
-    }
-}
-
-ref_trait_define!(u256, Shr, shr, other: &u256);
-binop_ref_trait_define!(u256, Shr, shr);
 
 macro_rules! shift_impl {
     (@mod $($t:ty)*) => ($(
@@ -1198,51 +1080,6 @@ shift_impl! { @mod i16 i32 i64 i128 isize u16 u32 u64 u128 usize }
 shift_impl! { @256 i256 }
 shift_impl! { i8 i16 i32 i64 i128 i256 isize u8 u16 u32 u64 u128 usize }
 
-macro_rules! try_from_impl {
-    ($($t:ty)*) => ($(
-        impl TryFrom<$t> for u256 {
-            type Error = TryFromIntError;
-
-            #[inline(always)]
-            fn try_from(u: $t) -> Result<Self, TryFromIntError> {
-                if u >= 0 {
-                    Ok(Self::from_u128(u as u128))
-                } else {
-                    Err(TryFromIntError {})
-                }
-            }
-        }
-    )*);
-}
-
-try_from_impl! { i8 i16 i32 i64 i128 isize }
-
-impl TryFrom<i256> for u256 {
-    type Error = TryFromIntError;
-
-    #[inline(always)]
-    fn try_from(u: i256) -> Result<Self, TryFromIntError> {
-        if u.high() >= 0 {
-            Ok(u.as_u256())
-        } else {
-            Err(TryFromIntError {})
-        }
-    }
-}
-
-impl core::fmt::UpperHex for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for hex, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#X}", self.high())?;
-        } else {
-            core::write!(f, "{:X}", self.high())?;
-        }
-        core::write!(f, "{:X}", self.low())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1301,6 +1138,77 @@ mod tests {
         let value = u256::new(0, 1);
         let result = format!("{:E}", value);
         assert_eq!("3.40282366920938463463374607431768211456E38", result);
+    }
+
+    #[test]
+    fn octal_test() {
+        let max = u256::MAX;
+        let result = format!("{:o}", max);
+        assert_eq!(
+            "17777777777777777777777777777777777777777777777777777777777777777777777777777777777777",
+            result
+        );
+
+        let result = format!("{:#o}", max);
+        assert_eq!(
+            "0o17777777777777777777777777777777777777777777777777777777777777777777777777777777777777",
+            result
+        );
+
+        let value = u256::new(0, 1);
+        let result = format!("{:o}", value);
+        assert_eq!("4000000000000000000000000000000000000000000", result);
+    }
+
+    #[test]
+    fn binary_test() {
+        let max = u256::MAX;
+        let result = format!("{:b}", max);
+        assert_eq!(
+            "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+            result
+        );
+
+        let result = format!("{:#b}", max);
+        assert_eq!(
+            "0b1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+            result
+        );
+
+        let value = u256::new(0, 1);
+        let result = format!("{:b}", value);
+        assert_eq!(
+            "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            result
+        );
+    }
+
+    #[test]
+    fn lower_hex_test() {
+        let max = u256::MAX;
+        let result = format!("{:x}", max);
+        assert_eq!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", result);
+
+        let result = format!("{:#x}", max);
+        assert_eq!("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", result);
+
+        let value = u256::new(0, 1);
+        let result = format!("{:x}", value);
+        assert_eq!("100000000000000000000000000000000", result);
+    }
+
+    #[test]
+    fn upper_hex_test() {
+        let max = u256::MAX;
+        let result = format!("{:X}", max);
+        assert_eq!("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", result);
+
+        let result = format!("{:#X}", max);
+        assert_eq!("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", result);
+
+        let value = u256::new(0, 1);
+        let result = format!("{:X}", value);
+        assert_eq!("100000000000000000000000000000000", result);
     }
 
     #[inline(always)]

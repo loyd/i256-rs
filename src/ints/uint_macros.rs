@@ -996,18 +996,92 @@ macro_rules! uint_wide_ops_define {
 }
 
 macro_rules! uint_traits_define {
-    ($t:ty) => {
+    (type => $t:ty,signed_type => $s_t:ty) => {
         traits_define!($t);
+
+        impl core::fmt::Binary for $t {
+            #[inline]
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                let mut buffer = [0u8; Self::BITS as usize];
+                let bytes = self.to_str_radix(&mut buffer, 2);
+                let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
+                if f.alternate() {
+                    f.write_str("0b")?;
+                }
+                if let Some(width) = f.width() {
+                    let c = f.fill();
+                    let pad = width.saturating_sub(bytes.len());
+                    for _ in 0..pad {
+                        write!(f, "{c}")?;
+                    }
+                }
+                core::write!(f, "{}", formatted)
+            }
+        }
+
+        impl core::fmt::Display for $t {
+            #[inline]
+            #[allow(clippy::bind_instead_of_map)]
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                let mut buffer = [0u8; Self::BITS as usize];
+                let bytes = self.to_str_radix(&mut buffer, 10);
+                let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
+                core::write!(f, "{}", formatted)
+            }
+        }
+
+        impl core::fmt::LowerHex for u256 {
+            #[inline]
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                let mut buffer = [0u8; Self::BITS as usize];
+                let count = self.to_str_radix(&mut buffer, 16).len();
+                let lower = buffer.map(|x| x.to_ascii_lowercase());
+                let bytes = &lower[buffer.len() - count..];
+                let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
+                if f.alternate() {
+                    f.write_str("0x")?;
+                }
+                if let Some(width) = f.width() {
+                    let c = f.fill();
+                    let pad = width.saturating_sub(count);
+                    for _ in 0..pad {
+                        write!(f, "{c}")?;
+                    }
+                }
+                f.write_str(formatted)
+            }
+        }
+
+        impl core::fmt::UpperHex for u256 {
+            #[inline]
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                let mut buffer = [0u8; Self::BITS as usize];
+                let count = self.to_str_radix(&mut buffer, 16).len();
+                let upper = buffer.map(|x| x.to_ascii_uppercase());
+                let bytes = &upper[buffer.len() - count..];
+                let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
+                if f.alternate() {
+                    f.write_str("0x")?;
+                }
+                if let Some(width) = f.width() {
+                    let c = f.fill();
+                    let pad = width.saturating_sub(count);
+                    for _ in 0..pad {
+                        write!(f, "{c}")?;
+                    }
+                }
+                f.write_str(formatted)
+            }
+        }
 
         impl core::fmt::LowerExp for $t {
             #[inline]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 let mut buffer = [0u8; Self::BITS as usize];
                 let bytes = self.to_str_radix(&mut buffer, 10);
-                let first = bytes[0] as char;
-                let formatted =
-                    core::str::from_utf8(&bytes[1..]).or_else(|_| Err(core::fmt::Error))?;
-                core::write!(f, "{}.{}e{}", first, formatted, bytes.len() - 1)
+                let formatted = core::str::from_utf8(&bytes[1..]);
+                let formatted = formatted.or_else(|_| Err(core::fmt::Error))?;
+                core::write!(f, "{}.{}e{}", bytes[0] as char, formatted, bytes.len() - 1)
             }
         }
 
@@ -1016,10 +1090,29 @@ macro_rules! uint_traits_define {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 let mut buffer = [0u8; Self::BITS as usize];
                 let bytes = self.to_str_radix(&mut buffer, 10);
-                let first = bytes[0] as char;
-                let formatted =
-                    core::str::from_utf8(&bytes[1..]).or_else(|_| Err(core::fmt::Error))?;
-                core::write!(f, "{}.{}E{}", first, formatted, bytes.len() - 1)
+                let formatted = core::str::from_utf8(&bytes[1..]);
+                let formatted = formatted.or_else(|_| Err(core::fmt::Error))?;
+                core::write!(f, "{}.{}E{}", bytes[0] as char, formatted, bytes.len() - 1)
+            }
+        }
+
+        impl core::fmt::Octal for u256 {
+            #[inline]
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                let mut buffer = [0u8; Self::BITS as usize];
+                let bytes = self.to_str_radix(&mut buffer, 8);
+                let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
+                if f.alternate() {
+                    f.write_str("0o")?;
+                }
+                if let Some(width) = f.width() {
+                    let c = f.fill();
+                    let pad = width.saturating_sub(bytes.len());
+                    for _ in 0..pad {
+                        write!(f, "{c}")?;
+                    }
+                }
+                core::write!(f, "{}", formatted)
             }
         }
 
@@ -1046,9 +1139,26 @@ macro_rules! uint_traits_define {
                 }
             }
         }
+
+        try_from_define! { base => $t, from => i8 i16 i32 i64 i128 isize }
+
+        impl TryFrom<$s_t> for $t {
+            type Error = $crate::TryFromIntError;
+
+            #[inline(always)]
+            fn try_from(u: $s_t) -> Result<Self, $crate::TryFromIntError> {
+                if !u.is_negative() {
+                    Ok(u.as_unsigned())
+                } else {
+                    Err($crate::TryFromIntError {})
+                }
+            }
+        }
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
 macro_rules! uint_impl_define {
     (
         self => $self:ty,
@@ -1098,27 +1208,3 @@ macro_rules! uint_impl_define {
         uint_wide_ops_define!(@all);
     };
 }
-
-pub(crate) use uint_associated_consts_define;
-pub(crate) use uint_bigint_define;
-pub(crate) use uint_bitops_define;
-pub(crate) use uint_byte_order_define;
-pub(crate) use uint_casts_define;
-pub(crate) use uint_checked_define;
-pub(crate) use uint_cmp_define;
-pub(crate) use uint_extensions_define;
-pub(crate) use uint_high_low_define;
-pub(crate) use uint_limb_ops_define;
-pub(crate) use uint_ops_define;
-pub(crate) use uint_overflowing_define;
-pub(crate) use uint_saturating_define;
-pub(crate) use uint_strict_define;
-pub(crate) use uint_traits_define;
-pub(crate) use uint_unbounded_define;
-pub(crate) use uint_unchecked_define;
-pub(crate) use uint_wide_ops_define;
-pub(crate) use uint_wrapping_define;
-
-// Our high-level API
-#[rustfmt::skip]
-pub(crate) use uint_impl_define;
