@@ -20,17 +20,6 @@ macro_rules! int_high_low_define {
             high_type => $hi_t,
             kind => $kind,
         );
-
-        /// Const implementation of `Neg`.
-        #[inline(always)]
-        pub const fn neg_const(self) -> Self {
-            // NOTE: This is identical to `add(not(x), 1i256)`
-            let (lo, hi) = math::neg_i128(self.low(), self.high());
-            let actual = Self::new(lo, hi);
-            let expected = Self::from_u8(0).wrapping_sub(self);
-            debug_assert!(actual.eq_const(expected));
-            actual
-        }
     };
 }
 
@@ -1686,7 +1675,14 @@ macro_rules! int_traits_define {
 
             #[inline(always)]
             fn neg(self) -> Self::Output {
-                self.neg_const()
+                if cfg!(not(have_overflow_checks)) {
+                    self.wrapping_neg()
+                } else {
+                    match self.checked_neg() {
+                        Some(v) => v,
+                        _ => core::panic!("attempt to negate with overflow"),
+                    }
+                }
             }
         }
 

@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Made the internal implementation size-generic, mostly, so we can use higher order types for our precomputed division.
 
+## Removed
+
+- The `shr_const_*` and `shl_const_*` methods, since `wrapping_shr` should cover every use-case.
+
 ## [0.1.1] 2024-12-24
 
 ## Fixed
