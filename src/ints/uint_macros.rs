@@ -200,7 +200,7 @@ macro_rules! uint_ops_define {
         #[inline]
         pub fn div_ceil(self, rhs: Self) -> Self {
             let (d, r) = self.wrapping_div_rem(rhs);
-            if r.low() > 0 || r.high() > 0 {
+            if r.gt_const(Self::from_u8(0)) {
                 // NOTE: This can't overflow
                 d.wrapping_add(Self::from_u8(1))
             } else {
@@ -498,7 +498,7 @@ macro_rules! uint_overflowing_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add_signed`].")]
         #[inline(always)]
         pub const fn overflowing_add_signed(self, rhs: $s_t) -> (Self, bool) {
-            let is_negative = rhs.high() < 0;
+            let is_negative = rhs.is_negative();
             let (r, overflowed) = self.overflowing_add(Self::from_signed(rhs));
             (r, overflowed ^ is_negative)
         }
@@ -608,7 +608,7 @@ macro_rules! uint_saturating_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::saturating_add_signed`].")]
         #[inline]
         pub const fn saturating_add_signed(self, rhs: $s_t) -> Self {
-            let is_negative = rhs.high() < 0;
+            let is_negative = rhs.is_negative();
             let (r, overflowed) = self.overflowing_add(Self::from_signed(rhs));
             if overflowed == is_negative {
                 r
