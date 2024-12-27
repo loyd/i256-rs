@@ -24,36 +24,23 @@ use crate::parse::from_str_radix_define;
 use crate::write::to_str_radix_define;
 use crate::{TryFromIntError, ULimb, UWide};
 
-int_define!(u256, 256, unsigned);
+int_define!(
+    name => u256,
+    bits => 256,
+    kind => unsigned,
+);
 
 impl u256 {
-    /// The smallest value that can be represented by this integer type.
-    ///
-    /// See [`u128::MIN`].
-    pub const MIN: Self = Self::new(0, 0);
-
-    /// The largest value that can be represented by this integer type
-    /// (2<sup>256</sup> - 1).
-    ///
-    /// See [`u128::MAX`].
-    pub const MAX: Self = Self::new(u128::MAX, u128::MAX);
-
-    /// The size of this integer type in bits.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use i256::u256;
-    /// assert_eq!(u256::BITS, 256);
-    /// ```
-    ///
-    /// See [`u128::BITS`].
-    pub const BITS: u32 = 256;
-
-    /// The number of decimal digits for the largest magnitude value.
-    pub const MAX_DIGITS: usize = 78;
-
-    uint_impl_define!(i256, 256, i128, u128, unsigned);
+    uint_impl_define!(
+        self => u256,
+        signed_t => i256,
+        signed_wide_t => i128,
+        unsigned_wide_t => u128,
+        bits => 256,
+        max_digits => 78,
+        kind => unsigned,
+        short_circuit => false,
+    );
 
     /// Shifts the bits to the left by a specified amount, `n`,
     /// wrapping the truncated bits to the end of the resulting integer.
@@ -77,26 +64,6 @@ impl u256 {
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_right_u128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the byte order of the integer.
-    ///
-    /// See [`u128::swap_bytes`].
-    #[inline(always)]
-    pub const fn swap_bytes(self) -> Self {
-        let (lo, hi) = math::swap_bytes_u128(self.low(), self.high());
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the order of bits in the integer. The least significant
-    /// bit becomes the most significant bit, second least-significant bit
-    /// becomes second most-significant bit, etc.
-    ///
-    /// See [`u128::reverse_bits`].
-    #[inline(always)]
-    pub const fn reverse_bits(self) -> Self {
-        let (lo, hi) = math::reverse_bits_u128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -851,27 +818,6 @@ impl u256 {
     pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
         let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &[n]);
         (Self::from_le_limbs(r), overflow)
-    }
-
-    /// Div/Rem operation on a 256-bit integer.
-    ///
-    /// This allows storing of both the quotient and remainder without
-    /// making repeated calls.
-    ///
-    /// # Panics
-    ///
-    /// This panics if the divisor is 0.
-    #[inline]
-    pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
-        // NOTE: Our algorithm assumes little-endian order, which we might not have.
-        let x = self.to_le_limbs();
-        let y = n.to_le_limbs();
-
-        let (div, rem) = math::div_rem_full(&x, &y);
-        let div = Self::from_le_limbs(div);
-        let rem = Self::from_le_limbs(rem);
-
-        (div, rem)
     }
 
     /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.

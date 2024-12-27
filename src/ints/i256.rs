@@ -28,36 +28,23 @@ use crate::parse::from_str_radix_define;
 use crate::write::to_str_radix_define;
 use crate::{u256, ILimb, IWide, TryFromIntError, ULimb, UWide};
 
-int_define!(i256, 256, signed);
+int_define!(
+    name => i256,
+    bits => 256,
+    kind => signed,
+);
 
 impl i256 {
-    /// The smallest value that can be represented by this integer type.
-    ///
-    /// See [`i128::MIN`].
-    pub const MIN: Self = Self::new(0, i128::MIN);
-
-    /// The largest value that can be represented by this integer type
-    /// (2<sup>256</sup> - 1).
-    ///
-    /// See [`i128::MAX`].
-    pub const MAX: Self = Self::new(u128::MAX, i128::MAX);
-
-    /// The size of this integer type in bits.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use i256::i256;
-    /// assert_eq!(i256::BITS, 256);
-    /// ```
-    ///
-    /// See [`i128::BITS`].
-    pub const BITS: u32 = 256;
-
-    /// The number of decimal digits for the largest magnitude value.
-    pub const MAX_DIGITS: usize = 77;
-
-    int_impl_define!(u256, 256, u128, i128, signed);
+    int_impl_define!(
+        self => i256,
+        unsigned_t => u256,
+        unsigned_wide_t => u128,
+        signed_wide_t => i128,
+        bits => 256,
+        max_digits => 77,
+        kind => signed,
+        short_circuit => false,
+    );
 
     /// Shifts the bits to the left by a specified amount, `n`,
     /// wrapping the truncated bits to the end of the resulting integer.
@@ -81,26 +68,6 @@ impl i256 {
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_right_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the byte order of the integer.
-    ///
-    /// See [`i128::swap_bytes`].
-    #[inline(always)]
-    pub const fn swap_bytes(self) -> Self {
-        let (lo, hi) = math::swap_bytes_i128(self.low(), self.high());
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the order of bits in the integer. The least significant
-    /// bit becomes the most significant bit, second least-significant bit
-    /// becomes second most-significant bit, etc.
-    ///
-    /// See [`i128::reverse_bits`].
-    #[inline(always)]
-    pub const fn reverse_bits(self) -> Self {
-        let (lo, hi) = math::reverse_bits_i128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -132,39 +99,6 @@ impl i256 {
     pub const fn wrapping_mul(self, rhs: Self) -> Self {
         let (lo, hi) = math::wrapping_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
         i256::new(lo, hi)
-    }
-
-    /// Div/Rem operation on a 256-bit integer.
-    ///
-    /// This allows storing of both the quotient and remainder without
-    /// making repeated calls.
-    ///
-    /// # Panics
-    ///
-    /// This panics if the divisor is 0.
-    #[inline]
-    pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
-        // NOTE: Our algorithm assumes little-endian order, which we might not have.
-        // So, we transmute to LE order prior to the call.
-        // Do division as positive numbers, and if `lhs.is_sign_negative() ^
-        // rhs.is_sign_negative()`, then we can inver the sign
-        let x = self.wrapping_abs().as_u256().to_le_limbs();
-        let y = n.wrapping_abs().as_u256().to_le_limbs();
-
-        // get our unsigned division product
-        let (div, rem) = math::div_rem_full(&x, &y);
-        let mut div = u256::from_le_limbs(div).as_i256();
-        let mut rem = u256::from_le_limbs(rem).as_i256();
-
-        // convert to our correct signs, get the product
-        if self.is_negative() != n.is_negative() {
-            div = div.wrapping_neg();
-        }
-        if self.is_negative() {
-            rem = rem.wrapping_neg();
-        }
-
-        (div, rem)
     }
 
     /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
@@ -243,26 +177,6 @@ impl i256 {
         let (lo, hi, overflowed) =
             math::overflowing_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
         (i256::new(lo, hi), overflowed)
-    }
-
-    /// Returns `true` if `self` is positive and `false` if the number is zero
-    /// or negative.
-    ///
-    /// See [`i128::is_positive`].
-    #[inline(always)]
-    pub const fn is_positive(self) -> bool {
-        // NOTE: Because this is 2's complement, we can optimize like this.
-        self.high() > 0 || (self.high() == 0 && self.low() > 0)
-    }
-
-    /// Returns `true` if `self` is negative and `false` if the number is zero
-    /// or positive.
-    ///
-    /// See [`i128::is_negative`].
-    #[inline(always)]
-    pub const fn is_negative(self) -> bool {
-        // NOTE: Because this is 2's complement, we can optimize like this.
-        self.high() < 0
     }
 
     from_str_radix_define!(true);
