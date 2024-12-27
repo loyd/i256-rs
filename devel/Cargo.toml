@@ -54,6 +54,11 @@ harness = false
 # Raw algorithm benchmarks
 
 [[bench]]
+name = "bit_algos"
+path = "benches/bit_algos.rs"
+harness = false
+
+[[bench]]
 name = "mul_algos"
 path = "benches/mul_algos.rs"
 harness = false

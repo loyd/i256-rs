@@ -33,7 +33,8 @@ mod error;
 pub mod math;
 
 mod ints;
-mod numtypes;
+mod parse;
+mod write;
 
 pub use error::{IntErrorKind, ParseIntError, TryFromIntError};
 pub use ints::i256::{i256, i256 as I256};
