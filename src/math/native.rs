@@ -15,6 +15,7 @@
 
 // Utility to split a value into low and high bits.
 // This also includes a variety to split into arrays.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! split {
     ($u:ty, $h:ty, $v:expr) => {{
@@ -43,6 +44,7 @@ macro_rules! split {
 }
 
 // Unsplit our array and shift bytes into place.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! unsplit {
     (@wrapping $u:ty, $v:expr, $shift:expr) => {{
@@ -836,42 +838,6 @@ mul_unsigned_impl!(
     overflowing_wide => overflowing_mul_wide_u128,
     overflowing_limb => overflowing_mul_limb_u128,
 );
-
-macro_rules! swap_unsigned_impl {
-    ($($u:ty => $swap_bytes:ident, $reverse_bits:ident,)*) => ($(
-        /// Reverses the byte order of the integer.
-        ///
-        /// # Assembly
-        ///
-        /// This optimizes very nicely, with efficient `bswap` or `rol`
-        /// implementations for each.
-        #[inline(always)]
-        pub const fn $swap_bytes(x0: $u, x1: $u) -> ($u, $u) {
-            (x1.swap_bytes(), x0.swap_bytes())
-        }
-
-        /// Reverses the order of bits in the integer.
-        ///
-        /// The least significant bit becomes the most significant bit, second
-        /// least-significant bit becomes second most-significant bit, etc.
-        /// Reversing bits is also quite inefficient, and for 128-bit and
-        /// larger integers (2x `u64`), this is just as efficient as the
-        /// native implementation. For smaller type sizes, the compiler can
-        /// optimize the implementation, but we go beyond that realm.
-        #[inline(always)]
-        pub const fn $reverse_bits(x0: $u, x1: $u) -> ($u, $u) {
-            (x1.reverse_bits(), x0.reverse_bits())
-        }
-    )*);
-}
-
-swap_unsigned_impl! {
-    u8 => swap_bytes_u8, reverse_bits_u8,
-    u16 => swap_bytes_u16, reverse_bits_u16,
-    u32 => swap_bytes_u32, reverse_bits_u32,
-    u64 => swap_bytes_u64, reverse_bits_u64,
-    u128 => swap_bytes_u128, reverse_bits_u128,
-}
 
 macro_rules! shift_unsigned_impl {
     ($($u:ty => $shl:ident, $shr:ident,)*) => ($(
@@ -2868,45 +2834,6 @@ shift_signed_impl! {
 
 // UNARY OPS - SIGNED
 // ------------------
-
-macro_rules! swap_signed_impl {
-    ($($u:ty, $s:ty => $swap_bytes:ident, $reverse_bits:ident,)*) => ($(
-        /// Reverses the byte order of the integer.
-        ///
-        /// # Assembly
-        ///
-        /// This optimizes very nicely, with efficient `bswap` or `rol`
-        /// implementations for each.
-        #[inline]
-        pub const fn $swap_bytes(x0: $u, x1: $s) -> ($u, $s) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            (x1.swap_bytes() as $u, x0.swap_bytes() as $s)
-        }
-
-        /// Reverses the order of bits in the integer.
-        ///
-        /// The least significant bit becomes the most significant bit, second
-        /// least-significant bit becomes second most-significant bit, etc.
-        /// Reversing bits is also quite inefficient, and for 128-bit and
-        /// larger integers (2x `u64`), this is just as efficient as the
-        /// native implementation. For smaller type sizes, the compiler can
-        /// optimize the implementation, but we go beyond that realm.
-        #[inline]
-        pub const fn $reverse_bits(x0: $u, x1: $s) -> ($u, $s) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            // NOTE: Reversing bits is identical to unsigned.
-            ((x1 as $u).reverse_bits(), x0.reverse_bits() as $s)
-        }
-    )*);
-}
-
-swap_signed_impl! {
-    u8, i8 =>swap_bytesi8, reverse_bits_i8,
-    u16, i16 => swap_bytes_i16, reverse_bits_i16,
-    u32, i32 => swap_bytes_i32, reverse_bits_i32,
-    u64, i64 => swap_bytes_i64, reverse_bits_i64,
-    u128, i128 => swap_bytes_i128, reverse_bits_i128,
-}
 
 macro_rules! rotate_signed_impl {
     ($($u:ty, $s:ty => $left:ident, $right:ident,)*) => ($(

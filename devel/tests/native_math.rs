@@ -95,24 +95,6 @@ quickcheck! {
         expected == actual
     }
 
-    fn swap_bytes_u32_quickcheck(x: u64) -> bool {
-        let x0 = (x & LO32) as u32;
-        let x1 = (x >> 32) as u32;
-        let expected = x.swap_bytes();
-        let (lo, hi) = swap_bytes_u32(x0, x1);
-        let actual = lo as u64 + ((hi as u64) << 32);
-        expected == actual
-    }
-
-    fn reverse_bits_u32_quickcheck(x: u64) -> bool {
-        let x0 = (x & LO32) as u32;
-        let x1 = (x >> 32) as u32;
-        let expected = x.reverse_bits();
-        let (lo, hi) = reverse_bits_u32(x0, x1);
-        let actual = lo as u64 + ((hi as u64) << 32);
-        expected == actual
-    }
-
     fn rotate_left_u32_quickcheck(x: u64, n: u32) -> bool {
         let x0 = (x & LO32) as u32;
         let x1 = (x >> 32) as u32;
@@ -305,24 +287,6 @@ quickcheck! {
         let (lo, hi) = shr_i32(x0, x1, n);
         let actual = lo as i64 + ((hi as u64) << 32) as i64;
         expected == actual
-    }
-
-    fn swap_bytes_i32_quickcheck(x: i64) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let expected = x.swap_bytes();
-        let (lo, hi) = swap_bytes_i32(x0, x1);
-        let actual = lo as u64 + ((hi as u64) << 32);
-        expected == actual as i64
-    }
-
-    fn reverse_bits_i32_quickcheck(x: i64) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let expected = x.reverse_bits();
-        let (lo, hi) = reverse_bits_i32(x0, x1);
-        let actual = lo as u64 + ((hi as u64) << 32);
-        expected == actual as i64
     }
 
     fn rotate_left_i32_quickcheck(x: i64, n: u32) -> bool {

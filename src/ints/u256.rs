@@ -17,43 +17,25 @@
 use core::ops::*;
 
 use super::shared_macros::*;
-use super::uint_macros::*;
-use crate::i256;
-use crate::math;
-use crate::parse::from_str_radix_define;
-use crate::write::to_str_radix_define;
-use crate::{TryFromIntError, ULimb, UWide};
+use crate::{i256, math, ULimb, UWide};
 
-int_define!(u256, 256, unsigned);
+int_define!(
+    name => u256,
+    bits => 256,
+    kind => unsigned,
+);
 
 impl u256 {
-    /// The smallest value that can be represented by this integer type.
-    ///
-    /// See [`u128::MIN`].
-    pub const MIN: Self = Self::new(0, 0);
-
-    /// The largest value that can be represented by this integer type
-    /// (2<sup>256</sup> - 1).
-    ///
-    /// See [`u128::MAX`].
-    pub const MAX: Self = Self::new(u128::MAX, u128::MAX);
-
-    /// The size of this integer type in bits.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use i256::u256;
-    /// assert_eq!(u256::BITS, 256);
-    /// ```
-    ///
-    /// See [`u128::BITS`].
-    pub const BITS: u32 = 256;
-
-    /// The number of decimal digits for the largest magnitude value.
-    pub const MAX_DIGITS: usize = 78;
-
-    uint_impl_define!(i256, 256, i128, u128, unsigned);
+    uint_impl_define!(
+        self => u256,
+        signed_t => i256,
+        signed_wide_t => i128,
+        unsigned_wide_t => u128,
+        bits => 256,
+        max_digits => 78,
+        kind => unsigned,
+        short_circuit => false,
+    );
 
     /// Shifts the bits to the left by a specified amount, `n`,
     /// wrapping the truncated bits to the end of the resulting integer.
@@ -77,26 +59,6 @@ impl u256 {
     #[inline(always)]
     pub const fn rotate_right(self, n: u32) -> Self {
         let (lo, hi) = math::rotate_right_u128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the byte order of the integer.
-    ///
-    /// See [`u128::swap_bytes`].
-    #[inline(always)]
-    pub const fn swap_bytes(self) -> Self {
-        let (lo, hi) = math::swap_bytes_u128(self.low(), self.high());
-        Self::new(lo, hi)
-    }
-
-    /// Reverses the order of bits in the integer. The least significant
-    /// bit becomes the most significant bit, second least-significant bit
-    /// becomes second most-significant bit, etc.
-    ///
-    /// See [`u128::reverse_bits`].
-    #[inline(always)]
-    pub const fn reverse_bits(self) -> Self {
-        let (lo, hi) = math::reverse_bits_u128(self.low(), self.high());
         Self::new(lo, hi)
     }
 
@@ -552,6 +514,13 @@ impl u256 {
         value
     }
 
+    /// Create the 256-bit unsigned integer from a `u256`, as if by an `as`
+    /// cast.
+    #[inline(always)]
+    pub const fn from_unsigned(value: u256) -> Self {
+        Self::from_u256(value)
+    }
+
     /// Create the 256-bit unsigned integer from an `i128`, as if by an `as`
     /// cast.
     #[inline(always)]
@@ -586,6 +555,13 @@ impl u256 {
     #[inline(always)]
     pub const fn as_u256(&self) -> Self {
         *self
+    }
+
+    /// Convert the 256-bit unsigned integer to an `u256`, as if by an `as`
+    /// cast.
+    #[inline(always)]
+    pub const fn as_unsigned(&self) -> Self {
+        self.as_u256()
     }
 
     /// Convert the 256-bit unsigned integer to an `i128`, as if by an `as`
@@ -853,27 +829,6 @@ impl u256 {
         (Self::from_le_limbs(r), overflow)
     }
 
-    /// Div/Rem operation on a 256-bit integer.
-    ///
-    /// This allows storing of both the quotient and remainder without
-    /// making repeated calls.
-    ///
-    /// # Panics
-    ///
-    /// This panics if the divisor is 0.
-    #[inline]
-    pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
-        // NOTE: Our algorithm assumes little-endian order, which we might not have.
-        let x = self.to_le_limbs();
-        let y = n.to_le_limbs();
-
-        let (div, rem) = math::div_rem_full(&x, &y);
-        let div = Self::from_le_limbs(div);
-        let rem = Self::from_le_limbs(rem);
-
-        (div, rem)
-    }
-
     /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
     ///
     /// This is a convenience function: always prefer [`wrapping_div_rem`]
@@ -909,393 +864,7 @@ impl u256 {
     }
 }
 
-uint_traits_define!(u256);
-
-impl core::fmt::Binary for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for binary, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#b}", self.high())?;
-        } else {
-            core::write!(f, "{:b}", self.high())?;
-        }
-        core::write!(f, "{:b}", self.low())
-    }
-}
-
-impl core::fmt::Display for u256 {
-    #[inline]
-    #[allow(clippy::bind_instead_of_map)]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        if self.high() == 0 {
-            return core::fmt::Display::fmt(&self.low(), f);
-        }
-
-        let mut buffer = [0u8; Self::BITS as usize];
-        let bytes = self.to_str_radix(&mut buffer, 10);
-        let formatted = core::str::from_utf8(bytes).or_else(|_| Err(core::fmt::Error))?;
-        core::write!(f, "{}", formatted)
-    }
-}
-impl From<bool> for u256 {
-    #[inline(always)]
-    fn from(small: bool) -> Self {
-        Self::new(small as u128, 0)
-    }
-}
-
-impl From<char> for u256 {
-    #[inline(always)]
-    fn from(c: char) -> Self {
-        Self::new(c as u128, 0)
-    }
-}
-
-from_trait_define!(u256, u8, from_u8);
-from_trait_define!(u256, u16, from_u16);
-from_trait_define!(u256, u32, from_u32);
-from_trait_define!(u256, u64, from_u64);
-from_trait_define!(u256, u128, from_u128);
-
-impl core::fmt::LowerHex for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for hex, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#x}", self.high())?;
-        } else {
-            core::write!(f, "{:x}", self.high())?;
-        }
-        core::write!(f, "{:x}", self.low())
-    }
-}
-
-impl core::fmt::Octal for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This is **NOT** divisible by 8, so `log(128, 8)` is not integral.
-        // So, we can break it into pairs of u64.
-        let hi1 = (self.high() >> 64) as u64;
-        let hi0 = self.high() as u64;
-        let lo1 = (self.low() >> 64) as u64;
-        let lo0 = self.low() as u64;
-
-        let alternate = f.alternate();
-        let mut write = |x: u64, alt: bool| {
-            if alt {
-                core::write!(f, "{:#o}", x)
-            } else {
-                core::write!(f, "{:o}", x)
-            }
-        };
-        if hi1 != 0 {
-            write(hi1, alternate)?;
-            write(hi0, false)?;
-            write(lo1, false)?;
-            write(lo0, false)
-        } else if hi0 != 0 {
-            write(hi0, alternate)?;
-            write(lo1, false)?;
-            write(lo0, false)
-        } else if lo1 != 0 {
-            write(lo1, alternate)?;
-            write(lo0, false)
-        } else {
-            // NOTE: Always write at least a 0
-            write(lo0, alternate)
-        }
-    }
-}
-
-macro_rules! shift_const_impl {
-    (@shl $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shl_u128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
-    }};
-
-    (@shr $value:ident, $shift:ident) => {{
-        let (lo, hi) = math::shr_u128($value.low(), $value.high(), $shift as u32);
-        Self::new(lo, hi)
-    }};
-
-    (@nomod $t:ty, $shl:ident, $shr:ident) => (
-        /// Const evaluation of shl.
-        #[inline(always)]
-        pub const fn $shl(self, other: $t) -> Self {
-            let other = other as u32;
-            shift_const_impl!(@shl self, other)
-        }
-
-        /// Const evaluation of shr.
-        pub const fn $shr(self, other: $t) -> Self {
-            let other = other as u32;
-            shift_const_impl!(@shr self, other)
-        }
-    );
-
-    ($t:ty, $shl:ident, $shr:ident) => (
-        /// Const evaluation of shl.
-        ///
-        /// This behavior is wrapping: if `other >= 256`, this wraps.
-        #[inline(always)]
-        pub const fn $shl(self, other: $t) -> Self {
-            debug_assert!(other < 256, "attempt to shift left with overflow");
-            let other = other as u32;
-            shift_const_impl!(@shl self, other)
-        }
-
-        /// Const evaluation of shr.
-        ///
-        /// This behavior is wrapping: if `other >= 256`, this wraps.
-        pub const fn $shr(self, other: $t) -> Self {
-            debug_assert!(other < 256, "attempt to shift right with overflow");
-            let other = other as u32;
-            shift_const_impl!(@shr self, other)
-        }
-    );
-
-    (@256 $t:ty, $shl:ident, $shr:ident) => (
-        /// Const evaluation of shl.
-        ///
-        /// This behavior is wrapping: if `other >= 256`, this wraps.
-        #[inline(always)]
-        pub const fn $shl(self, other: $t) -> Self {
-            let max = Self::from_u16(256);
-            let other = other.as_u256();
-            debug_assert!(other.lt_const(max), "attempt to shift left with overflow");
-            let shift = (other.low() & (u32::MAX as u128)) as u32;
-            shift_const_impl!(@shl self, shift)
-        }
-
-        /// Const evaluation of shr.
-        ///
-        /// This behavior is wrapping: if `other >= 256`, this wraps.
-        pub const fn $shr(self, other: $t) -> Self {
-            let max = Self::from_u16(256);
-            let other = other.as_u256();
-            debug_assert!(other.lt_const(max), "attempt to shift right with overflow");
-            let shift = other.low() & (u32::MAX as u128);
-            shift_const_impl!(@shr self, shift)
-        }
-    );
-}
-
-// Const implementations for Shl
-impl u256 {
-    shift_const_impl!(@nomod i8, shl_i8, shr_i8);
-    shift_const_impl!(i16, shl_i16, shr_i16);
-    shift_const_impl!(i32, shl_i32, shr_i32);
-    shift_const_impl!(i64, shl_i64, shr_i64);
-    shift_const_impl!(i128, shl_i128, shr_i128);
-    shift_const_impl!(@256 i256, shl_i256, shr_i256);
-    shift_const_impl!(isize, shl_isize, shr_isize);
-    shift_const_impl!(@nomod u8, shl_u8, shr_u8);
-    shift_const_impl!(u16, shl_u16, shr_u16);
-    shift_const_impl!(u32, shl_u32, shr_u32);
-    shift_const_impl!(u64, shl_u64, shr_u64);
-    shift_const_impl!(u128, shl_u128, shr_u128);
-    shift_const_impl!(@256 u256, shl_u256, shr_u256);
-    shift_const_impl!(usize, shl_usize, shr_usize);
-}
-
-impl Shl for u256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shl(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shl self, shift)
-    }
-}
-
-ref_trait_define!(u256, Shl, shl, other: &u256);
-binop_ref_trait_define!(u256, Shl, shl);
-
-impl Shr for u256 {
-    type Output = Self;
-
-    #[inline(always)]
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn shr(self, other: Self) -> Self::Output {
-        let shift = other.low() & (u32::MAX as u128);
-        shift_const_impl!(@shr self, shift)
-    }
-}
-
-ref_trait_define!(u256, Shr, shr, other: &u256);
-binop_ref_trait_define!(u256, Shr, shr);
-
-macro_rules! shift_impl {
-    (@mod $($t:ty)*) => ($(
-        impl Shl<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn shl(self, other: $t) -> Self::Output {
-                let shift = other % 256;
-                shift_const_impl!(@shl self, shift)
-            }
-        }
-
-        impl Shr<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn shr(self, other: $t) -> Self::Output {
-                let shift = other % 256;
-                shift_const_impl!(@shr self, shift)
-            }
-        }
-    )*);
-
-    (@nomod $($t:ty)*) => ($(
-        impl Shl<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            fn shl(self, other: $t) -> Self::Output {
-                shift_const_impl!(@shl self, other)
-            }
-        }
-
-        impl Shr<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            fn shr(self, other: $t) -> Self::Output {
-                shift_const_impl!(@shr self, other)
-            }
-        }
-    )*);
-
-    (@256 $($t:ty)*) => ($(
-        impl Shl<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn shl(self, other: $t) -> Self::Output {
-                let shift = other % i256::from_u16(256);
-                let shift = shift.as_u32();
-                shift_const_impl!(@shl self, shift)
-            }
-        }
-
-        impl Shr<$t> for u256 {
-            type Output = Self;
-
-            #[inline(always)]
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn shr(self, other: $t) -> Self::Output {
-                let shift = other % i256::from_u16(256);
-                let shift = shift.as_u32();
-                shift_const_impl!(@shr self, shift)
-            }
-        }
-    )*);
-
-    ($($t:ty)*) => ($(
-        impl Shl<&$t> for u256 {
-            type Output = <Self as Shl>::Output;
-
-            #[inline(always)]
-            fn shl(self, other: &$t) -> Self::Output {
-                self.shl(*other)
-            }
-        }
-
-        impl ShlAssign<$t> for u256 {
-            #[inline(always)]
-            fn shl_assign(&mut self, other: $t) {
-                *self = self.shl(other);
-            }
-        }
-
-        impl ShlAssign<&$t> for u256 {
-            #[inline(always)]
-            fn shl_assign(&mut self, other: &$t) {
-                *self = self.shl(other);
-            }
-        }
-
-        impl Shr<&$t> for u256 {
-            type Output = <Self as Shr>::Output;
-
-            #[inline(always)]
-            fn shr(self, other: &$t) -> Self::Output {
-                self.shr(*other)
-            }
-        }
-
-        impl ShrAssign<$t> for u256 {
-            #[inline(always)]
-            fn shr_assign(&mut self, other: $t) {
-                *self = self.shr(other);
-            }
-        }
-
-        impl ShrAssign<&$t> for u256 {
-            #[inline(always)]
-            fn shr_assign(&mut self, other: &$t) {
-                *self = self.shr(other);
-            }
-        }
-    )*);
-}
-
-shift_impl! { @nomod i8 u8 }
-shift_impl! { @mod i16 i32 i64 i128 isize u16 u32 u64 u128 usize }
-shift_impl! { @256 i256 }
-shift_impl! { i8 i16 i32 i64 i128 i256 isize u8 u16 u32 u64 u128 usize }
-
-macro_rules! try_from_impl {
-    ($($t:ty)*) => ($(
-        impl TryFrom<$t> for u256 {
-            type Error = TryFromIntError;
-
-            #[inline(always)]
-            fn try_from(u: $t) -> Result<Self, TryFromIntError> {
-                if u >= 0 {
-                    Ok(Self::from_u128(u as u128))
-                } else {
-                    Err(TryFromIntError {})
-                }
-            }
-        }
-    )*);
-}
-
-try_from_impl! { i8 i16 i32 i64 i128 isize }
-
-impl TryFrom<i256> for u256 {
-    type Error = TryFromIntError;
-
-    #[inline(always)]
-    fn try_from(u: i256) -> Result<Self, TryFromIntError> {
-        if u.high() >= 0 {
-            Ok(u.as_u256())
-        } else {
-            Err(TryFromIntError {})
-        }
-    }
-}
-
-impl core::fmt::UpperHex for u256 {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        // NOTE: This works for hex, since the value as always divisible.
-        if f.alternate() {
-            core::write!(f, "{:#X}", self.high())?;
-        } else {
-            core::write!(f, "{:X}", self.high())?;
-        }
-        core::write!(f, "{:X}", self.low())
-    }
-}
+uint_traits_define!(type => u256, signed_type => i256);
 
 #[cfg(test)]
 mod tests {
@@ -1355,6 +924,77 @@ mod tests {
         let value = u256::new(0, 1);
         let result = format!("{:E}", value);
         assert_eq!("3.40282366920938463463374607431768211456E38", result);
+    }
+
+    #[test]
+    fn octal_test() {
+        let max = u256::MAX;
+        let result = format!("{:o}", max);
+        assert_eq!(
+            "17777777777777777777777777777777777777777777777777777777777777777777777777777777777777",
+            result
+        );
+
+        let result = format!("{:#o}", max);
+        assert_eq!(
+            "0o17777777777777777777777777777777777777777777777777777777777777777777777777777777777777",
+            result
+        );
+
+        let value = u256::new(0, 1);
+        let result = format!("{:o}", value);
+        assert_eq!("4000000000000000000000000000000000000000000", result);
+    }
+
+    #[test]
+    fn binary_test() {
+        let max = u256::MAX;
+        let result = format!("{:b}", max);
+        assert_eq!(
+            "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+            result
+        );
+
+        let result = format!("{:#b}", max);
+        assert_eq!(
+            "0b1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+            result
+        );
+
+        let value = u256::new(0, 1);
+        let result = format!("{:b}", value);
+        assert_eq!(
+            "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            result
+        );
+    }
+
+    #[test]
+    fn lower_hex_test() {
+        let max = u256::MAX;
+        let result = format!("{:x}", max);
+        assert_eq!("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", result);
+
+        let result = format!("{:#x}", max);
+        assert_eq!("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", result);
+
+        let value = u256::new(0, 1);
+        let result = format!("{:x}", value);
+        assert_eq!("100000000000000000000000000000000", result);
+    }
+
+    #[test]
+    fn upper_hex_test() {
+        let max = u256::MAX;
+        let result = format!("{:X}", max);
+        assert_eq!("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", result);
+
+        let result = format!("{:#X}", max);
+        assert_eq!("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", result);
+
+        let value = u256::new(0, 1);
+        let result = format!("{:X}", value);
+        assert_eq!("100000000000000000000000000000000", result);
     }
 
     #[inline(always)]

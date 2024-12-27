@@ -28,13 +28,16 @@
 // FIXME: Older versions of nightly may require the features
 // `const_bigint_helper_methods`. Remove this comment on 2025/01/01.
 
+#[macro_use]
+mod parse;
+#[macro_use]
+mod write;
+
 mod error;
+mod ints;
+
 // exposed only for testing
 pub mod math;
-
-mod ints;
-mod parse;
-mod write;
 
 pub use error::{IntErrorKind, ParseIntError, TryFromIntError};
 pub use ints::i256::{i256, i256 as I256};

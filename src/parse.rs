@@ -40,7 +40,7 @@ pub(crate) const fn char_to_digit(c: u8, radix: u32) -> Option<u32> {
 }
 
 // cannot overflow the buffer, no overflow checking
-#[macro_export]
+#[doc(hidden)]
 macro_rules! unchecked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
@@ -65,7 +65,7 @@ macro_rules! unchecked_loop {
 }
 
 // can overflow the buffer, uses overflow checking
-#[macro_export]
+#[doc(hidden)]
 macro_rules! checked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $overflow:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
@@ -96,6 +96,7 @@ macro_rules! checked_loop {
     }};
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! from_str_radix_define {
     ($is_signed:expr) => {
@@ -123,7 +124,6 @@ macro_rules! from_str_radix_define {
         ) -> Result<Self, $crate::error::ParseIntError> {
             use $crate::error::{IntErrorKind, ParseIntError};
             use $crate::parse::overflow_digits;
-            use $crate::{checked_loop, unchecked_loop};
 
             if radix < 2 || radix > 36 {
                 panic!("from_str_radix_int: must lie in the range `[2, 36]`");
@@ -162,5 +162,3 @@ macro_rules! from_str_radix_define {
         }
     };
 }
-
-pub(crate) use from_str_radix_define;

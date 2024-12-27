@@ -3,14 +3,41 @@
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
 
+/// Shared helper for indexing consistent across byte orders.
+macro_rules! be_index {
+    ($index:expr, $max:expr) => {{
+        if cfg!(target_endian = "big") {
+            $max - 1 - $index
+        } else {
+            $index
+        }
+    }};
+}
+
+macro_rules! limb_index {
+    ($index:expr) => {{
+        be_index!($index, Self::LIMBS)
+    }};
+}
+
+macro_rules! wide_index {
+    ($index:expr) => {{
+        be_index!($index, Self::WIDE)
+    }};
+}
+
 macro_rules! int_define {
-    ($name:ident, $bits:literal, $kind:ident) => {
+    (
+        name => $name:ident,
+        bits => $bits:literal,
+        kind => $kind:ident $(,)?
+    ) => {
+        #[rustfmt::skip]
         #[doc = concat!("The ", stringify!($bits), "-bit ", stringify!($kind), " integer type.")]
         ///
         /// The high and low words depend on the target endianness.
         /// Conversion to and from big endian should be done via
-        /// [`to_le_bytes`] and [`to_be_bytes`]. or using
-        /// [`high`] and [`low`].
+        /// [`to_le_bytes`] and [`to_be_bytes`].
         ///
         /// Our formatting specifications are limited: we ignore a
         /// lot of settings, and only respect [`alternate`] among the
@@ -21,12 +48,11 @@ macro_rules! int_define {
         /// underlying storage may use [`128-bit`] integers in the future
         /// which are not FFI-safe. If you would like to use this type
         /// within a FFI, use [`to_le_bytes`] and [`to_be_bytes`].
+        ///
         #[doc = concat!("[`to_le_bytes`]: ", stringify!($name), "::to_le_bytes")]
         #[doc = concat!("[`to_be_bytes`]: ", stringify!($name), "::to_be_bytes")]
-        #[doc = concat!("[`high`]: ", stringify!($name), "::high")]
-        #[doc = concat!("[`low`]: ", stringify!($name), "::low")]
-        /// [`alternate`]: fmt::Formatter::alternate
-        /// [`Binary`]: fmt::Binary
+        /// [`alternate`]: core::fmt::Formatter::alternate
+        /// [`Binary`]: core::fmt::Binary
         /// [`128-bit`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
         #[allow(non_camel_case_types)]
         #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
@@ -39,11 +65,52 @@ macro_rules! int_define {
     };
 }
 
+macro_rules! associated_consts_define {
+    (
+        bits =>
+        $bits:expr,max_digits =>
+        $max_digits:expr,wide_type =>
+        $wide_t:ty,low_type =>
+        $lo_t:ty,high_type =>
+        $hi_t:ty $(,)?
+    ) => {
+        /// The smallest value that can be represented by this integer type.
+        #[doc = concat!("See [`", stringify!($wide_t), "::MIN`].")]
+        #[allow(deprecated)]
+        pub const MIN: Self = Self::min_value();
+
+        /// The largest value that can be represented by this integer type
+        /// (2<sup>256</sup> - 1).
+        #[doc = concat!("See [`", stringify!($wide_t), "::MAX`].")]
+        #[allow(deprecated)]
+        pub const MAX: Self = Self::max_value();
+
+        /// The size of this integer type in bits.
+        ///
+        /// # Examples
+        ///
+        /// ```rust
+        /// # use i256::u256;
+        /// assert_eq!(u256::BITS, 256);
+        /// ```
+        #[doc = concat!("See [`", stringify!($wide_t), "::BITS`].")]
+        pub const BITS: u32 = $bits;
+
+        /// The number of decimal digits for the largest magnitude value.
+        pub const MAX_DIGITS: usize = $max_digits;
+    };
+}
+
 /// Define the high and low implementations for 4 limb implementations.
 ///
 /// This is specific for **ONLY** our 256-bit integers (4x 64-bit limbs).
 macro_rules! high_low_define {
-    ($t:ty, $lo_t:ty, $hi_t:ty, $kind:ident) => {
+    (
+        self => $t:ty,
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+        kind => $kind:ident $(,)?
+    ) => {
         /// Flatten two 128-bit integers as bytes to flat, 32 bytes.
         ///
         /// We keep this as a standalone function since Rust can sometimes
@@ -59,22 +126,6 @@ macro_rules! high_low_define {
             unsafe { core::mem::transmute::<[[u8; 16]; 2], [u8; Self::BYTES]>([x, y]) }
         }
 
-        /// Flatten a flat, 32 byte integer to two 128-bit integers as bytes.
-        ///
-        /// We keep this as a standalone function since Rust can sometimes
-        /// vectorize this in a way using purely safe Rust cannot, which
-        /// improves performance while ensuring we are very careful.
-        /// These are guaranteed to be plain old [`data`] with a fixed size
-        /// alignment, and padding.
-        ///
-        /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-        #[inline(always)]
-        const fn from_flat_bytes(bytes: [u8; Self::BYTES]) -> ([u8; 16], [u8; 16]) {
-            // SAFETY: plain old data
-            let r = unsafe { core::mem::transmute::<[u8; Self::BYTES], [[u8; 16]; 2]>(bytes) };
-            (r[0], r[1])
-        }
-
         #[doc = concat!("Create a new `", stringify!($t), "` from the low and high bits.")]
         #[inline(always)]
         pub const fn new(lo: $lo_t, hi: $hi_t) -> Self {
@@ -88,105 +139,253 @@ macro_rules! high_low_define {
             inst
         }
 
-        #[doc = concat!("/// Get the high ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
+        #[doc = concat!("Get the high ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
         #[inline(always)]
         pub const fn high(self) -> $hi_t {
             assert!(self.limbs.len() ==  4, "cannot get high bits with more than 4 limbs.");
-            if cfg!(target_endian = "big") {
-                let (hi, _) = Self::from_flat_bytes(self.to_be_bytes());
-                <$hi_t>::from_be_bytes(hi)
-            } else {
-                let (_, hi) = Self::from_flat_bytes(self.to_le_bytes());
-                <$hi_t>::from_le_bytes(hi)
-            }
+            self.get_wide(1) as $hi_t
         }
 
-        #[doc = concat!("/// Get the low ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
+        #[doc = concat!("Get the low ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
         #[inline(always)]
         pub const fn low(self) -> $lo_t {
             assert!(self.limbs.len() ==  4, "cannot get low bits with more than 4 limbs.");
-            if cfg!(target_endian = "big") {
-                let (_, lo) = Self::from_flat_bytes(self.to_be_bytes());
-                <$lo_t>::from_be_bytes(lo)
-            } else {
-                let (lo, _) = Self::from_flat_bytes(self.to_le_bytes());
-                <$lo_t>::from_le_bytes(lo)
-            }
+            self.get_wide(0) as $lo_t
+        }
+    };
+}
+
+macro_rules! cmp_define {
+    (
+        @ord
+        $lhs:ident,
+        $rhs:ident,
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+        op1 => $op1:tt ,
+        op2 => $op2:tt $(,)?
+    ) => {{
+        // The implied methods that are identical between short and non-circuiting options.
+        let lhs = $lhs.to_ne_wide();
+        let rhs = $rhs.to_ne_wide();
+
+        let mut i = Self::WIDE - 1;
+        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
+        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let mut is_ord = lhs_0 $op1 rhs_0;
+        let mut is_eq = lhs_0 == rhs_0;
+
+        while i > 0 && !is_ord && is_eq {
+            i -= 1;
+            let lhs_i = lhs[wide_index!(i)] as $lo_t;
+            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            is_ord = lhs_i $op2 rhs_i;
+            is_eq = lhs_i == rhs_i;
+        }
+        is_ord
+    }};
+
+    (
+        @cmp
+        $lhs:ident,
+        $rhs:ident,
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+    ) => {{
+        // The implied methods that are identical between short and non-circuiting options.
+        let lhs = $lhs.to_ne_wide();
+        let rhs = $rhs.to_ne_wide();
+
+        let mut i = Self::WIDE - 1;
+        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
+        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let mut is_eq = lhs_0 == rhs_0;
+        let mut is_lt = lhs_0 < rhs_0;
+        let mut is_gt = lhs_0 > rhs_0;
+
+        while i > 0 && !is_lt && !is_gt && is_eq {
+            i -= 1;
+            let lhs_i = lhs[wide_index!(i)] as $lo_t;
+            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            is_eq = lhs_i == rhs_i;
+            is_lt = lhs_i < rhs_i;
+            is_gt = lhs_i > rhs_i;
         }
 
-        /// Const implementation of `BitAnd`.
-        #[inline(always)]
-        pub const fn bitand_const(self, rhs: Self) -> Self {
-            Self::new(self.low() & rhs.low(), self.high() & rhs.high())
+        if is_lt {
+            core::cmp::Ordering::Less
+        } else if is_gt {
+            core::cmp::Ordering::Greater
+        } else {
+            core::cmp::Ordering::Equal
         }
+    }};
 
-        /// Const implementation of `BitOr`.
-        #[inline(always)]
-        pub const fn bitor_const(self, rhs: Self) -> Self {
-            Self::new(self.low() | rhs.low(), self.high() | rhs.high())
-        }
-
-        /// Const implementation of `BitXor`.
-        #[inline(always)]
-        pub const fn bitxor_const(self, rhs: Self) -> Self {
-            Self::new(self.low() ^ rhs.low(), self.high() ^ rhs.high())
-        }
-
-        /// Const implementation of `Not`.
-        #[inline(always)]
-        pub const fn not_const(self) -> Self {
-            Self::new(!self.low(), !self.high())
-        }
-
-        /// Const implementation of `Eq`.
+    (
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+        short_circuit => false $(,)?
+    ) => {
+        /// Non-short circuiting const implementation of `Eq`.
         #[inline(always)]
         pub const fn eq_const(self, rhs: Self) -> bool {
-            self.low() == rhs.low() && self.high() == rhs.high()
+            let lhs = self.to_ne_wide();
+            let rhs = rhs.to_ne_wide();
+            let mut is_eq = true;
+            let mut i = 0;
+            while i < Self::WIDE {
+                is_eq &= (lhs[i] == rhs[i]);
+                i += 1;
+            }
+            is_eq
         }
 
         // NOTE: Because of two's complement, these comparisons are always normal.
-        /// Const implementation of `PartialOrd::lt`.
+        // This can always be implemented in terms of the highest wide bit, then the
+        // rest as low.
+
+        /// Non-short circuiting const implementation of `PartialOrd::lt`.
         #[inline(always)]
         pub const fn lt_const(self, rhs: Self) -> bool {
-            self.high() < rhs.high() || (self.high() == rhs.high() && self.low() < rhs.low())
+            cmp_define!(
+                @ord
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+                op1 => <,
+                op2 => <,
+            )
         }
 
-        /// Const implementation of `PartialOrd::le`.
+        /// Non-short circuiting const implementation of `PartialOrd::le`.
         #[inline(always)]
         pub const fn le_const(self, rhs: Self) -> bool {
-            self.high() < rhs.high() || (self.high() == rhs.high() && self.low() <= rhs.low())
+            cmp_define!(
+                @ord
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+                op1 => <,
+                op2 => <=,
+            )
         }
 
-        /// Const implementation of `PartialOrd::gt`.
+        /// Non-short circuiting const implementation of `PartialOrd::gt`.
         #[inline(always)]
         pub const fn gt_const(self, rhs: Self) -> bool {
-            self.high() > rhs.high() || (self.high() == rhs.high() && self.low() > rhs.low())
+            !self.le_const(rhs)
         }
 
-        /// Const implementation of `PartialOrd::ge`.
+        /// Non-short circuiting const implementation of `PartialOrd::ge`.
         #[inline(always)]
         pub const fn ge_const(self, rhs: Self) -> bool {
-            self.high() > rhs.high() || (self.high() == rhs.high() && self.low() >= rhs.low())
+            !self.lt_const(rhs)
         }
 
-        /// Const implementation of `PartialOrd::cmp`.
+        /// Non-short circuiting const implementation of `PartialOrd::cmp`.
         #[inline(always)]
         pub const fn cmp_const(self, rhs: Self) -> core::cmp::Ordering {
-            let x0 = self.low();
-            let x1 = self.high();
-            let y0 = rhs.low();
-            let y1 = rhs.high();
-            if x1 < y1 {
-                core::cmp::Ordering::Less
-            } else if x1 > y1 {
-                core::cmp::Ordering::Greater
-            } else if x0 < y0 {
-                core::cmp::Ordering::Less
-            } else if x0 > y0 {
-                core::cmp::Ordering::Greater
-            } else {
-                core::cmp::Ordering::Equal
+            cmp_define!(
+                @cmp
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+            )
+        }
+    };
+
+    (
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+        short_circuit => true $(,)?
+    ) => {
+        /// Short-circuiting const implementation of `Eq`.
+        #[inline(always)]
+        pub const fn eq_const(self, rhs: Self) -> bool {
+            let lhs = self.to_ne_wide();
+            let rhs = rhs.to_ne_wide();
+            let mut is_eq = true;
+            let mut i = 0;
+            while i < Self::WIDE && is_eq {
+                is_eq &= (lhs[i] == rhs[i]);
+                i += 1;
             }
+            is_eq
+        }
+
+        // NOTE: Because of two's complement, these comparisons are always normal.
+        // This can always be implemented in terms of the highest wide bit, then the
+        // rest as low.
+
+        /// Short circuiting const implementation of `PartialOrd::lt`.
+        #[inline(always)]
+        pub const fn lt_const(self, rhs: Self) -> bool {
+            cmp_define!(
+                @ord
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+                op1 => <,
+                op2 => <,
+            )
+        }
+
+        /// Short circuiting const implementation of `PartialOrd::le`.
+        #[inline(always)]
+        pub const fn le_const(self, rhs: Self) -> bool {
+            cmp_define!(
+                @ord
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+                op1 => <,
+                op2 => <=,
+            )
+        }
+
+        /// Short circuiting const implementation of `PartialOrd::gt`.
+        #[inline(always)]
+        pub const fn gt_const(self, rhs: Self) -> bool {
+            !self.le_const(rhs)
+        }
+
+        /// Short circuiting const implementation of `PartialOrd::ge`.
+        #[inline(always)]
+        pub const fn ge_const(self, rhs: Self) -> bool {
+            !self.lt_const(rhs)
+        }
+
+        /// Short-circuiting const implementation of `PartialOrd::cmp`.
+        #[inline(always)]
+        pub const fn cmp_const(self, rhs: Self) -> core::cmp::Ordering {
+            cmp_define!(
+                @cmp
+                self,
+                rhs,
+                low_type => $lo_t,
+                high_type => $hi_t,
+            )
+        }
+    };
+}
+
+macro_rules! extensions_define {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
+        /// Get if the integer is even.
+        #[inline(always)]
+        pub const fn is_even(self) -> bool {
+            self.get_limb(0) % 2 == 0
+        }
+
+        /// Get if the integer is odd.
+        #[inline(always)]
+        pub const fn is_odd(self) -> bool {
+            !self.is_even()
         }
     };
 }
@@ -203,131 +402,112 @@ macro_rules! high_low_define {
 /// - `Self::as_i256`
 ///
 /// And any `as_` and `from_` methods for higher-order types.
-macro_rules! extensions_define {
-    ($bits:expr, $kind:ident) => {
-        /// Get the limb indexing from the least-significant order.
-        #[inline(always)]
-        const fn limb(self, index: usize) -> $crate::ULimb {
-            if cfg!(target_endian = "big") {
-                self.limbs[self.limbs.len() - 1 - index]
-            } else {
-                self.limbs[index]
-            }
-        }
-
-        /// Get if the integer is even.
-        #[inline(always)]
-        pub const fn is_even(self) -> bool {
-            self.limb(0) % 2 == 0
-        }
-
-        /// Get if the integer is odd.
-        #[inline(always)]
-        pub const fn is_odd(self) -> bool {
-            !self.is_even()
-        }
-
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u8`, as if by an `as` cast.")]
+macro_rules! casts_define {
+    (
+        bits => $bits:expr,
+        kind => $kind:ident $(,)?
+    ) => {
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_u8(value: u8) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u16`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u16`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_u16(value: u16) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u32`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u32`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_u32(value: u32) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u64`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u64`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_u64(value: u64) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned limb, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned limb, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_ulimb(value: $crate::ULimb) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned wide type, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned wide type, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_uwide(value: $crate::UWide) -> Self {
             Self::from_u128(value as u128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i8`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_i8(value: i8) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i16`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i16`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_i16(value: i16) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i32`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i32`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_i32(value: i32) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i64`, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i64`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn from_i64(value: i64) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed limb, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed limb, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_ilimb(value: $crate::ILimb) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed wide type, as if by an `as` cast.")]
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed wide type, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_iwide(value: $crate::IWide) -> Self {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u8`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u8(&self) -> u8 {
             self.as_u32() as u8
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u16`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u16`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u16(&self) -> u16 {
             self.as_u32() as u16
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u32`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u32`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u32(&self) -> u32 {
             self.as_u128() as u32
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u64`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u64`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u64(&self) -> u64 {
             self.as_u128() as u64
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned limb, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned limb, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_ulimb(&self) -> $crate::ULimb {
@@ -335,7 +515,7 @@ macro_rules! extensions_define {
             self.as_u128() as $crate::ULimb
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned wide type, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned wide type, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_uwide(&self) -> $crate::UWide {
@@ -343,31 +523,31 @@ macro_rules! extensions_define {
             self.as_u128() as $crate::UWide
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i8`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_i8(&self) -> i8 {
             self.as_i128() as i8
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i16`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i16`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_i16(&self) -> i16 {
             self.as_i128() as i16
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i32`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i32`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_i32(&self) -> i32 {
             self.as_i128() as i32
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i64`, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i64`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_i64(&self) -> i64 {
             self.as_i128() as i64
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed limb, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed limb, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_ilimb(&self) -> $crate::ILimb {
@@ -375,7 +555,7 @@ macro_rules! extensions_define {
             self.as_i128() as $crate::ILimb
         }
 
-        #[doc = concat!("/// Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed wide type, as if by an `as` cast.")]
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed wide type, as if by an `as` cast.")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_iwide(&self) -> $crate::IWide {
@@ -385,25 +565,95 @@ macro_rules! extensions_define {
     };
 }
 
-/// Define the byte swap accessory methods.
-///
-/// In order for this to be correctly implemented, the following
-/// helpers must be defined:
-/// - `Self::swap_bytes`
-macro_rules! convert_define {
-    ($t:ty, $wide_t:ty) => {
+macro_rules! byte_order_define {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// The number of bytes in the type.
         const BYTES: usize = Self::BITS as usize / 8;
 
         /// The number of limbs in the type.
         const LIMBS: usize = Self::BYTES / core::mem::size_of::<$crate::ULimb>();
 
+        /// The number of wide values in the type.
+        const WIDE: usize = Self::BYTES / core::mem::size_of::<$crate::UWide>();
+
+        /// Get the limb indexing from the least-significant order.
+        #[inline(always)]
+        const fn get_limb(self, index: usize) -> $crate::ULimb {
+            self.limbs[limb_index!(index)]
+        }
+
+        /// Get the wide value indexing from the least-significant order.
+        ///
+        /// This optimizes extremely well, if the index is known ahead of time
+        /// into 2 `mov` instructions, that is, as efficient as can be.
+        #[inline(always)]
+        const fn get_wide(self, index: usize) -> $crate::UWide {
+            const LIMB_BYTES: usize = core::mem::size_of::<$crate::ULimb>();
+            const WIDE_BYTES: usize = core::mem::size_of::<$crate::UWide>();
+            assert!(WIDE_BYTES / LIMB_BYTES == 2);
+            assert!(index < Self::WIDE, "index must be less than the total wide values");
+
+            // NOTE: We can just grab the bytes based on the indexes,
+            // and break it into 2 limbs and then build it in native
+            // ending order.
+            let offset = if cfg!(target_endian = "big") {
+                Self::LIMBS - 2 * (index + 1)
+            } else {
+                2 * index
+            };
+            let lo = self.limbs[offset].to_ne_bytes();
+            let hi = self.limbs[offset + 1].to_ne_bytes();
+
+            // convert as via a transmute to our wide type and transmute
+            // SAFETY: plain old data
+            let bytes = unsafe {
+                core::mem::transmute::<[[u8; LIMB_BYTES]; 2], [u8; WIDE_BYTES]>([lo, hi])
+            };
+            $crate::UWide::from_ne_bytes(bytes)
+        }
+
+        /// Reverses the byte order of the integer.
+        ///
+        /// # Assembly
+        ///
+        /// This optimizes very nicely, with efficient `bswap` or `rol`
+        /// implementations for each.
+        #[doc = concat!("See [`", stringify!($wide_t), "::swap_bytes`].")]
+        #[inline]
+        pub const fn swap_bytes(self) -> Self {
+            let mut r = Self {
+                limbs: [0; Self::LIMBS],
+            };
+            let mut i = 0;
+            while i < 4 {
+                r.limbs[i] = self.limbs[Self::LIMBS - 1 - i].swap_bytes();
+                i += 1;
+            }
+            r
+        }
+
+        /// Reverses the order of bits in the integer. The least significant
+        /// bit becomes the most significant bit, second least-significant bit
+        /// becomes second most-significant bit, etc.
+        #[doc = concat!("See [`", stringify!($wide_t), "::reverse_bits`].")]
+        #[inline(always)]
+        pub const fn reverse_bits(self) -> Self {
+            let mut r = Self {
+                limbs: [0; Self::LIMBS],
+            };
+            let mut i = 0;
+            while i < 4 {
+                r.limbs[i] = self.limbs[Self::LIMBS - 1 - i].reverse_bits();
+                i += 1;
+            }
+            r
+        }
+
         /// Converts an integer from big endian to the target's endianness.
         ///
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
-        ///
-        /// See [`u128::from_be`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::from_be`].")]
         #[inline(always)]
         pub const fn from_be(x: Self) -> Self {
             if cfg!(target_endian = "big") {
@@ -417,8 +667,7 @@ macro_rules! convert_define {
         ///
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
-        ///
-        /// See [`u128::from_le`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::from_le`].")]
         #[inline(always)]
         pub const fn from_le(x: Self) -> Self {
             if cfg!(target_endian = "little") {
@@ -432,8 +681,7 @@ macro_rules! convert_define {
         ///
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
-        ///
-        /// See [`u128::to_be`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::to_be`].")]
         #[inline(always)]
         pub const fn to_be(self) -> Self {
             if cfg!(target_endian = "big") {
@@ -447,8 +695,7 @@ macro_rules! convert_define {
         ///
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
-        ///
-        /// See [`u128::to_le`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::to_le`].")]
         #[inline(always)]
         pub const fn to_le(self) -> Self {
             if cfg!(target_endian = "little") {
@@ -468,9 +715,11 @@ macro_rules! convert_define {
         ///
         /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
         #[inline(always)]
-        const fn from_limbs(limbs: [ULimb; Self::LIMBS]) -> [u8; Self::BYTES] {
+        const fn from_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> [u8; Self::BYTES] {
             // SAFETY: This is plain old data
-            unsafe { core::mem::transmute::<[ULimb; Self::LIMBS], [u8; Self::BYTES]>(limbs) }
+            unsafe {
+                core::mem::transmute::<[$crate::ULimb; Self::LIMBS], [u8; Self::BYTES]>(limbs)
+            }
         }
 
         /// Convert flat bytes to an array of limbs.
@@ -483,15 +732,14 @@ macro_rules! convert_define {
         ///
         /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
         #[inline(always)]
-        const fn to_limbs(bytes: [u8; Self::BYTES]) -> [ULimb; Self::LIMBS] {
+        const fn to_limbs(bytes: [u8; Self::BYTES]) -> [$crate::ULimb; Self::LIMBS] {
             // SAFETY: This is plain old data
             unsafe { core::mem::transmute(bytes) }
         }
 
         /// Returns the memory representation of this integer as a byte array in
         /// big-endian (network) byte order.
-        ///
-        /// See [`i128::to_be_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::to_be_bytes`].")]
         #[inline(always)]
         pub const fn to_be_bytes(self) -> [u8; Self::BYTES] {
             Self::from_limbs(self.to_be_limbs())
@@ -499,8 +747,7 @@ macro_rules! convert_define {
 
         /// Returns the memory representation of this integer as a byte array in
         /// little-endian byte order.
-        ///
-        /// See [`i128::to_le_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::to_le_bytes`].")]
         #[inline(always)]
         pub const fn to_le_bytes(self) -> [u8; Self::BYTES] {
             Self::from_limbs(self.to_le_limbs())
@@ -509,14 +756,14 @@ macro_rules! convert_define {
         /// Returns the memory representation of this as a series of limbs in
         /// big-endian (network) byte order.
         #[inline(always)]
-        pub const fn to_be_limbs(self) -> [ULimb; Self::LIMBS] {
+        pub const fn to_be_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             self.to_be().limbs
         }
 
         /// Returns the memory representation of this as a series of limbs in
         /// little-endian byte order.
         #[inline(always)]
-        pub const fn to_le_limbs(self) -> [ULimb; Self::LIMBS] {
+        pub const fn to_le_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             self.to_le().limbs
         }
 
@@ -529,8 +776,41 @@ macro_rules! convert_define {
         /// [`to_be_limbs`]: Self::to_be_limbs
         /// [`to_le_limbs`]: Self::to_le_limbs
         #[inline(always)]
-        pub const fn to_ne_limbs(self) -> [ULimb; Self::LIMBS] {
+        pub const fn to_ne_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             self.limbs
+        }
+
+        /// Returns the memory representation of this as a series of wide in
+        /// big-endian (network) byte order.
+        #[inline(always)]
+        pub const fn to_be_wide(self) -> [$crate::UWide; Self::WIDE] {
+            self.to_be().to_ne_wide()
+        }
+
+        /// Returns the memory representation of this as a series of wide in
+        /// little-endian byte order.
+        #[inline(always)]
+        pub const fn to_le_wide(self) -> [$crate::UWide; Self::WIDE] {
+            self.to_le().to_ne_wide()
+        }
+
+        /// Returns the memory representation of this as a series of wide.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_wide`] or [`to_le_wide`], as appropriate,
+        /// instead.
+        ///
+        /// [`to_be_wide`]: Self::to_be_wide
+        /// [`to_le_wide`]: Self::to_le_wide
+        #[inline(always)]
+        pub const fn to_ne_wide(self) -> [$crate::UWide; Self::WIDE] {
+            let limbs = self.to_ne_limbs();
+            // SAFETY: plain old data
+            unsafe {
+                core::mem::transmute::<[$crate::ULimb; Self::LIMBS], [$crate::UWide; Self::WIDE]>(
+                    limbs,
+                )
+            }
         }
 
         /// Returns the memory representation of this integer as a byte array in
@@ -539,8 +819,7 @@ macro_rules! convert_define {
         /// As the target platform's native endianness is used, portable code
         /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
         /// instead.
-        ///
-        /// See [`i128::to_ne_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::to_ne_bytes`].")]
         ///
         /// [`to_be_bytes`]: Self::to_be_bytes
         /// [`to_le_bytes`]: Self::to_le_bytes
@@ -551,8 +830,7 @@ macro_rules! convert_define {
 
         /// Creates a native endian integer value from its representation
         /// as a byte array in big endian.
-        ///
-        /// See [`i128::from_be_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::from_be_bytes`].")]
         #[inline(always)]
         pub const fn from_be_bytes(bytes: [u8; Self::BYTES]) -> Self {
             Self::from_be_limbs(Self::to_limbs(bytes))
@@ -560,8 +838,7 @@ macro_rules! convert_define {
 
         /// Creates a native endian integer value from its representation
         /// as a byte array in little endian.
-        ///
-        /// See [`i128::from_le_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::from_le_bytes`].")]
         #[inline(always)]
         pub const fn from_le_bytes(bytes: [u8; Self::BYTES]) -> Self {
             Self::from_le_limbs(Self::to_limbs(bytes))
@@ -573,8 +850,7 @@ macro_rules! convert_define {
         /// As the target platform's native endianness is used, portable code
         /// likely wants to use [`from_be_bytes`] or [`from_le_bytes`], as
         /// appropriate instead.
-        ///
-        /// See [`i128::from_ne_bytes`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::from_ne_bytes`].")]
         ///
         /// [`from_be_bytes`]: Self::from_be_bytes
         /// [`from_le_bytes`]: Self::from_le_bytes
@@ -585,7 +861,7 @@ macro_rules! convert_define {
 
         /// Swap the order of limbs, useful for re-arranging for BE/LE order.
         #[inline(always)]
-        const fn swap_limbs(limbs: [ULimb; Self::LIMBS]) -> [ULimb; Self::LIMBS] {
+        const fn swap_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> [$crate::ULimb; Self::LIMBS] {
             let mut res = [0; Self::LIMBS];
             let mut i = 0;
             while i < Self::LIMBS {
@@ -598,7 +874,7 @@ macro_rules! convert_define {
         /// Creates a native endian integer value from its representation
         /// as limbs in big endian.
         #[inline(always)]
-        pub const fn from_be_limbs(limbs: [ULimb; Self::LIMBS]) -> Self {
+        pub const fn from_be_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_limbs(limbs)
             } else {
@@ -609,7 +885,7 @@ macro_rules! convert_define {
         /// Creates a native endian integer value from its representation
         /// as limbs in little endian.
         #[inline(always)]
-        pub const fn from_le_limbs(limbs: [ULimb; Self::LIMBS]) -> Self {
+        pub const fn from_le_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_limbs(Self::swap_limbs(limbs))
             } else {
@@ -627,10 +903,64 @@ macro_rules! convert_define {
         /// [`from_be_limbs`]: Self::from_be_limbs
         /// [`from_le_limbs`]: Self::from_le_limbs
         #[inline(always)]
-        pub const fn from_ne_limbs(limbs: [ULimb; Self::LIMBS]) -> Self {
+        pub const fn from_ne_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             Self {
                 limbs,
             }
+        }
+
+        /// Swap the order of the wide type, useful for re-arranging for BE/LE order.
+        #[inline(always)]
+        const fn swap_wide(wide: [$crate::UWide; Self::WIDE]) -> [$crate::UWide; Self::WIDE] {
+            let mut res = [0; Self::WIDE];
+            let mut i = 0;
+            while i < Self::WIDE {
+                res[i] = wide[Self::WIDE - i - 1];
+                i += 1;
+            }
+            res
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as a wide type in big endian.
+        #[inline(always)]
+        pub const fn from_be_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_wide(wide)
+            } else {
+                Self::from_ne_wide(Self::swap_wide(wide))
+            }
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as a wide type in little endian.
+        #[inline(always)]
+        pub const fn from_le_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_wide(Self::swap_wide(wide))
+            } else {
+                Self::from_ne_wide(wide)
+            }
+        }
+
+        /// Creates a native endian integer value from its memory representation
+        /// as a wide type in native endianness.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// likely wants to use [`from_be_wide`] or [`from_le_wide`], as
+        /// appropriate instead.
+        ///
+        /// [`from_be_wide`]: Self::from_be_wide
+        /// [`from_le_wide`]: Self::from_le_wide
+        #[inline(always)]
+        pub const fn from_ne_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
+            // SAFETY: plain old data
+            let limbs = unsafe {
+                core::mem::transmute::<[$crate::UWide; Self::WIDE], [$crate::ULimb; Self::LIMBS]>(
+                    wide,
+                )
+            };
+            Self::from_ne_limbs(limbs)
         }
     };
 }
@@ -639,15 +969,15 @@ macro_rules! convert_define {
 ///
 /// See the bench on `bit_algos` for some of the choices.
 macro_rules! bitops_define {
-    ($wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Returns the number of ones in the binary representation of `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::count_ones`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::count_ones`].")]
         #[inline(always)]
         pub const fn count_ones(self) -> u32 {
             // NOTE: Rust vectorizes this nicely on x86_64.
             let mut count = 0;
             let mut i = 0;
-            while i < self.limbs.len() {
+            while i < Self::LIMBS {
                 count += self.limbs[i].count_ones();
                 i += 1;
             }
@@ -655,7 +985,7 @@ macro_rules! bitops_define {
         }
 
         /// Returns the number of zeros in the binary representation of `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::count_zeros`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::count_zeros`].")]
         #[inline(always)]
         pub const fn count_zeros(self) -> u32 {
             self.not_const().count_ones()
@@ -684,13 +1014,13 @@ macro_rules! bitops_define {
         /// let max = i256::MAX;
         /// assert_eq!(max.leading_zeros(), 1);
         /// ```
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::leading_zeros`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::leading_zeros`].")]
         #[inline]
         pub const fn leading_zeros(self) -> u32 {
             let mut count = 0;
             let mut i = 0;
             while i < Self::LIMBS && count == i as u32 * $crate::ULimb::BITS {
-                count += self.limb(Self::LIMBS - i - 1).leading_zeros();
+                count += self.get_limb(Self::LIMBS - i - 1).leading_zeros();
                 i += 1;
             }
             count
@@ -698,13 +1028,13 @@ macro_rules! bitops_define {
 
         /// Returns the number of trailing zeros in the binary representation of
         /// `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::trailing_zeros`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::trailing_zeros`].")]
         #[inline]
         pub const fn trailing_zeros(self) -> u32 {
             let mut count = 0;
             let mut i = 0;
             while i < Self::LIMBS && count == i as u32 * $crate::ULimb::BITS {
-                count += self.limb(i).trailing_zeros();
+                count += self.get_limb(i).trailing_zeros();
                 i += 1;
             }
             count
@@ -712,7 +1042,7 @@ macro_rules! bitops_define {
 
         /// Returns the number of leading ones in the binary representation of
         /// `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::leading_ones`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::leading_ones`].")]
         #[inline(always)]
         pub const fn leading_ones(self) -> u32 {
             self.not_const().leading_zeros()
@@ -720,10 +1050,67 @@ macro_rules! bitops_define {
 
         /// Returns the number of trailing ones in the binary representation of
         /// `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::trailing_ones`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::trailing_ones`].")]
         #[inline(always)]
         pub const fn trailing_ones(self) -> u32 {
             self.not_const().trailing_zeros()
+        }
+
+        // NOTE: These optimize super well, and flatten out entirely.
+
+        /// Const implementation of `BitAnd`.
+        #[inline(always)]
+        pub const fn bitand_const(self, rhs: Self) -> Self {
+            let lhs_limbs = self.to_ne_limbs();
+            let rhs_limbs = rhs.to_ne_limbs();
+            let mut result = [0; Self::LIMBS];
+            let mut i = 0;
+            while i < Self::LIMBS {
+                result[i] = lhs_limbs[i] & rhs_limbs[i];
+                i += 1;
+            }
+            Self::from_ne_limbs(result)
+        }
+
+        /// Const implementation of `BitOr`.
+        #[inline(always)]
+        pub const fn bitor_const(self, rhs: Self) -> Self {
+            let lhs_limbs = self.to_ne_limbs();
+            let rhs_limbs = rhs.to_ne_limbs();
+            let mut result = [0; Self::LIMBS];
+            let mut i = 0;
+            while i < Self::LIMBS {
+                result[i] = lhs_limbs[i] | rhs_limbs[i];
+                i += 1;
+            }
+            Self::from_ne_limbs(result)
+        }
+
+        /// Const implementation of `BitXor`.
+        #[inline(always)]
+        pub const fn bitxor_const(self, rhs: Self) -> Self {
+            let lhs_limbs = self.to_ne_limbs();
+            let rhs_limbs = rhs.to_ne_limbs();
+            let mut result = [0; Self::LIMBS];
+            let mut i = 0;
+            while i < Self::LIMBS {
+                result[i] = lhs_limbs[i] ^ rhs_limbs[i];
+                i += 1;
+            }
+            Self::from_ne_limbs(result)
+        }
+
+        /// Const implementation of `Not`.
+        #[inline(always)]
+        pub const fn not_const(self) -> Self {
+            let limbs = self.to_ne_limbs();
+            let mut result = [0; Self::LIMBS];
+            let mut i = 0;
+            while i < Self::LIMBS {
+                result[i] = !limbs[i];
+                i += 1;
+            }
+            Self::from_ne_limbs(result)
         }
     };
 }
@@ -735,125 +1122,82 @@ macro_rules! bitops_define {
 /// This requires the `wrapping_*` and `overflowing_*` variants to be defined,
 /// as well as `div_euclid` and `rem_euclid` to be defined.
 macro_rules! ops_define {
-    ($t:ty, $wide_t:ty) => {
-        /// Checked integer addition. Computes `self + rhs`, returning `None`
-        /// if overflow occurred.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_add`].")]
-        #[inline(always)]
-        pub const fn checked_add(self, rhs: Self) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_add(rhs);
-            if !overflowed {
-                Some(value)
+    (type => $t:ty,wide_type => $wide_t:ty) => {
+        /// Raises self to the power of `exp`, using exponentiation by squaring.
+        #[doc = concat!("See [`", stringify!($wide_t), "::pow`].")]
+        #[inline]
+        pub const fn pow(self, exp: u32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_pow(exp)
             } else {
-                None
+                self.strict_pow(exp)
             }
         }
 
-        /// Checked integer subtraction. Computes `self - rhs`, returning `None`
-        /// if overflow occurred.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_sub`].")]
+        /// Div/Rem operation on a 256-bit integer.
+        ///
+        /// This allows storing of both the quotient and remainder without
+        /// making repeated calls.
+        ///
+        /// # Panics
+        ///
+        /// This panics if the divisor is 0.
         #[inline(always)]
-        pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_sub(rhs);
-            if !overflowed {
-                Some(value)
+        pub fn div_rem(self, n: Self) -> (Self, Self) {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_div_rem(n)
             } else {
-                None
+                match self.checked_div_rem(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to divide with overflow"),
+                }
             }
         }
+    };
+}
 
-        /// Checked integer multiplication. Computes `self * rhs`, returning `None`
-        /// if overflow occurred.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_mul`].")]
-        #[inline(always)]
-        pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_mul(rhs);
-            if !overflowed {
-                Some(value)
-            } else {
-                None
-            }
+macro_rules! bigint_define {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
+        /// Calculates `self` + `rhs` + `carry` and returns a tuple containing
+        /// the sum and the output carry.
+        ///
+        /// Performs "ternary addition" of two integer operands and a carry-in
+        /// bit, and returns an output integer and a carry-out bit. This allows
+        /// chaining together multiple additions to create a wider addition, and
+        /// can be useful for bignum addition.
+        #[doc = concat!("See [`", stringify!($wide_t), "::carrying_add`].")]
+        #[inline]
+        #[must_use]
+        pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+            let (a, b) = self.overflowing_add(rhs);
+            let (c, d) = a.overflowing_add(Self::from_u8(carry as u8));
+            (c, b | d)
         }
 
-        /// Checked integer division. Computes `self / rhs`, returning `None`
-        /// `rhs == 0` or the division results in overflow (signed only).
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_div`].")]
-        #[inline(always)]
-        pub fn checked_div(self, rhs: Self) -> Option<Self> {
-            if self.is_div_none(rhs) {
-                None
-            } else {
-                Some(self.wrapping_div(rhs))
-            }
+        /// Calculates `self` &minus; `rhs` &minus; `borrow` and returns a tuple
+        /// containing the difference and the output borrow.
+        ///
+        /// Performs "ternary subtraction" by subtracting both an integer
+        /// operand and a borrow-in bit from `self`, and returns an output
+        /// integer and a borrow-out bit. This allows chaining together multiple
+        /// subtractions to create a wider subtraction, and can be useful for
+        /// bignum subtraction.
+        #[doc = concat!("See [`", stringify!($wide_t), "::borrowing_sub`].")]
+        #[inline]
+        #[must_use]
+        pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+            let (a, b) = self.overflowing_sub(rhs);
+            let (c, d) = a.overflowing_sub(Self::from_u8(borrow as u8));
+            (c, b | d)
         }
+    };
+}
 
-        /// Checked integer division. Computes `self % rhs`, returning `None`
-        /// `rhs == 0` or the division results in overflow (signed only).
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_rem`].")]
-        #[inline(always)]
-        pub fn checked_rem(self, rhs: Self) -> Option<Self> {
-            if self.is_div_none(rhs) {
-                None
-            } else {
-                Some(self.wrapping_rem(rhs))
-            }
-        }
-
-        /// Checked Euclidean division. Computes `self.div_euclid(rhs)`,
-        /// returning `None` if `rhs == 0` or the division results in
-        /// overflow (signed only).
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_div_euclid`].")]
-        #[inline(always)]
-        pub fn checked_div_euclid(self, rhs: Self) -> Option<Self> {
-            if self.is_div_none(rhs) {
-                None
-            } else {
-                Some(self.wrapping_div_euclid(rhs))
-            }
-        }
-
-        /// Checked Euclidean modulo. Computes `self.rem_euclid(rhs)`,
-        /// returning `None` if `rhs == 0` or the division results in
-        /// overflow (signed only).
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_rem_euclid`].")]
-        #[inline(always)]
-        pub fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
-            if self.is_div_none(rhs) {
-                None
-            } else {
-                Some(self.wrapping_rem_euclid(rhs))
-            }
-        }
-
-        /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is
-        /// larger than or equal to the number of bits in `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_shl`].")]
-        #[inline(always)]
-        pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
-            // Not using overflowing_shl as that's a wrapping shift
-            if rhs < Self::BITS {
-                Some(self.wrapping_shl(rhs))
-            } else {
-                None
-            }
-        }
-
-        /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs`
-        /// is larger than or equal to the number of bits in `self`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_shr`].")]
-        #[inline(always)]
-        pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
-            // Not using overflowing_shr as that's a wrapping shift
-            if rhs < Self::BITS {
-                Some(self.wrapping_shr(rhs))
-            } else {
-                None
-            }
-        }
-
+macro_rules! wrapping_define {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
         /// wrapping around at the boundary of the type.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::wrapping_pow`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_pow`].")]
         #[inline]
         pub const fn wrapping_pow(self, mut exp: u32) -> Self {
             if exp == 0 {
@@ -876,12 +1220,16 @@ macro_rules! ops_define {
                 debug_assert!(exp != 0, "logic error in exponentiation, will infinitely loop");
             }
         }
+    };
+}
 
+macro_rules! overflowing_define {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Raises self to the power of `exp`, using exponentiation by squaring.
         ///
         /// Returns a tuple of the exponentiation along with a bool indicating
         /// whether an overflow happened.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::overflowing_pow`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_pow`].")]
         #[inline]
         pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {
             if exp == 0 {
@@ -912,61 +1260,6 @@ macro_rules! ops_define {
             }
         }
 
-        /// Raises self to the power of `exp`, using exponentiation by squaring.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::pow`].")]
-        #[inline]
-        pub const fn pow(self, exp: u32) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_pow(exp)
-            } else {
-                self.strict_pow(exp)
-            }
-        }
-
-        /// Checked exponentiation. Computes `self.pow(exp)`, returning `None`
-        /// if overflow occurred.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_pow`].")]
-        #[inline(always)]
-        pub const fn checked_pow(self, base: u32) -> Option<Self> {
-            match self.overflowing_pow(base) {
-                (value, false) => Some(value),
-                _ => None,
-            }
-        }
-
-        /// Div/Rem operation on a 256-bit integer.
-        ///
-        /// This allows storing of both the quotient and remainder without
-        /// making repeated calls.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        #[inline(always)]
-        pub fn div_rem(self, n: Self) -> (Self, Self) {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_div_rem(n)
-            } else {
-                match self.checked_div_rem(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to divide with overflow"),
-                }
-            }
-        }
-
-        /// Div/Rem operation on a 256-bit integer.
-        ///
-        /// This allows storing of both the quotient and remainder without
-        /// making repeated calls.
-        #[inline]
-        pub fn checked_div_rem(self, n: Self) -> Option<(Self, Self)> {
-            if self.is_div_none(n) {
-                None
-            } else {
-                Some(self.wrapping_div_rem(n))
-            }
-        }
-
         /// Div/Rem operation on a 256-bit integer.
         ///
         /// This allows storing of both the quotient and remainder without
@@ -986,69 +1279,157 @@ macro_rules! ops_define {
     };
 }
 
-macro_rules! bigint_define {
-    ($t:ty, $wide_t:ty) => {
-        /// Calculates `self` + `rhs` + `carry` and returns a tuple containing
-        /// the sum and the output carry.
-        ///
-        /// Performs "ternary addition" of two integer operands and a carry-in
-        /// bit, and returns an output integer and a carry-out bit. This allows
-        /// chaining together multiple additions to create a wider addition, and
-        /// can be useful for bignum addition.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::carrying_add`].")]
-        #[inline]
-        #[must_use]
-        pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
-            let (a, b) = self.overflowing_add(rhs);
-            let (c, d) = a.overflowing_add(Self::from_u8(carry as u8));
-            (c, b | d)
-        }
-
-        /// Calculates `self` &minus; `rhs` &minus; `borrow` and returns a tuple
-        /// containing the difference and the output borrow.
-        ///
-        /// Performs "ternary subtraction" by subtracting both an integer
-        /// operand and a borrow-in bit from `self`, and returns an output
-        /// integer and a borrow-out bit. This allows chaining together multiple
-        /// subtractions to create a wider subtraction, and can be useful for
-        /// bignum subtraction.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::borrowing_sub`].")]
-        #[inline]
-        #[must_use]
-        pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
-            let (a, b) = self.overflowing_sub(rhs);
-            let (c, d) = a.overflowing_sub(Self::from_u8(borrow as u8));
-            (c, b | d)
-        }
-    };
-}
-
-macro_rules! wrapping_define {
-    ($t:ty, $wide_t:ty) => {
-        // Currently a no-op
-        // These are mostly custom defined for simple and larger types.
-    };
-}
-
-macro_rules! overflowing_define {
-    ($t:ty, $wide_t:ty) => {
-        // Currently a no-op
-        // These are mostly custom defined for simple and larger types.
-    };
-}
-
 macro_rules! saturating_define {
-    ($t:ty, $wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         // Currently a no-op
     };
 }
 
 macro_rules! checked_define {
-    ($t:ty, $wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
+        /// Checked integer addition. Computes `self + rhs`, returning `None`
+        /// if overflow occurred.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_add`].")]
+        #[inline(always)]
+        pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_add(rhs);
+            if !overflowed {
+                Some(value)
+            } else {
+                None
+            }
+        }
+
+        /// Checked integer subtraction. Computes `self - rhs`, returning `None`
+        /// if overflow occurred.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_sub`].")]
+        #[inline(always)]
+        pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_sub(rhs);
+            if !overflowed {
+                Some(value)
+            } else {
+                None
+            }
+        }
+
+        /// Checked integer multiplication. Computes `self * rhs`, returning `None`
+        /// if overflow occurred.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_mul`].")]
+        #[inline(always)]
+        pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_mul(rhs);
+            if !overflowed {
+                Some(value)
+            } else {
+                None
+            }
+        }
+
+        /// Checked exponentiation. Computes `self.pow(exp)`, returning `None`
+        /// if overflow occurred.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_pow`].")]
+        #[inline(always)]
+        pub const fn checked_pow(self, base: u32) -> Option<Self> {
+            match self.overflowing_pow(base) {
+                (value, false) => Some(value),
+                _ => None,
+            }
+        }
+
+        /// Div/Rem operation on a 256-bit integer.
+        ///
+        /// This allows storing of both the quotient and remainder without
+        /// making repeated calls.
+        #[inline]
+        pub fn checked_div_rem(self, n: Self) -> Option<(Self, Self)> {
+            if self.is_div_none(n) {
+                None
+            } else {
+                Some(self.wrapping_div_rem(n))
+            }
+        }
+
+        /// Checked integer division. Computes `self / rhs`, returning `None`
+        /// `rhs == 0` or the division results in overflow (signed only).
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_div`].")]
+        #[inline(always)]
+        pub fn checked_div(self, rhs: Self) -> Option<Self> {
+            if self.is_div_none(rhs) {
+                None
+            } else {
+                Some(self.wrapping_div(rhs))
+            }
+        }
+
+        /// Checked integer division. Computes `self % rhs`, returning `None`
+        /// `rhs == 0` or the division results in overflow (signed only).
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_rem`].")]
+        #[inline(always)]
+        pub fn checked_rem(self, rhs: Self) -> Option<Self> {
+            if self.is_div_none(rhs) {
+                None
+            } else {
+                Some(self.wrapping_rem(rhs))
+            }
+        }
+
+        /// Checked Euclidean division. Computes `self.div_euclid(rhs)`,
+        /// returning `None` if `rhs == 0` or the division results in
+        /// overflow (signed only).
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_div_euclid`].")]
+        #[inline(always)]
+        pub fn checked_div_euclid(self, rhs: Self) -> Option<Self> {
+            if self.is_div_none(rhs) {
+                None
+            } else {
+                Some(self.wrapping_div_euclid(rhs))
+            }
+        }
+
+        /// Checked Euclidean modulo. Computes `self.rem_euclid(rhs)`,
+        /// returning `None` if `rhs == 0` or the division results in
+        /// overflow (signed only).
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_rem_euclid`].")]
+        #[inline(always)]
+        pub fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
+            if self.is_div_none(rhs) {
+                None
+            } else {
+                Some(self.wrapping_rem_euclid(rhs))
+            }
+        }
+
+        /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is
+        /// larger than or equal to the number of bits in `self`.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_shl`].")]
+        #[inline(always)]
+        pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
+            // Not using overflowing_shl as that's a wrapping shift
+            if rhs < Self::BITS {
+                Some(self.wrapping_shl(rhs))
+            } else {
+                None
+            }
+        }
+
+        /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs`
+        /// is larger than or equal to the number of bits in `self`.
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_shr`].")]
+        #[inline(always)]
+        pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
+            // Not using overflowing_shr as that's a wrapping shift
+            if rhs < Self::BITS {
+                Some(self.wrapping_shr(rhs))
+            } else {
+                None
+            }
+        }
+
         /// Returns the base 2 logarithm of the number, rounded down.
         ///
         /// Returns `None` if the number is negative or zero.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::checked_ilog2`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::checked_ilog2`].")]
         #[inline]
         pub const fn checked_ilog2(self) -> Option<u32> {
             match self.le_const(Self::from_u8(0)) {
@@ -1060,7 +1441,7 @@ macro_rules! checked_define {
 }
 
 macro_rules! strict_define {
-    ($t:ty, $wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Strict integer addition. Computes `self + rhs`, panicking
         /// if overflow occurred.
         ///
@@ -1070,7 +1451,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_add`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_add`].")]
         #[inline]
         #[must_use]
         pub const fn strict_add(self, rhs: Self) -> Self {
@@ -1089,7 +1470,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_sub`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_sub`].")]
         #[inline]
         #[must_use]
         pub const fn strict_sub(self, rhs: Self) -> Self {
@@ -1108,7 +1489,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_mul`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_mul`].")]
         #[inline]
         #[must_use]
         pub const fn strict_mul(self, rhs: Self) -> Self {
@@ -1127,7 +1508,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_pow`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_pow`].")]
         #[inline]
         #[must_use]
         pub const fn strict_pow(self, rhs: u32) -> Self {
@@ -1146,7 +1527,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_shl`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_shl`].")]
         #[inline]
         #[must_use]
         pub const fn strict_shl(self, rhs: u32) -> Self {
@@ -1165,7 +1546,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::strict_shr`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::strict_shr`].")]
         #[inline]
         #[must_use]
         pub const fn strict_shr(self, rhs: u32) -> Self {
@@ -1178,7 +1559,7 @@ macro_rules! strict_define {
 }
 
 macro_rules! unchecked_define {
-    ($t:ty, $wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Unchecked integer addition. Computes `self + rhs`, assuming overflow
         /// cannot occur.
         ///
@@ -1191,7 +1572,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::unchecked_add`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_add`].")]
         ///
         /// [`checked_add`]: Self::checked_add
         /// [`wrapping_add`]: Self::wrapping_add
@@ -1218,7 +1599,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::unchecked_sub`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_sub`].")]
         ///
         /// [`checked_sub`]: Self::checked_sub
         /// [`wrapping_sub`]: Self::wrapping_sub
@@ -1245,7 +1626,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::unchecked_mul`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_mul`].")]
         ///
         /// [`wrapping_mul`]: Self::wrapping_mul
         /// [`checked_mul`]: Self::checked_mul
@@ -1268,7 +1649,7 @@ macro_rules! unchecked_define {
         /// This results in undefined behavior if `rhs` is larger than
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shl`] would return `None`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::unchecked_shl`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_shl`].")]
         ///
         /// [`checked_shl`]: Self::checked_shl
         #[must_use]
@@ -1289,7 +1670,7 @@ macro_rules! unchecked_define {
         /// This results in undefined behavior if `rhs` is larger than
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shr`] would return `None`.
-        #[doc = concat!("/// See [`", stringify!($wide_t), "::unchecked_shr`].")]
+        #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_shr`].")]
         ///
         /// [`checked_shr`]: Self::checked_shr
         #[must_use]
@@ -1305,7 +1686,7 @@ macro_rules! unchecked_define {
 }
 
 macro_rules! unbounded_define {
-    ($t:ty, $wide_t:ty) => {
+    (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Unbounded shift left. Computes `self << rhs`, without bounding the value
         /// of `rhs`.
         ///
@@ -1338,7 +1719,7 @@ macro_rules! unbounded_define {
     };
 }
 
-macro_rules! limb_define {
+macro_rules! limb_ops_define {
     () => {
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
@@ -1492,7 +1873,7 @@ macro_rules! limb_define {
     };
 }
 
-macro_rules! wide_define {
+macro_rules! wide_ops_define {
     () => {
         /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
         /// This allows optimizations a full addition cannot do.
@@ -1822,6 +2203,120 @@ macro_rules! binop_ref_trait_define {
     };
 }
 
+macro_rules! shift_define {
+    (@mod base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(unused_comparisons)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    assert!(other < Self::BITS as $t && other >= 0, "attempt to shift left with overflow");
+                }
+                self.wrapping_shl(other as u32)
+            }
+        }
+
+        impl Shr<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(unused_comparisons)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    assert!(other < Self::BITS as $t && other >= 0, "attempt to shift right with overflow");
+                }
+                self.wrapping_shr(other as u32)
+            }
+        }
+    )*);
+
+    (@256 base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    let is_above = other.ge_const(<$t>::from_u32(Self::BITS));
+                    let is_below = other.lt_const(<$t>::from_u32(0));
+                    let is_overflow = is_above || is_below;
+                    assert!(!is_overflow, "attempt to shift right with overflow");
+                }
+                self.wrapping_shl(other.as_u32())
+            }
+        }
+
+        impl Shr<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    let is_above = other.ge_const(<$t>::from_u32(Self::BITS));
+                    let is_below = other.lt_const(<$t>::from_u32(0));
+                    let is_overflow = is_above || is_below;
+                    assert!(!is_overflow, "attempt to shift right with overflow");
+                }
+                self.wrapping_shr(other.as_u32())
+            }
+        }
+    )*);
+
+    (base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<&$t> for $base {
+            type Output = <Self as Shl>::Output;
+
+            #[inline(always)]
+            fn shl(self, other: &$t) -> Self::Output {
+                self.shl(*other)
+            }
+        }
+
+        impl ShlAssign<$t> for $base {
+            #[inline(always)]
+            fn shl_assign(&mut self, other: $t) {
+                *self = self.shl(other);
+            }
+        }
+
+        impl ShlAssign<&$t> for $base {
+            #[inline(always)]
+            fn shl_assign(&mut self, other: &$t) {
+                *self = self.shl(other);
+            }
+        }
+
+        impl Shr<&$t> for $base {
+            type Output = <Self as Shr>::Output;
+
+            #[inline(always)]
+            fn shr(self, other: &$t) -> Self::Output {
+                self.shr(*other)
+            }
+        }
+
+        impl ShrAssign<$t> for $base {
+            #[inline(always)]
+            fn shr_assign(&mut self, other: $t) {
+                *self = self.shr(other);
+            }
+        }
+
+        impl ShrAssign<&$t> for $base {
+            #[inline(always)]
+            fn shr_assign(&mut self, other: &$t) {
+                *self = self.shr(other);
+            }
+        }
+    )*);
+}
+
 macro_rules! traits_define {
     ($t:ty) => {
         impl Add for $t {
@@ -1992,33 +2487,110 @@ macro_rules! traits_define {
 
         binop_trait_define!($t, Sub, SubAssign, sub, sub_assign);
 
+        impl Shl for $t {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: Self) -> Self::Output {
+                let shift = other.low() as u32 & u32::MAX;
+                self.wrapping_shl(shift)
+            }
+        }
+
+        ref_trait_define!($t, Shl, shl, other: &$t);
+        binop_ref_trait_define!($t, Shl, shl);
+
+        impl Shr for $t {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: Self) -> Self::Output {
+                let shift = other.low() as u32 & u32::MAX;
+                self.wrapping_shr(shift)
+            }
+        }
+
+        ref_trait_define!($t, Shr, shr, other: &$t);
+        binop_ref_trait_define!($t, Shr, shr);
+        // TODO: i256
+        shift_define! { @mod base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
+        shift_define! { base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
+
         impl core::fmt::Debug for $t {
             #[inline(always)]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 core::fmt::Display::fmt(self, f)
             }
         }
+
+        impl From<bool> for $t {
+            #[inline(always)]
+            fn from(small: bool) -> Self {
+                Self::from_u8(small as u8)
+            }
+        }
+
+        impl From<char> for $t {
+            #[inline(always)]
+            fn from(c: char) -> Self {
+                Self::from_u32(c as u32)
+            }
+        }
+
+        from_trait_define!($t, u8, from_u8);
+        from_trait_define!($t, u16, from_u16);
+        from_trait_define!($t, u32, from_u32);
+        from_trait_define!($t, u64, from_u64);
+        from_trait_define!($t, u128, from_u128);
     };
 }
 
+macro_rules! try_from_define {
+    (base => $base:ty, from => $($t:ty)*) => ($(
+        impl TryFrom<$t> for $base {
+            type Error = $crate::TryFromIntError;
+
+            #[inline(always)]
+            fn try_from(u: $t) -> Result<Self, $crate::TryFromIntError> {
+                if u >= 0 {
+                    Ok(Self::from_u128(u as u128))
+                } else {
+                    Err($crate::TryFromIntError {})
+                }
+            }
+        }
+    )*);
+}
+
+// Internal implementation helpers.
+pub(crate) use associated_consts_define;
+pub(crate) use be_index;
 pub(crate) use bigint_define;
 pub(crate) use binop_ref_trait_define;
 pub(crate) use binop_trait_define;
 pub(crate) use bitops_define;
+pub(crate) use byte_order_define;
+pub(crate) use casts_define;
 pub(crate) use checked_define;
-pub(crate) use convert_define;
+pub(crate) use cmp_define;
 pub(crate) use extensions_define;
 pub(crate) use from_trait_define;
 pub(crate) use high_low_define;
 pub(crate) use int_define;
-pub(crate) use limb_define;
+pub(crate) use limb_index;
+pub(crate) use limb_ops_define;
 pub(crate) use ops_define;
 pub(crate) use overflowing_define;
 pub(crate) use ref_trait_define;
 pub(crate) use saturating_define;
+pub(crate) use shift_define;
 pub(crate) use strict_define;
 pub(crate) use traits_define;
+pub(crate) use try_from_define;
 pub(crate) use unbounded_define;
 pub(crate) use unchecked_define;
-pub(crate) use wide_define;
+pub(crate) use wide_index;
+pub(crate) use wide_ops_define;
 pub(crate) use wrapping_define;

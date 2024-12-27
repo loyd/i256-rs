@@ -25,7 +25,15 @@
 // NOTE: Since we're using 128-bits under the hood, we just assume every
 // architecture can use 64-bit limbs, which is true of most modern systems.
 // This might not be true in which case we can address this at that time.
+
+/// The unsigned type used as a native "limb".
 pub type ULimb = u64;
+
+/// The same sized type of the limb as a signed integer.
 pub type ILimb = i64;
+
+/// An unsigned type double the width of the limb.
 pub type UWide = u128;
+
+/// A signed type double the width of the limb.
 pub type IWide = i128;

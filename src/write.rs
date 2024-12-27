@@ -11,6 +11,7 @@ pub(crate) const fn digit_to_char(digit: u32, radix: u32) -> u8 {
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! to_str_radix_define {
     ($is_signed:expr) => {
@@ -50,7 +51,7 @@ macro_rules! to_str_radix_define {
             let mut rem: u64;
             let mut index = buffer.len();
             let limit = Self::from_u32(radix);
-            while self.gt_const(limit) && index > start_index {
+            while self.ge_const(limit) && index > start_index {
                 index -= 1;
                 (self, rem) = self.div_rem_ulimb(radix as ULimb);
                 buffer[index] = $crate::write::digit_to_char(rem as u32, radix);
@@ -58,7 +59,7 @@ macro_rules! to_str_radix_define {
 
             // always have one trailing digit
             index -= 1;
-            buffer[index] = $crate::write::digit_to_char(self.limb(0) as u32, radix);
+            buffer[index] = $crate::write::digit_to_char(self.get_limb(0) as u32, radix);
 
             // write our negative sign, if required
             if is_negative {
@@ -70,5 +71,3 @@ macro_rules! to_str_radix_define {
         }
     };
 }
-
-pub(crate) use to_str_radix_define;
