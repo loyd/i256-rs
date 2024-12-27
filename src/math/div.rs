@@ -17,9 +17,12 @@
 
 //! N-digit division
 //!
-//! Implementation heavily inspired by [uint]
+//! Implementation heavily inspired by [`uint`]. Derived from
+//! [`arrow`] and modified for certain optimizations and
+//! enhancements.
 //!
-//! [uint]: https://github.com/paritytech/parity-common/blob/d3a9327124a66e52ca1114bb8640c02c18c134b8/uint/src/uint.rs#L844
+//! [`uint`]: https://github.com/paritytech/parity-common/blob/d3a9327124a66e52ca1114bb8640c02c18c134b8/uint/src/uint.rs#L844
+//! [`arrow]: https://github.com/apache/arrow-rs/blob/fcf4aa4c/arrow-buffer/src/bigint/div.rs
 
 use core::cmp::Ordering;
 

@@ -1,4 +1,4 @@
-//! Shared macros for our numbers.
+//! Shared macros for parsing arbitrary-precision integers.
 
 /// Get the maximum number of digits before the slice will overflow.
 ///
@@ -43,7 +43,7 @@ pub(crate) const fn char_to_digit(c: u8, radix: u32) -> Option<u32> {
 #[macro_export]
 macro_rules! unchecked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $add_op:ident) => {{
-        use $crate::ints::macros::char_to_digit;
+        use $crate::parse::char_to_digit;
         use $crate::{IntErrorKind, ParseIntError, ULimb, UWide};
 
         let digits = $digits;
@@ -68,7 +68,7 @@ macro_rules! unchecked_loop {
 #[macro_export]
 macro_rules! checked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $overflow:ident, $add_op:ident) => {{
-        use $crate::ints::macros::char_to_digit;
+        use $crate::parse::char_to_digit;
         use $crate::{IntErrorKind, ParseIntError, ULimb, UWide};
 
         let digits = $digits;
@@ -97,8 +97,8 @@ macro_rules! checked_loop {
 }
 
 #[macro_export]
-macro_rules! from_str_radix_impl {
-    ($t:ty, $is_signed:expr) => {
+macro_rules! from_str_radix_define {
+    ($is_signed:expr) => {
         /// Converts a string slice in a given base to an integer.
         ///
         /// The string is expected to be an optional `+`
@@ -120,9 +120,9 @@ macro_rules! from_str_radix_impl {
         pub const fn from_str_radix(
             src: &str,
             radix: u32,
-        ) -> Result<$t, $crate::error::ParseIntError> {
+        ) -> Result<Self, $crate::error::ParseIntError> {
             use $crate::error::{IntErrorKind, ParseIntError};
-            use $crate::ints::macros::overflow_digits;
+            use $crate::parse::overflow_digits;
             use $crate::{checked_loop, unchecked_loop};
 
             if radix < 2 || radix > 36 {
@@ -147,20 +147,20 @@ macro_rules! from_str_radix_impl {
                 Some(&b'-') => return Err(ParseIntError::new(IntErrorKind::NegOverflow)),
                 _ => false,
             };
-            let overflow_digits = overflow_digits::<$t>(radix, $is_signed);
+            let overflow_digits = overflow_digits::<Self>(radix, $is_signed);
             let cannot_overflow = (digits.len() - index) <= overflow_digits;
 
             if cannot_overflow && is_negative {
-                unchecked_loop!($t, digits, radix, index, wrapping_sub_uwide)
+                unchecked_loop!(Self, digits, radix, index, wrapping_sub_uwide)
             } else if cannot_overflow {
-                unchecked_loop!($t, digits, radix, index, wrapping_add_uwide)
+                unchecked_loop!(Self, digits, radix, index, wrapping_add_uwide)
             } else if is_negative {
-                checked_loop!($t, digits, radix, index, NegOverflow, checked_sub_uwide)
+                checked_loop!(Self, digits, radix, index, NegOverflow, checked_sub_uwide)
             } else {
-                checked_loop!($t, digits, radix, index, PosOverflow, checked_add_uwide)
+                checked_loop!(Self, digits, radix, index, PosOverflow, checked_add_uwide)
             }
         }
     };
 }
 
-pub(crate) use from_str_radix_impl;
+pub(crate) use from_str_radix_define;

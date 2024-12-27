@@ -3009,22 +3009,6 @@ rotate_signed_impl! {
     u128, i128 => rotate_left_i128, rotate_right_i128,
 }
 
-macro_rules! not_impl {
-    ($u:ty, $s:ty, $func:ident) => {
-        /// Const implementation of `Not` for internal algorithm use.
-        #[inline(always)]
-        pub const fn $func(lo: $u, hi: $s) -> ($u, $s) {
-            (!lo, !hi)
-        }
-    };
-}
-
-not_impl!(u8, i8, not_i8);
-not_impl!(u16, i16, not_i16);
-not_impl!(u32, i32, not_i32);
-not_impl!(u64, i64, not_i64);
-not_impl!(u128, i128, not_i128);
-
 macro_rules! neg_impl {
     ($u:ty, $s:ty, $func:ident) => {
         /// Const implementation of `Neg` for internal algorithm use.

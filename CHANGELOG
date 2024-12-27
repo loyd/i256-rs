@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Added
+
+- Added the `const` comparison functions for the full `Ord` API.
+- Added `to_str_radix`.
+
+## Fixed
+
+- Behavior for `overflowing_div` and similar division methods when dividing by zero to properly panic.
+
+## Changed
+
+- Made the internal implementation size-generic, mostly, so we can use higher order types for our precomputed division.
+
 ## [0.1.1] 2024-12-24
 
 ## Fixed
