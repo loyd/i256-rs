@@ -1678,6 +1678,8 @@ macro_rules! int_wide_ops_define {
 macro_rules! int_traits_define {
     (type => $t:ty,unsigned_type => $u_t:ty) => {
         traits_define!($t);
+        shift_define! { @256 base => $t, impl => $u_t }
+        shift_define! { base => $t, impl => $u_t }
 
         impl Neg for $t {
             type Output = Self;

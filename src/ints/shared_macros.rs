@@ -2203,6 +2203,120 @@ macro_rules! binop_ref_trait_define {
     };
 }
 
+macro_rules! shift_define {
+    (@mod base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(unused_comparisons)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    assert!(other < Self::BITS as $t && other >= 0, "attempt to shift left with overflow");
+                }
+                self.wrapping_shl(other as u32)
+            }
+        }
+
+        impl Shr<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(unused_comparisons)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    assert!(other < Self::BITS as $t && other >= 0, "attempt to shift right with overflow");
+                }
+                self.wrapping_shr(other as u32)
+            }
+        }
+    )*);
+
+    (@256 base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shl(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    let is_above = other.ge_const(<$t>::from_u32(Self::BITS));
+                    let is_below = other.lt_const(<$t>::from_u32(0));
+                    let is_overflow = is_above || is_below;
+                    assert!(!is_overflow, "attempt to shift right with overflow");
+                }
+                self.wrapping_shl(other.as_u32())
+            }
+        }
+
+        impl Shr<$t> for $base {
+            type Output = Self;
+
+            #[inline(always)]
+            #[allow(clippy::suspicious_arithmetic_impl)]
+            fn shr(self, other: $t) -> Self::Output {
+                if cfg!(have_overflow_checks) {
+                    let is_above = other.ge_const(<$t>::from_u32(Self::BITS));
+                    let is_below = other.lt_const(<$t>::from_u32(0));
+                    let is_overflow = is_above || is_below;
+                    assert!(!is_overflow, "attempt to shift right with overflow");
+                }
+                self.wrapping_shr(other.as_u32())
+            }
+        }
+    )*);
+
+    (base => $base:ty, impl => $($t:ty)*) => ($(
+        impl Shl<&$t> for $base {
+            type Output = <Self as Shl>::Output;
+
+            #[inline(always)]
+            fn shl(self, other: &$t) -> Self::Output {
+                self.shl(*other)
+            }
+        }
+
+        impl ShlAssign<$t> for $base {
+            #[inline(always)]
+            fn shl_assign(&mut self, other: $t) {
+                *self = self.shl(other);
+            }
+        }
+
+        impl ShlAssign<&$t> for $base {
+            #[inline(always)]
+            fn shl_assign(&mut self, other: &$t) {
+                *self = self.shl(other);
+            }
+        }
+
+        impl Shr<&$t> for $base {
+            type Output = <Self as Shr>::Output;
+
+            #[inline(always)]
+            fn shr(self, other: &$t) -> Self::Output {
+                self.shr(*other)
+            }
+        }
+
+        impl ShrAssign<$t> for $base {
+            #[inline(always)]
+            fn shr_assign(&mut self, other: $t) {
+                *self = self.shr(other);
+            }
+        }
+
+        impl ShrAssign<&$t> for $base {
+            #[inline(always)]
+            fn shr_assign(&mut self, other: &$t) {
+                *self = self.shr(other);
+            }
+        }
+    )*);
+}
+
 macro_rules! traits_define {
     ($t:ty) => {
         impl Add for $t {
@@ -2371,6 +2485,8 @@ macro_rules! traits_define {
             }
         }
 
+        binop_trait_define!($t, Sub, SubAssign, sub, sub_assign);
+
         impl Shl for $t {
             type Output = Self;
 
@@ -2398,8 +2514,9 @@ macro_rules! traits_define {
 
         ref_trait_define!($t, Shr, shr, other: &$t);
         binop_ref_trait_define!($t, Shr, shr);
-
-        binop_trait_define!($t, Sub, SubAssign, sub, sub_assign);
+        // TODO: i256
+        shift_define! { @mod base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
+        shift_define! { base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
 
         impl core::fmt::Debug for $t {
             #[inline(always)]
@@ -2468,6 +2585,7 @@ pub(crate) use ops_define;
 pub(crate) use overflowing_define;
 pub(crate) use ref_trait_define;
 pub(crate) use saturating_define;
+pub(crate) use shift_define;
 pub(crate) use strict_define;
 pub(crate) use traits_define;
 pub(crate) use try_from_define;

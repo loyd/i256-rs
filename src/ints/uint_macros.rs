@@ -998,6 +998,8 @@ macro_rules! uint_wide_ops_define {
 macro_rules! uint_traits_define {
     (type => $t:ty,signed_type => $s_t:ty) => {
         traits_define!($t);
+        shift_define! { @256 base => $t, impl => $s_t }
+        shift_define! { base => $t, impl => $s_t }
 
         impl core::fmt::Binary for $t {
             #[inline]
