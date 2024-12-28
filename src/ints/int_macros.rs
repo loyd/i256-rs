@@ -1471,7 +1471,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full division cannot do.
         #[inline]
         pub fn overflowing_div_rem_ilimb(self, n: $crate::ILimb) -> ((Self, $crate::ILimb), bool) {
-            if n == 0 {
+            if self.eq_const(Self::MIN) && n == -1 {
                 ((Self::MAX, 0), true)
             } else {
                 (self.wrapping_div_rem_ilimb(n), false)

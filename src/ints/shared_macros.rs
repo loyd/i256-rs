@@ -1803,11 +1803,7 @@ macro_rules! limb_ops_define {
         /// This allows optimizations a full division cannot do.
         #[inline]
         pub fn overflowing_div_rem_ulimb(self, n: $crate::ULimb) -> ((Self, $crate::ULimb), bool) {
-            if n == 0 {
-                ((Self::MAX, 0), true)
-            } else {
-                (self.wrapping_div_rem_ulimb(n), false)
-            }
+            (self.wrapping_div_rem_ulimb(n), false)
         }
 
         /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
