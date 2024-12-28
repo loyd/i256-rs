@@ -612,8 +612,8 @@ macro_rules! uint_wrapping_define {
             //     pop     r15
             //     pop     rbp
             //     ret
-            let r = math::wrapping_mul_u64(&self.to_le_limbs(), &rhs.to_le_limbs());
-            Self::from_le_limbs(r)
+            let r = math::wrapping_mul_u64(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+            Self::from_ne_limbs(r)
         }
 
         /// Get the quotient and remainder of our big integer divided
@@ -1374,8 +1374,8 @@ macro_rules! uint_limb_ops_define {
             //      mov     rax, rdi
             //      pop     rbx
             //      ret
-            let r = math::wrapping_mul_limb_u64(&self.to_le_limbs(), n);
-            Self::from_le_limbs(r)
+            let r = math::wrapping_mul_limb_u64(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(r)
         }
 
         /// Get the quotient and remainder of our big integer divided
