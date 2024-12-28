@@ -1211,6 +1211,11 @@ macro_rules! int_strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_add_unsigned`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_add_unsigned(self, rhs: $u_t) -> Self {
@@ -1231,6 +1236,11 @@ macro_rules! int_strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_sub_unsigned`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_sub_unsigned(self, rhs: $u_t) -> Self {
@@ -1257,6 +1267,11 @@ macro_rules! int_strict_define {
         /// for the type.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_div`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub fn strict_div(self, rhs: Self) -> Self {
@@ -1283,6 +1298,11 @@ macro_rules! int_strict_define {
         /// is invalid due to implementation artifacts.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_rem`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub fn strict_rem(self, rhs: Self) -> Self {
@@ -1310,6 +1330,11 @@ macro_rules! int_strict_define {
         /// that is too large to represent in the type.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_div_euclid`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub fn strict_div_euclid(self, rhs: Self) -> Self {
@@ -1336,6 +1361,11 @@ macro_rules! int_strict_define {
         /// is invalid due to implementation artifacts.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_rem_euclid`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub fn strict_rem_euclid(self, rhs: Self) -> Self {
@@ -1355,6 +1385,11 @@ macro_rules! int_strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_neg`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_neg(self) -> Self {
@@ -1375,6 +1410,11 @@ macro_rules! int_strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_abs`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_abs(self) -> Self {
@@ -1391,6 +1431,11 @@ macro_rules! int_strict_define {
         /// This results in undefined behavior when the value overflows.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_neg`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[must_use]
         #[inline(always)]
         pub unsafe fn unchecked_neg(self) -> Self {
