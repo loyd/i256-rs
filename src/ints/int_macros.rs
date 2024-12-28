@@ -146,6 +146,12 @@ macro_rules! int_casts_define {
 macro_rules! int_extensions_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
         extensions_define!(type => $u_t, wide_type => $wide_t);
+
+        /// Get the most significant limb in the buiffer.
+        #[inline(always)]
+        pub const fn most_significant_limb(&self) -> $crate::ILimb {
+            self.get_limb(Self::LIMBS - 1) as $crate::ILimb
+        }
     };
 }
 

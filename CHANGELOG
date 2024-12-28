@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the `const` comparison functions for the full `Ord` API.
 - Added `to_str_radix`.
 - Add support for 32-bit limbs.
+- `most_significant_limb` and `least_significant_limb` methods.
 
 ## Fixed
 

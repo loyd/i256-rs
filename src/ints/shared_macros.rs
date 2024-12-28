@@ -361,14 +361,20 @@ macro_rules! extensions_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Get if the integer is even.
         #[inline(always)]
-        pub const fn is_even(self) -> bool {
+        pub const fn is_even(&self) -> bool {
             self.get_limb(0) % 2 == 0
         }
 
         /// Get if the integer is odd.
         #[inline(always)]
-        pub const fn is_odd(self) -> bool {
+        pub const fn is_odd(&self) -> bool {
             !self.is_even()
+        }
+
+        /// Get the least significant limb in the buiffer.
+        #[inline(always)]
+        pub const fn least_significant_limb(&self) -> $crate::ULimb {
+            self.get_limb(0)
         }
     };
 }
@@ -737,8 +743,9 @@ macro_rules! byte_order_define {
 
         /// Get the limb indexing from the least-significant order.
         #[inline(always)]
-        pub const fn get_limb(self, index: usize) -> $crate::ULimb {
-            self.limbs[$crate::util::to_ne_index(index, Self::LIMBS)]
+        pub const fn get_limb(&self, index: usize) -> $crate::ULimb {
+            let limbs = &self.limbs;
+            ne_index!(limbs[index])
         }
 
         /// Get the wide value indexing from the least-significant order.
@@ -746,7 +753,7 @@ macro_rules! byte_order_define {
         /// This optimizes extremely well, if the index is known ahead of time
         /// into 2 `mov` instructions, that is, as efficient as can be.
         #[inline(always)]
-        pub const fn get_wide(self, index: usize) -> $crate::UWide {
+        pub const fn get_wide(&self, index: usize) -> $crate::UWide {
             const LIMB_BYTES: usize = core::mem::size_of::<$crate::ULimb>();
             const WIDE_BYTES: usize = core::mem::size_of::<$crate::UWide>();
             assert!(WIDE_BYTES / LIMB_BYTES == 2);
@@ -780,7 +787,7 @@ macro_rules! byte_order_define {
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::swap_bytes`].")]
         #[inline]
-        pub const fn swap_bytes(self) -> Self {
+        pub const fn swap_bytes(&self) -> Self {
             let mut r = Self {
                 limbs: [0; Self::LIMBS],
             };
@@ -798,7 +805,7 @@ macro_rules! byte_order_define {
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::reverse_bits`].")]
         #[inline(always)]
-        pub const fn reverse_bits(self) -> Self {
+        pub const fn reverse_bits(&self) -> Self {
             let mut r = Self {
                 limbs: [0; Self::LIMBS],
             };

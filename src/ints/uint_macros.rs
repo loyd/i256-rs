@@ -144,6 +144,12 @@ macro_rules! uint_casts_define {
 macro_rules! uint_extensions_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         extensions_define!(type => $s_t, wide_type => $wide_t);
+
+        /// Get the most significant limb in the buiffer.
+        #[inline(always)]
+        pub const fn most_significant_limb(&self) -> $crate::ULimb {
+            self.get_limb(Self::LIMBS - 1)
+        }
     };
 }
 
