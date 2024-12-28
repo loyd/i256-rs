@@ -15,62 +15,52 @@ macro_rules! add_group {
             let seed = fastrand::u64(..);
             let mut rng = fastrand::Rng::with_seed(seed);
 
-            let bnum_data: Vec<(Bnum256, u32)> =
-                u128::gen_n::<3>($strategy, &mut rng, DEFAULT_COUNT)
-                    .iter()
-                    .map(|x| (to_bnum(x[0], x[1]), x[2] as u32))
-                    .collect();
-            let crypto_data: Vec<(CryptoU256, u32)> =
-                u128::gen_n::<3>($strategy, &mut rng, DEFAULT_COUNT)
-                    .iter()
-                    .map(|x| (to_cryptobi(x[0], x[1]), x[2] as u32))
-                    .collect();
-            let i256_data: Vec<(u256, u32)> = u128::gen_n::<3>($strategy, &mut rng, DEFAULT_COUNT)
-                .iter()
-                .map(|x| (u256::new(x[0], x[1]), x[2] as u32))
-                .collect();
+            // unsigned
+            let u128_udata = u128::gen_n::<3>($strategy, &mut rng, DEFAULT_COUNT);
+            let bnum_udata: Vec<(BnumU256, u32)> =
+                u128_udata.iter().map(|x| (to_bunum(x[0], x[1]), x[2] as u32)).collect();
+            let crypto_udata: Vec<(CryptoU256, u32)> =
+                u128_udata.iter().map(|x| (to_cryptobu(x[0], x[1]), x[2] as u32)).collect();
+            let u256_udata: Vec<(i256::u256, u32)> =
+                u128_udata.iter().map(|x| (to_u256(x[0], x[1]), x[2] as u32)).collect();
 
-            add_bench!(group, concat!($prefix, "::bnum-left"), bnum_data.iter(), |x: &(
-                Bnum256,
-                u32
-            )| x
-                .0
-                .wrapping_shl(x.1));
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-bnum-shl"),
+                bnum_udata.iter(),
+                bench_op!(wrapping_shl, BnumU256, u32)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-crypto-shl"),
+                crypto_udata.iter(),
+                |x: &(CryptoU256, u32)| x.0.shl(x.1 as usize % 256)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-256-shl"),
+                u256_udata.iter(),
+                bench_op!(wrapping_shl, i256::u256, u32)
+            );
 
-            add_bench!(group, concat!($prefix, "::crypto-left"), crypto_data.iter(), |x: &(
-                CryptoU256,
-                u32
-            )| x
-                .0
-                .shl(x.1 as usize % 256));
-
-            add_bench!(group, concat!($prefix, "::i256-left"), i256_data.iter(), |x: &(
-                u256,
-                u32
-            )| x
-                .0
-                .wrapping_shl(x.1));
-
-            add_bench!(group, concat!($prefix, "::bnum-right"), bnum_data.iter(), |x: &(
-                Bnum256,
-                u32
-            )| x
-                .0
-                .wrapping_shr(x.1));
-
-            add_bench!(group, concat!($prefix, "::crypto-right"), crypto_data.iter(), |x: &(
-                CryptoU256,
-                u32
-            )| x
-                .0
-                .shr(x.1 as usize % 256));
-
-            add_bench!(group, concat!($prefix, "::i256-right"), i256_data.iter(), |x: &(
-                u256,
-                u32
-            )| x
-                .0
-                .wrapping_shr(x.1));
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-bnum-shr"),
+                bnum_udata.iter(),
+                bench_op!(wrapping_shr, BnumU256, u32)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-crypto-shr"),
+                crypto_udata.iter(),
+                |x: &(CryptoU256, u32)| x.0.shr(x.1 as usize % 256)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-256-shr"),
+                u256_udata.iter(),
+                bench_op!(wrapping_shr, i256::u256, u32)
+            );
         }
     };
 }
