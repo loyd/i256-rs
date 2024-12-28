@@ -490,7 +490,14 @@ macro_rules! int_wrapping_define {
         /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping
         /// around at the boundary of the type.
         ///
+        /// This in worst case 10 `mul` and 13 `add` instructions, because of
+        /// branching in nearly every case, it has better performance and
+        /// optimizes nicely for small multiplications. See [`u256::wrapping_mul`]
+        /// for a more detailed analysis, which is identical.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_mul`].")]
+        ///
+        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn wrapping_mul(self, rhs: Self) -> Self {
             // FIXME: Change to native indexing
@@ -717,6 +724,9 @@ macro_rules! int_overflowing_define {
         /// Returns a tuple of the multiplication along with a boolean
         /// indicating whether an arithmetic overflow would occur. If an
         /// overflow would have occurred then the wrapped value is returned.
+        ///
+        /// This in worst case 10 `mul`, 20 `add`, and 9 `sub` instructions,
+        /// significantly slower than the wrapping variant.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_mul`].")]
         #[inline(always)]
@@ -1441,6 +1451,11 @@ macro_rules! int_limb_ops_define {
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
+        /// This in worst case 5 `mul`, 3 `add`, and 6 `sub` instructions,
+        /// because of branching in nearly every case, it has better
+        /// performance and optimizes nicely for small multiplications.
+        /// See [`u256::wrapping_mul_ulimb`] for a more detailed analysis,
+        /// which is identical.
         #[inline(always)]
         pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
             // FIXME: Change to ne indexing
@@ -1452,6 +1467,9 @@ macro_rules! int_limb_ops_define {
         /// Multiply the 256-bit integer by a 64-bit signed factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
+        /// This in worst case 4 `mul`, 3 `add`, and 6 `sub` instructions,
+        /// because of branching in nearly every case, it has better
+        /// performance and optimizes nicely for small multiplications.
         #[inline(always)]
         pub const fn wrapping_mul_ilimb(self, n: ILimb) -> Self {
             // FIXME: Change to ne indexing
@@ -1572,6 +1590,8 @@ macro_rules! int_limb_ops_define {
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
+        /// This in worst case 4 `mul`, 4 `add`, and 6 `sub` instructions,
+        /// significantly slower than the wrapping variant.
         #[inline(always)]
         pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
             // FIXME: Change to ne indexing
@@ -1583,6 +1603,8 @@ macro_rules! int_limb_ops_define {
         /// Multiply the 256-bit integer by a 64-bit signed factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
+        /// This in worst case 5 `mul`, 5 `add`, and 6 `sub` instructions,
+        /// significantly slower than the wrapping variant.
         #[inline(always)]
         pub const fn overflowing_mul_ilimb(self, n: ILimb) -> (Self, bool) {
             // FIXME: Change to ne indexing

@@ -515,7 +515,7 @@ macro_rules! mul_unsigned_impl {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline]
+        #[inline(always)]
         pub const fn $wrapping_full<const M: usize, const N: usize>(
             x: &[$t; M],
             y: &[$t; N],
@@ -587,7 +587,7 @@ macro_rules! mul_unsigned_impl {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline]
+        #[inline(always)]
         pub const fn $overflowing_full<const M: usize, const N: usize>(
             x: &[$t; M],
             y: &[$t; N],
