@@ -23,6 +23,7 @@ macro_rules! uint_high_low_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! uint_associated_consts_define {
     (
         bits => $bits:expr,
@@ -40,6 +41,7 @@ macro_rules! uint_associated_consts_define {
         #[doc = concat!("New code should prefer to use  [`", stringify!($wide_t), "::MIN`] instead.")]
         ///
         /// Returns the smallest value that can be represented by this integer type.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::min_value`].")]
         #[inline(always)]
         #[deprecated]
@@ -50,6 +52,7 @@ macro_rules! uint_associated_consts_define {
         #[doc = concat!("New code should prefer to use  [`", stringify!($wide_t), "::MAX`] instead.")]
         ///
         /// Returns the largest value that can be represented by this integer type.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::max_value`].")]
         #[inline(always)]
         #[deprecated]
@@ -85,6 +88,7 @@ macro_rules! uint_byte_order_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! uint_casts_define {
     (
         signed_type => $s_t:ty,
@@ -102,6 +106,7 @@ macro_rules! uint_casts_define {
         ///
         /// This produces the same result as an `as` cast, but ensures that the
         /// bit-width remains the same.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::cast_signed`].")]
         #[inline(always)]
         pub const fn cast_signed(self) -> $s_t {
@@ -116,6 +121,7 @@ macro_rules! uint_extensions_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! uint_ops_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         #[inline(always)]
@@ -141,6 +147,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::div_euclid`].")]
         #[inline(always)]
         pub fn div_euclid(self, rhs: Self) -> Self {
@@ -163,6 +170,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::rem_euclid`].")]
         #[inline(always)]
         pub fn rem_euclid(self, rhs: Self) -> Self {
@@ -184,6 +192,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::div_floor`].")]
         #[inline(always)]
         pub fn div_floor(self, rhs: Self) -> Self {
@@ -196,6 +205,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::div_ceil`].")]
         #[inline]
         pub fn div_ceil(self, rhs: Self) -> Self {
@@ -218,6 +228,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `self` is zero, or if `base` is less than 2.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::ilog`].")]
         #[inline(always)]
         pub fn ilog(self, base: Self) -> u32 {
@@ -233,6 +244,7 @@ macro_rules! uint_ops_define {
         /// # Panics
         ///
         /// This function will panic if `self` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::ilog2`].")]
         #[inline(always)]
         pub const fn ilog2(self) -> u32 {
@@ -266,6 +278,7 @@ macro_rules! uint_ops_define {
         // }
 
         /// Computes the absolute difference between `self` and `other`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::abs_diff`].")]
         #[inline(always)]
         pub const fn abs_diff(self, other: Self) -> Self {
@@ -288,6 +301,7 @@ macro_rules! uint_ops_define {
         /// On overflow, this function will panic if overflow checks are enabled
         /// (default in debug mode) and wrap if overflow checks are disabled
         /// (default in release mode).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::next_multiple_of`].")]
         #[inline]
         pub fn next_multiple_of(self, rhs: Self) -> Self {
@@ -334,6 +348,7 @@ macro_rules! uint_ops_define {
         /// When return value overflows (i.e., `self > (1 << (N-1))` for type
         /// `uN`), it panics in debug mode and the return value is wrapped to 0 in
         /// release mode (the only situation in which this method can return 0).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::next_power_of_two`].")]
         #[inline]
         pub const fn next_power_of_two(self) -> Self {
@@ -352,6 +367,7 @@ macro_rules! uint_ops_define {
         /// `midpoint(a, b)` is `(a + b) / 2` as if it were performed in a
         /// sufficiently-large unsigned integral type. This implies that the result
         /// is always rounded towards zero and that no overflow will ever occur.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::midpoint`].")]
         #[inline]
         #[must_use]
@@ -370,6 +386,7 @@ macro_rules! uint_bigint_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! uint_wrapping_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         wrapping_define!(type => $s_t, wide_type => $wide_t);
@@ -573,7 +590,8 @@ macro_rules! uint_wrapping_define {
             Self::from_le_limbs(r)
         }
 
-        /// Div/Rem operation on a 256-bit integer.
+        /// Get the quotient and remainder of our big integer divided
+        /// by a signed limb, wrapping on overflow.
         ///
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
@@ -603,6 +621,7 @@ macro_rules! uint_wrapping_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_div`].")]
         #[inline(always)]
         pub fn wrapping_div(self, rhs: Self) -> Self {
@@ -620,6 +639,7 @@ macro_rules! uint_wrapping_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_div_euclid`].")]
         #[inline(always)]
         pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
@@ -636,6 +656,7 @@ macro_rules! uint_wrapping_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_rem`].")]
         #[inline(always)]
         pub fn wrapping_rem(self, rhs: Self) -> Self {
@@ -654,6 +675,7 @@ macro_rules! uint_wrapping_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_rem_euclid`].")]
         #[inline(always)]
         pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
@@ -669,6 +691,7 @@ macro_rules! uint_wrapping_define {
         /// the result is the same as casting the corresponding signed value.
         /// Any larger values are equivalent to `MAX + 1 - (val - MAX - 1)` where
         /// `MAX` is the corresponding signed type's maximum.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_neg`].")]
         #[inline(always)]
         pub const fn wrapping_neg(self) -> Self {
@@ -678,6 +701,7 @@ macro_rules! uint_wrapping_define {
         /// Returns the smallest power of two greater than or equal to `n`. If
         /// the next power of two is greater than the type's maximum value,
         /// the return value is wrapped to `0`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_next_power_of_two`].")]
         #[inline]
         pub const fn wrapping_next_power_of_two(self) -> Self {
@@ -686,6 +710,7 @@ macro_rules! uint_wrapping_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! uint_overflowing_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         overflowing_define!(type => $s_t, wide_type => $wide_t);
@@ -710,6 +735,7 @@ macro_rules! uint_overflowing_define {
         /// Returns a tuple of the addition along with a boolean indicating
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add_signed`].")]
         #[inline(always)]
         pub const fn overflowing_add_signed(self, rhs: $s_t) -> (Self, bool) {
@@ -787,6 +813,7 @@ macro_rules! uint_overflowing_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_div`].")]
         #[inline(always)]
         pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
@@ -806,6 +833,7 @@ macro_rules! uint_overflowing_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_div_euclid`].")]
         #[inline(always)]
         pub fn overflowing_div_euclid(self, rhs: Self) -> (Self, bool) {
@@ -822,6 +850,7 @@ macro_rules! uint_overflowing_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_rem`].")]
         #[inline(always)]
         pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
@@ -842,6 +871,7 @@ macro_rules! uint_overflowing_define {
         /// # Panics
         ///
         /// This function will panic if `rhs` is zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_rem_euclid`].")]
         #[inline(always)]
         pub fn overflowing_rem_euclid(self, rhs: Self) -> (Self, bool) {
@@ -1215,7 +1245,9 @@ macro_rules! uint_limb_ops_define {
     (@wrapping) => {
         limb_ops_define!(@wrapping);
 
-        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// Add an unsigned limb to the big integer, wrapping on
+        /// overflow.
+        ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
         pub const fn wrapping_add_ulimb(self, n: ULimb) -> Self {
@@ -1224,7 +1256,9 @@ macro_rules! uint_limb_ops_define {
             Self::from_ne_limbs(limbs)
         }
 
-        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
+        /// Subtract an unsigned limb from the big integer, wrapping on
+        /// overflow.
+        ///
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
         pub const fn wrapping_sub_ulimb(self, n: ULimb) -> Self {
@@ -1233,7 +1267,8 @@ macro_rules! uint_limb_ops_define {
             Self::from_ne_limbs(limbs)
         }
 
-        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        /// Multiply our big integer by an unsigned limb, wrapping on
+        /// overflow.
         ///
         /// This allows optimizations a full multiplication cannot do.
         ///
@@ -1287,7 +1322,8 @@ macro_rules! uint_limb_ops_define {
             Self::from_le_limbs(r)
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient and remainder of our big integer divided
+        /// by an unsigned limb, wrapping on overflow.
         ///
         /// This allows optimizations a full division cannot do.
         ///
@@ -1306,7 +1342,8 @@ macro_rules! uint_limb_ops_define {
     (@overflowing) => {
         limb_ops_define!(@overflowing);
 
-        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// Add an unsigned limb to the big integer, returning the value
+        /// and if overflow occurred.
         ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
@@ -1316,7 +1353,8 @@ macro_rules! uint_limb_ops_define {
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
-        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        /// Subtract an unsigned limb from the big integer, returning the value
+        /// and if overflow occurred.
         ///
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
@@ -1326,7 +1364,8 @@ macro_rules! uint_limb_ops_define {
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
-        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        /// Multiply our big integer by an unsigned limb, returning the value
+        /// and if overflow occurred.
         ///
         /// Many different algorithms were attempted, with a soft [`mulx`] approach
         /// (1), a flat, fixed-width long multiplication (2), and a

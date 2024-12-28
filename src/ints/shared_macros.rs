@@ -3,6 +3,7 @@
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
 
+#[rustfmt::skip]
 macro_rules! int_define {
     (
         name => $name:ident,
@@ -42,6 +43,7 @@ macro_rules! int_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! associated_consts_define {
     (
         bits =>
@@ -52,12 +54,14 @@ macro_rules! associated_consts_define {
         $hi_t:ty $(,)?
     ) => {
         /// The smallest value that can be represented by this integer type.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::MIN`].")]
         #[allow(deprecated)]
         pub const MIN: Self = Self::min_value();
 
         /// The largest value that can be represented by this integer type
         /// (2<sup>256</sup> - 1).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::MAX`].")]
         #[allow(deprecated)]
         pub const MAX: Self = Self::max_value();
@@ -70,6 +74,7 @@ macro_rules! associated_consts_define {
         /// # use i256::u256;
         /// assert_eq!(u256::BITS, 256);
         /// ```
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::BITS`].")]
         pub const BITS: u32 = $bits;
 
@@ -527,6 +532,7 @@ macro_rules! casts_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! byte_order_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// The number of bytes in the type.
@@ -580,6 +586,7 @@ macro_rules! byte_order_define {
         ///
         /// This optimizes very nicely, with efficient `bswap` or `rol`
         /// implementations for each.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::swap_bytes`].")]
         #[inline]
         pub const fn swap_bytes(self) -> Self {
@@ -597,6 +604,7 @@ macro_rules! byte_order_define {
         /// Reverses the order of bits in the integer. The least significant
         /// bit becomes the most significant bit, second least-significant bit
         /// becomes second most-significant bit, etc.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::reverse_bits`].")]
         #[inline(always)]
         pub const fn reverse_bits(self) -> Self {
@@ -615,6 +623,7 @@ macro_rules! byte_order_define {
         ///
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::from_be`].")]
         #[inline(always)]
         pub const fn from_be(x: Self) -> Self {
@@ -629,6 +638,7 @@ macro_rules! byte_order_define {
         ///
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::from_le`].")]
         #[inline(always)]
         pub const fn from_le(x: Self) -> Self {
@@ -643,6 +653,7 @@ macro_rules! byte_order_define {
         ///
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_be`].")]
         #[inline(always)]
         pub const fn to_be(self) -> Self {
@@ -657,6 +668,7 @@ macro_rules! byte_order_define {
         ///
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_le`].")]
         #[inline(always)]
         pub const fn to_le(self) -> Self {
@@ -701,6 +713,7 @@ macro_rules! byte_order_define {
 
         /// Returns the memory representation of this integer as a byte array in
         /// big-endian (network) byte order.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_be_bytes`].")]
         #[inline(always)]
         pub const fn to_be_bytes(self) -> [u8; Self::BYTES] {
@@ -709,6 +722,7 @@ macro_rules! byte_order_define {
 
         /// Returns the memory representation of this integer as a byte array in
         /// little-endian byte order.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_le_bytes`].")]
         #[inline(always)]
         pub const fn to_le_bytes(self) -> [u8; Self::BYTES] {
@@ -781,6 +795,7 @@ macro_rules! byte_order_define {
         /// As the target platform's native endianness is used, portable code
         /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
         /// instead.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_ne_bytes`].")]
         ///
         /// [`to_be_bytes`]: Self::to_be_bytes
@@ -792,6 +807,7 @@ macro_rules! byte_order_define {
 
         /// Creates a native endian integer value from its representation
         /// as a byte array in big endian.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::from_be_bytes`].")]
         #[inline(always)]
         pub const fn from_be_bytes(bytes: [u8; Self::BYTES]) -> Self {
@@ -800,6 +816,7 @@ macro_rules! byte_order_define {
 
         /// Creates a native endian integer value from its representation
         /// as a byte array in little endian.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::from_le_bytes`].")]
         #[inline(always)]
         pub const fn from_le_bytes(bytes: [u8; Self::BYTES]) -> Self {
@@ -812,6 +829,7 @@ macro_rules! byte_order_define {
         /// As the target platform's native endianness is used, portable code
         /// likely wants to use [`from_be_bytes`] or [`from_le_bytes`], as
         /// appropriate instead.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::from_ne_bytes`].")]
         ///
         /// [`from_be_bytes`]: Self::from_be_bytes
@@ -930,9 +948,11 @@ macro_rules! byte_order_define {
 /// Defines some of the bitwise operator definitions.
 ///
 /// See the bench on `bit_algos` for some of the choices.
+#[rustfmt::skip]
 macro_rules! bitops_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Returns the number of ones in the binary representation of `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::count_ones`].")]
         #[inline(always)]
         pub const fn count_ones(self) -> u32 {
@@ -947,6 +967,7 @@ macro_rules! bitops_define {
         }
 
         /// Returns the number of zeros in the binary representation of `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::count_zeros`].")]
         #[inline(always)]
         pub const fn count_zeros(self) -> u32 {
@@ -976,6 +997,7 @@ macro_rules! bitops_define {
         /// let max = i256::MAX;
         /// assert_eq!(max.leading_zeros(), 1);
         /// ```
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::leading_zeros`].")]
         #[inline]
         pub const fn leading_zeros(self) -> u32 {
@@ -990,6 +1012,7 @@ macro_rules! bitops_define {
 
         /// Returns the number of trailing zeros in the binary representation of
         /// `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::trailing_zeros`].")]
         #[inline]
         pub const fn trailing_zeros(self) -> u32 {
@@ -1004,6 +1027,7 @@ macro_rules! bitops_define {
 
         /// Returns the number of leading ones in the binary representation of
         /// `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::leading_ones`].")]
         #[inline(always)]
         pub const fn leading_ones(self) -> u32 {
@@ -1012,6 +1036,7 @@ macro_rules! bitops_define {
 
         /// Returns the number of trailing ones in the binary representation of
         /// `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::trailing_ones`].")]
         #[inline(always)]
         pub const fn trailing_ones(self) -> u32 {
@@ -1083,9 +1108,11 @@ macro_rules! bitops_define {
 ///
 /// This requires the `wrapping_*` and `overflowing_*` variants to be defined,
 /// as well as `div_euclid` and `rem_euclid` to be defined.
+#[rustfmt::skip]
 macro_rules! ops_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Raises self to the power of `exp`, using exponentiation by squaring.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::pow`].")]
         #[inline]
         pub const fn pow(self, exp: u32) -> Self {
@@ -1096,7 +1123,7 @@ macro_rules! ops_define {
             }
         }
 
-        /// Div/Rem operation on a 256-bit integer.
+        /// Get the quotient and remainder of our big integer division.
         ///
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
@@ -1118,6 +1145,7 @@ macro_rules! ops_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! bigint_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Calculates `self` + `rhs` + `carry` and returns a tuple containing
@@ -1127,6 +1155,7 @@ macro_rules! bigint_define {
         /// bit, and returns an output integer and a carry-out bit. This allows
         /// chaining together multiple additions to create a wider addition, and
         /// can be useful for bignum addition.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::carrying_add`].")]
         #[inline]
         #[must_use]
@@ -1144,6 +1173,7 @@ macro_rules! bigint_define {
         /// integer and a borrow-out bit. This allows chaining together multiple
         /// subtractions to create a wider subtraction, and can be useful for
         /// bignum subtraction.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::borrowing_sub`].")]
         #[inline]
         #[must_use]
@@ -1155,10 +1185,12 @@ macro_rules! bigint_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! wrapping_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
         /// wrapping around at the boundary of the type.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_pow`].")]
         #[inline]
         pub const fn wrapping_pow(self, mut exp: u32) -> Self {
@@ -1185,12 +1217,15 @@ macro_rules! wrapping_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! overflowing_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
-        /// Raises self to the power of `exp`, using exponentiation by squaring.
+        /// Raises self to the power of `exp`, using exponentiation by squaring,
+        /// returning the value.
         ///
         /// Returns a tuple of the exponentiation along with a bool indicating
         /// whether an overflow happened.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_pow`].")]
         #[inline]
         pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {
@@ -1222,7 +1257,8 @@ macro_rules! overflowing_define {
             }
         }
 
-        /// Div/Rem operation on a 256-bit integer.
+        /// Get the quotient and remainder of our big integer division,
+        /// returning the value and if overflow occurred.
         ///
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
@@ -1241,16 +1277,19 @@ macro_rules! overflowing_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! saturating_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         // Currently a no-op
     };
 }
 
+#[rustfmt::skip]
 macro_rules! checked_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Checked integer addition. Computes `self + rhs`, returning `None`
         /// if overflow occurred.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_add`].")]
         #[inline(always)]
         pub const fn checked_add(self, rhs: Self) -> Option<Self> {
@@ -1264,6 +1303,7 @@ macro_rules! checked_define {
 
         /// Checked integer subtraction. Computes `self - rhs`, returning `None`
         /// if overflow occurred.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_sub`].")]
         #[inline(always)]
         pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
@@ -1277,6 +1317,7 @@ macro_rules! checked_define {
 
         /// Checked integer multiplication. Computes `self * rhs`, returning `None`
         /// if overflow occurred.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_mul`].")]
         #[inline(always)]
         pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
@@ -1290,6 +1331,7 @@ macro_rules! checked_define {
 
         /// Checked exponentiation. Computes `self.pow(exp)`, returning `None`
         /// if overflow occurred.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_pow`].")]
         #[inline(always)]
         pub const fn checked_pow(self, base: u32) -> Option<Self> {
@@ -1299,7 +1341,8 @@ macro_rules! checked_define {
             }
         }
 
-        /// Div/Rem operation on a 256-bit integer.
+        /// Checked integer division. Computes `self / rhs`, returning `None`
+        /// `rhs == 0` or the division results in overflow (signed only).
         ///
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
@@ -1314,6 +1357,7 @@ macro_rules! checked_define {
 
         /// Checked integer division. Computes `self / rhs`, returning `None`
         /// `rhs == 0` or the division results in overflow (signed only).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_div`].")]
         #[inline(always)]
         pub fn checked_div(self, rhs: Self) -> Option<Self> {
@@ -1326,6 +1370,7 @@ macro_rules! checked_define {
 
         /// Checked integer division. Computes `self % rhs`, returning `None`
         /// `rhs == 0` or the division results in overflow (signed only).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_rem`].")]
         #[inline(always)]
         pub fn checked_rem(self, rhs: Self) -> Option<Self> {
@@ -1339,6 +1384,7 @@ macro_rules! checked_define {
         /// Checked Euclidean division. Computes `self.div_euclid(rhs)`,
         /// returning `None` if `rhs == 0` or the division results in
         /// overflow (signed only).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_div_euclid`].")]
         #[inline(always)]
         pub fn checked_div_euclid(self, rhs: Self) -> Option<Self> {
@@ -1352,6 +1398,7 @@ macro_rules! checked_define {
         /// Checked Euclidean modulo. Computes `self.rem_euclid(rhs)`,
         /// returning `None` if `rhs == 0` or the division results in
         /// overflow (signed only).
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_rem_euclid`].")]
         #[inline(always)]
         pub fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
@@ -1364,6 +1411,7 @@ macro_rules! checked_define {
 
         /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is
         /// larger than or equal to the number of bits in `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_shl`].")]
         #[inline(always)]
         pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
@@ -1377,6 +1425,7 @@ macro_rules! checked_define {
 
         /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs`
         /// is larger than or equal to the number of bits in `self`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_shr`].")]
         #[inline(always)]
         pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
@@ -1391,6 +1440,7 @@ macro_rules! checked_define {
         /// Returns the base 2 logarithm of the number, rounded down.
         ///
         /// Returns `None` if the number is negative or zero.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_ilog2`].")]
         #[inline]
         pub const fn checked_ilog2(self) -> Option<u32> {
@@ -1402,6 +1452,7 @@ macro_rules! checked_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! strict_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Strict integer addition. Computes `self + rhs`, panicking
@@ -1413,6 +1464,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_add`].")]
         #[inline]
         #[must_use]
@@ -1432,6 +1484,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_sub`].")]
         #[inline]
         #[must_use]
@@ -1451,6 +1504,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_mul`].")]
         #[inline]
         #[must_use]
@@ -1470,6 +1524,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_pow`].")]
         #[inline]
         #[must_use]
@@ -1489,6 +1544,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_shl`].")]
         #[inline]
         #[must_use]
@@ -1508,6 +1564,7 @@ macro_rules! strict_define {
         ///
         /// This function will always panic on overflow, regardless of whether
         /// overflow checks are enabled.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_shr`].")]
         #[inline]
         #[must_use]
@@ -1520,6 +1577,7 @@ macro_rules! strict_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! unchecked_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Unchecked integer addition. Computes `self + rhs`, assuming overflow
@@ -1534,6 +1592,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_add`].")]
         ///
         /// [`checked_add`]: Self::checked_add
@@ -1561,6 +1620,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_sub`].")]
         ///
         /// [`checked_sub`]: Self::checked_sub
@@ -1588,6 +1648,7 @@ macro_rules! unchecked_define {
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_mul`].")]
         ///
         /// [`wrapping_mul`]: Self::wrapping_mul
@@ -1611,6 +1672,7 @@ macro_rules! unchecked_define {
         /// This results in undefined behavior if `rhs` is larger than
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shl`] would return `None`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_shl`].")]
         ///
         /// [`checked_shl`]: Self::checked_shl
@@ -1632,6 +1694,7 @@ macro_rules! unchecked_define {
         /// This results in undefined behavior if `rhs` is larger than
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shr`] would return `None`.
+        ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unchecked_shr`].")]
         ///
         /// [`checked_shr`]: Self::checked_shr
@@ -1647,6 +1710,7 @@ macro_rules! unchecked_define {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! unbounded_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Unbounded shift left. Computes `self << rhs`, without bounding the value
@@ -1683,7 +1747,7 @@ macro_rules! unbounded_define {
 
 macro_rules! limb_ops_define {
     () => {
-        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// Add an unsigned limb to the big integer.
         ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
@@ -1698,7 +1762,7 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        /// Subtract an unsigned limb from the big integer.
         ///
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
@@ -1713,7 +1777,7 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        /// Multiply our big integer by an unsigned limb.
         ///
         /// This allows optimizations a full multiplication cannot do.
         #[inline(always)]
@@ -1728,7 +1792,8 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient and remainder of our big integer divided
+        /// by an unsigned limb.
         ///
         /// This allows optimizations a full division cannot do.
         ///
@@ -1747,7 +1812,7 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Div the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient of our big integer divided by an unsigned limb.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1755,7 +1820,7 @@ macro_rules! limb_ops_define {
             self.div_rem_ulimb(n).0
         }
 
-        /// Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the remainder of our big integer divided by an unsigned limb.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1765,7 +1830,8 @@ macro_rules! limb_ops_define {
     };
 
     (@wrapping) => {
-        /// Div the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient of our big integer divided by an unsigned limb,
+        /// wrapping on overflow.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1773,7 +1839,8 @@ macro_rules! limb_ops_define {
             self.wrapping_div_rem_ulimb(n).0
         }
 
-        /// Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the remainder of our big integer divided by an unsigned limb,
+        /// wrapping on overflow.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1783,7 +1850,9 @@ macro_rules! limb_ops_define {
     };
 
     (@overflowing) => {
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient and remainder of our big integer divided
+        /// by an unsigned limb, returning the value and if overflow
+        /// occurred.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline]
@@ -1791,7 +1860,9 @@ macro_rules! limb_ops_define {
             (self.wrapping_div_rem_ulimb(n), false)
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient of our big integer divided
+        /// by an unsigned limb, returning the value and if overflow
+        /// occurred.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1800,7 +1871,9 @@ macro_rules! limb_ops_define {
             (value.0, overflowed)
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the remainder of our big integer divided
+        /// by an unsigned limb, returning the value and if overflow
+        /// occurred.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1811,7 +1884,7 @@ macro_rules! limb_ops_define {
     };
 
     (@checked) => {
-        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// Add an unsigned limb to the big integer, returning None on overflow.
         ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
@@ -1824,7 +1897,7 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        /// Subtract an unsigned limb from the big integer, returning None on overflow.
         ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
@@ -1837,7 +1910,7 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        /// Multiply our big integer by an unsigned limb, returning None on overflow.
         ///
         /// This allows optimizations a full multiplication cannot do.
         #[inline(always)]
@@ -1850,7 +1923,8 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline]
@@ -1862,7 +1936,8 @@ macro_rules! limb_ops_define {
             }
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
@@ -1870,7 +1945,8 @@ macro_rules! limb_ops_define {
             Some(self.checked_div_rem_ulimb(n)?.0)
         }
 
-        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        /// Get the remainder of our big integer divided by a signed
+        /// limb, returning None on overflow or division by 0.
         ///
         /// This allows optimizations a full division cannot do.
         #[inline(always)]
