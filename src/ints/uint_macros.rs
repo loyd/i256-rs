@@ -101,6 +101,30 @@ macro_rules! uint_casts_define {
             kind => $kind,
         );
 
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned integer, as if by an `as` cast.")]
+        #[inline(always)]
+        pub const fn from_unsigned(value: Self) -> Self {
+            value
+        }
+
+        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed integer, as if by an `as` cast.")]
+        #[inline(always)]
+        pub const fn from_signed(value: $s_t) -> Self {
+            Self::from_ne_limbs(value.to_ne_limbs())
+        }
+
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the unsigned type, as if by an `as` cast.")]
+        #[inline(always)]
+        pub const fn as_unsigned(&self) -> Self {
+            *self
+        }
+
+        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the signed type, as if by an `as` cast.")]
+        #[inline(always)]
+        pub const fn as_signed(&self) -> $s_t {
+            <$s_t>::from_ne_limbs(self.to_ne_limbs())
+        }
+
         /// Returns the bit pattern of `self` reinterpreted as a signed integer of
         /// the same size.
         ///
