@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added the `const` comparison functions for the full `Ord` API.
 - Added `to_str_radix`.
+- Add support for 32-bit limbs.
 
 ## Fixed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Made the internal implementation size-generic, mostly, so we can use higher order types for our precomputed division.
 - Improved addition and subtraction performance.
+- Implemented multiplication in big-endian order, without any byte order changes, on big-endian systems.
 
 ## Removed
 

@@ -9,6 +9,7 @@ publish = false
 std = ["i256/std"]
 default = ["std"]
 noasm = ["i256/noasm"]
+limb32 = ["i256/limb32"]
 
 [dependencies.i256]
 path = ".."

@@ -425,7 +425,14 @@ macro_rules! uint_wrapping_define {
         pub const fn wrapping_add(self, rhs: Self) -> Self {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
-            Self::from_ne_limbs(math::wrapping_add_u64(&lhs, &rhs))
+
+             #[cfg(not(feature = "limb32"))]
+            let result = math::wrapping_add_u64(&lhs, &rhs);
+
+            #[cfg(feature = "limb32")]
+            let result = math::wrapping_add_u32(&lhs, &rhs);
+
+            Self::from_ne_limbs(result)
         }
 
         /// Wrapping (modular) addition with a signed integer. Computes
@@ -445,7 +452,14 @@ macro_rules! uint_wrapping_define {
         pub const fn wrapping_sub(self, rhs: Self) -> Self {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
-            Self::from_ne_limbs(math::wrapping_sub_u64(&lhs, &rhs))
+
+             #[cfg(not(feature = "limb32"))]
+            let result = math::wrapping_sub_u64(&lhs, &rhs);
+
+            #[cfg(feature = "limb32")]
+            let result = math::wrapping_sub_u32(&lhs, &rhs);
+
+            Self::from_ne_limbs(result)
         }
 
         /// Wrapping (modular) multiplication. Computes `self *
@@ -612,7 +626,12 @@ macro_rules! uint_wrapping_define {
             //     pop     r15
             //     pop     rbp
             //     ret
+             #[cfg(not(feature = "limb32"))]
             let r = math::wrapping_mul_u64(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+
+            #[cfg(feature = "limb32")]
+            let r = math::wrapping_mul_u32(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+
             Self::from_ne_limbs(r)
         }
 
@@ -752,7 +771,13 @@ macro_rules! uint_overflowing_define {
         pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let (limbs, overflowed) = math::overflowing_add_u64(&lhs, &rhs);
+
+            #[cfg(feature = "limb32")]
+            let (limbs, overflowed) = math::overflowing_add_u32(&lhs, &rhs);
+
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -781,7 +806,13 @@ macro_rules! uint_overflowing_define {
         pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let (limbs, overflowed) = math::overflowing_sub_u64(&lhs, &rhs);
+
+            #[cfg(feature = "limb32")]
+            let (limbs, overflowed) = math::overflowing_sub_u32(&lhs, &rhs);
+
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -824,9 +855,13 @@ macro_rules! uint_overflowing_define {
         /// [`wrapping_mul`]: Self::wrapping_mul
         #[inline(always)]
         pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-            // FIXME: Native endian indexing
-            let (r, overflow) = math::overflowing_mul_u64(&self.to_le_limbs(), &rhs.to_le_limbs());
-            (Self::from_le_limbs(r), overflow)
+             #[cfg(not(feature = "limb32"))]
+            let (r, overflow) = math::overflowing_mul_u64(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+
+            #[cfg(feature = "limb32")]
+            let (r, overflow) = math::overflowing_mul_u32(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+
+            (Self::from_ne_limbs(r), overflow)
         }
 
         /// Calculates the divisor when `self` is divided by `rhs`.
@@ -1308,7 +1343,13 @@ macro_rules! uint_limb_ops_define {
         #[inline(always)]
         pub const fn wrapping_add_ulimb(self, n: ULimb) -> Self {
             let lhs = self.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let limbs = math::wrapping_add_limb_u64(&lhs, n);
+
+            #[cfg(feature = "limb32")]
+            let limbs = math::wrapping_add_limb_u32(&lhs, n);
+
             Self::from_ne_limbs(limbs)
         }
 
@@ -1319,7 +1360,13 @@ macro_rules! uint_limb_ops_define {
         #[inline(always)]
         pub const fn wrapping_sub_ulimb(self, n: ULimb) -> Self {
             let lhs = self.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let limbs = math::wrapping_sub_limb_u64(&lhs, n);
+
+            #[cfg(feature = "limb32")]
+            let limbs = math::wrapping_sub_limb_u32(&lhs, n);
+
             Self::from_ne_limbs(limbs)
         }
 
@@ -1374,7 +1421,12 @@ macro_rules! uint_limb_ops_define {
             //      mov     rax, rdi
             //      pop     rbx
             //      ret
+             #[cfg(not(feature = "limb32"))]
             let r = math::wrapping_mul_limb_u64(&self.to_ne_limbs(), n);
+
+            #[cfg(feature = "limb32")]
+            let r = math::wrapping_mul_limb_u32(&self.to_ne_limbs(), n);
+
             Self::from_ne_limbs(r)
         }
 
@@ -1405,7 +1457,13 @@ macro_rules! uint_limb_ops_define {
         #[inline(always)]
         pub const fn overflowing_add_ulimb(self, n: ULimb) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let (limbs, overflowed) = math::overflowing_add_limb_u64(&lhs, n);
+
+            #[cfg(feature = "limb32")]
+            let (limbs, overflowed) = math::overflowing_add_limb_u32(&lhs, n);
+
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1416,7 +1474,13 @@ macro_rules! uint_limb_ops_define {
         #[inline(always)]
         pub const fn overflowing_sub_ulimb(self, n: ULimb) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
+
+             #[cfg(not(feature = "limb32"))]
             let (limbs, overflowed) = math::overflowing_sub_limb_u64(&lhs, n);
+
+            #[cfg(feature = "limb32")]
+            let (limbs, overflowed) = math::overflowing_sub_limb_u32(&lhs, n);
+
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1443,7 +1507,12 @@ macro_rules! uint_limb_ops_define {
         /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
         #[inline(always)]
         pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
+             #[cfg(not(feature = "limb32"))]
             let (r, overflow) = math::overflowing_mul_limb_u64(&self.to_le_limbs(), n);
+
+            #[cfg(feature = "limb32")]
+            let (r, overflow) = math::overflowing_mul_limb_u32(&self.to_le_limbs(), n);
+
             (Self::from_le_limbs(r), overflow)
         }
     };
