@@ -1032,6 +1032,21 @@ macro_rules! uint_limb_ops_define {
             let limbs = math::wrapping_sub_limb_u64(&lhs, n);
             Self::from_ne_limbs(limbs)
         }
+
+        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full division cannot do.
+        ///
+        /// # Panics
+        ///
+        /// This panics if the divisor is 0.
+        #[inline(always)]
+        pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
+            let x = self.to_le_limbs();
+            let (div, rem) = math::div_rem_limb(&x, n);
+            let div = u256::from_le_limbs(div);
+            (div, rem)
+        }
     };
 
     (@overflowing) => {

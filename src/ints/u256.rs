@@ -739,40 +739,6 @@ impl u256 {
         let (r, overflow) = math::overflowing_mul_arr_u128(&self.to_le_limbs(), &[n]);
         (Self::from_le_limbs(r), overflow)
     }
-
-    /// Div/Rem the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This is a convenience function: always prefer [`wrapping_div_rem`]
-    /// or [`wrapping_div_rem_ulimb`] if possible.
-    ///
-    /// # Panics
-    ///
-    /// This panics if the divisor is 0.
-    ///
-    /// [`wrapping_div_rem`]: Self::wrapping_div_rem
-    /// [`wrapping_div_rem_ulimb`]: Self::wrapping_div_rem_ulimb
-    #[inline(always)]
-    pub fn wrapping_div_rem_uwide(self, n: UWide) -> (Self, UWide) {
-        let x = self.to_le_limbs();
-        let (div, rem) = math::div_rem_wide(&x, n);
-        let div = u256::from_le_limbs(div);
-        (div, rem)
-    }
-
-    /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
-    ///
-    /// This allows optimizations a full division cannot do.
-    ///
-    /// # Panics
-    ///
-    /// This panics if the divisor is 0.
-    #[inline(always)]
-    pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
-        let x = self.to_le_limbs();
-        let (div, rem) = math::div_rem_limb(&x, n);
-        let div = u256::from_le_limbs(div);
-        (div, rem)
-    }
 }
 
 uint_traits_define!(type => u256, signed_type => i256);

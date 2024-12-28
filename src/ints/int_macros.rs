@@ -510,6 +510,9 @@ macro_rules! int_wrapping_define {
             let mut rem = u256::from_le_limbs(rem).as_signed();
 
             // convert to our correct signs, get the product
+            // NOTE: Rust has different behavior than languages like
+            // Python, where `-1 % 2 == 1` and `-1 % -2 == -1`. In
+            // Rust, both are `-1`.
             if self.is_negative() != n.is_negative() {
                 div = div.wrapping_neg();
             }
@@ -552,8 +555,8 @@ macro_rules! int_wrapping_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_div_euclid`].")]
         #[inline]
         pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
-            let mut q = self.wrapping_div(rhs);
-            if self.wrapping_rem(rhs).lt_const(Self::from_u8(0)) {
+            let (mut q, r) = self.wrapping_div_rem(rhs);
+            if r.lt_const(Self::from_u8(0)) {
                 if rhs.gt_const(Self::from_u8(0)) {
                     q = q.wrapping_sub(Self::from_u8(1));
                 } else {
@@ -1406,6 +1409,55 @@ macro_rules! int_limb_ops_define {
             Self::from_ne_limbs(limbs)
         }
 
+        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full division cannot do. This always
+        /// wraps, which can never happen in practice. This has to use
+        /// the floor division since we can never have a non-negative rem.
+        #[inline]
+        pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
+            let x = self.unsigned_abs().to_le_limbs();
+            let (div, mut rem) = math::div_rem_limb(&x, n);
+            let mut div = Self::from_le_limbs(div);
+            if self.is_negative() {
+                div = div.wrapping_neg();
+            }
+            // rem is always positive: `-65 % 64` is 63
+            // however, if we're negative and have a remainder,
+            // we need to adjust since the remainder assumes the
+            // floor of a positive value
+            if self.is_negative() && rem != 0 {
+                div -= Self::from_u8(1);
+                rem = n - rem;
+            }
+            (div, rem)
+        }
+
+        /// Div/Rem the 256-bit integer by a 64-bit signed factor.
+        ///
+        /// This allows optimizations a full division cannot do. This always
+        /// wraps, which can never happen in practice.
+        #[inline]
+        pub fn wrapping_div_rem_ilimb(self, n: ILimb) -> (Self, ILimb) {
+            let x = self.unsigned_abs().to_le_limbs();
+            let (div, rem) = math::div_rem_limb(&x, n.unsigned_abs());
+            let mut div = Self::from_le_limbs(div);
+            let mut rem = rem as ILimb;
+
+            // convert to our correct signs, get the product
+            // NOTE: Rust has different behavior than languages like
+            // Python, where `-1 % 2 == 1` and `-1 % -2 == -1`. In
+            // Rust, both are `-1`.
+            if self.is_negative() != n.is_negative() {
+                div = div.wrapping_neg();
+            }
+            if self.is_negative() {
+                rem = rem.wrapping_neg();
+            }
+
+            (div, rem)
+        }
+
         /// Div the 256-bit integer by a 64-bit signed factor.
         ///
         /// This allows optimizations a full division cannot do.
@@ -1472,7 +1524,7 @@ macro_rules! int_limb_ops_define {
         #[inline]
         pub fn overflowing_div_rem_ilimb(self, n: $crate::ILimb) -> ((Self, $crate::ILimb), bool) {
             if self.eq_const(Self::MIN) && n == -1 {
-                ((Self::MAX, 0), true)
+                ((Self::MIN, 0), true)
             } else {
                 (self.wrapping_div_rem_ilimb(n), false)
             }
@@ -1591,143 +1643,14 @@ macro_rules! int_wide_ops_define {
                 }
             }
         }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`div_rem`]
-        /// or [`div_rem_ilimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`div_rem`]: Self::div_rem
-        /// [`div_rem_ilimb`]: Self::div_rem_ilimb
-        #[inline]
-        pub fn div_rem_iwide(self, n: $crate::IWide) -> (Self, $crate::IWide) {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_div_rem_iwide(n)
-            } else {
-                match self.checked_div_rem_iwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to divide by zero"),
-                }
-            }
-        }
-
-        /// Div the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`div`]
-        /// or [`div_ilimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`div`]: Self::div
-        /// [`div_ilimb`]: Self::div_ilimb
-        #[inline(always)]
-        pub fn div_iwide(self, n: $crate::IWide) -> Self {
-            self.div_rem_iwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`rem`]
-        /// or [`rem_ilimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`rem`]: Self::rem
-        /// [`rem_ilimb`]: Self::rem_ilimb
-        #[inline(always)]
-        pub fn rem_iwide(self, n: $crate::IWide) -> $crate::IWide {
-            self.div_rem_iwide(n).1
-        }
     };
 
     (@wrapping) => {
         wide_ops_define!(@wrapping);
-
-        /// Div the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_div`]
-        /// or [`wrapping_div_ilimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`wrapping_div`]: Self::wrapping_div
-        /// [`wrapping_div_ilimb`]: Self::wrapping_div_ilimb
-        #[inline(always)]
-        pub fn wrapping_div_iwide(self, n: $crate::IWide) -> Self {
-            self.wrapping_div_rem_iwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_rem`]
-        /// or [`wrapping_rem_ilimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`wrapping_rem`]: Self::wrapping_rem
-        /// [`wrapping_rem_ilimb`]: Self::wrapping_rem_ilimb
-        #[inline(always)]
-        pub fn wrapping_rem_iwide(self, n: $crate::IWide) -> $crate::IWide {
-            self.wrapping_div_rem_iwide(n).1
-        }
     };
 
     (@overflowing) => {
         wide_ops_define!(@overflowing);
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div_rem`]
-        /// or [`overflowing_div_rem_ulimb`] if possible.
-        ///
-        /// [`overflowing_div_rem`]: Self::overflowing_div_rem
-        /// [`overflowing_div_rem_ulimb`]: Self::overflowing_div_rem_ulimb
-        #[inline]
-        pub fn overflowing_div_rem_iwide(self, n: $crate::IWide) -> ((Self, $crate::IWide), bool) {
-            if n == 0 {
-                ((Self::MAX, 0), true)
-            } else {
-                (self.wrapping_div_rem_iwide(n), false)
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div`]
-        /// or [`overflowing_div_ilimb`] if possible.
-        ///
-        /// [`overflowing_div`]: Self::overflowing_div
-        /// [`overflowing_div_ilimb`]: Self::overflowing_div_ilimb
-        #[inline(always)]
-        pub fn overflowing_div_iwide(self, n: $crate::IWide) -> (Self, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_iwide(n);
-            (value.0, overflowed)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_rem`]
-        /// or [`overflowing_rem_ilimb`] if possible.
-        ///
-        /// [`overflowing_rem`]: Self::overflowing_rem
-        /// [`overflowing_rem_ilimb`]: Self::overflowing_rem_ilimb
-        #[inline(always)]
-        pub fn overflowing_rem_iwide(self, n: $crate::IWide) -> ($crate::IWide, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_iwide(n);
-            (value.1, overflowed)
-        }
     };
 
     (@checked) => {
@@ -1744,46 +1667,6 @@ macro_rules! int_wide_ops_define {
             } else {
                 Some(value)
             }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div_rem`]
-        /// or [`checked_div_rem_ulimb`] if possible.
-        ///
-        /// [`checked_div_rem`]: Self::checked_div_rem
-        /// [`checked_div_rem_ulimb`]: Self::checked_div_rem_ulimb
-        #[inline]
-        pub fn checked_div_rem_iwide(self, n: $crate::IWide) -> Option<(Self, $crate::IWide)> {
-            if n == 0 {
-                None
-            } else {
-                Some(self.wrapping_div_rem_iwide(n))
-            }
-        }
-
-        /// Div the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div`]
-        /// or [`checked_div_ilimb`] if possible.
-        ///
-        /// [`checked_div`]: Self::checked_div
-        /// [`checked_div_ilimb`]: Self::checked_div_ilimb
-        #[inline(always)]
-        pub fn checked_div_iwide(self, n: $crate::IWide) -> Option<Self> {
-            Some(self.checked_div_rem_iwide(n)?.0)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit signed factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_rem`]
-        /// or [`checked_rem_ilimb`] if possible.
-        ///
-        /// [`checked_rem`]: Self::checked_rem
-        /// [`checked_rem_ilimb`]: Self::checked_rem_ilimb
-        #[inline(always)]
-        pub fn checked_rem_iwide(self, n: $crate::IWide) -> Option<$crate::IWide> {
-            Some(self.checked_div_rem_iwide(n)?.1)
         }
     };
 

@@ -1918,132 +1918,12 @@ macro_rules! wide_ops_define {
                 }
             }
         }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`div_rem`]
-        /// or [`div_rem_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`div_rem`]: Self::div_rem
-        /// [`div_rem_ulimb`]: Self::div_rem_ulimb
-        #[inline]
-        pub fn div_rem_uwide(self, n: $crate::UWide) -> (Self, $crate::UWide) {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_div_rem_uwide(n)
-            } else {
-                match self.checked_div_rem_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to divide by zero"),
-                }
-            }
-        }
-
-        /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`div`]
-        /// or [`div_ulimb`] if possible.
-        ///
-        /// [`div`]: Self::div
-        /// [`div_ulimb`]: Self::div_ulimb
-        #[inline(always)]
-        pub fn div_uwide(self, n: $crate::UWide) -> Self {
-            self.div_rem_uwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`rem`]
-        /// or [`rem_ulimb`] if possible.
-        ///
-        /// [`rem`]: Self::rem
-        /// [`rem_ulimb`]: Self::rem_ulimb
-        #[inline(always)]
-        pub fn rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
-            self.div_rem_uwide(n).1
-        }
-
     };
 
     (@wrapping) => {
-        /// Div the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_div`]
-        /// or [`wrapping_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`wrapping_div`]: Self::wrapping_div
-        /// [`wrapping_div_ulimb`]: Self::wrapping_div_ulimb
-        #[inline(always)]
-        pub fn wrapping_div_uwide(self, n: $crate::UWide) -> Self {
-            self.wrapping_div_rem_uwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_rem`]
-        /// or [`wrapping_rem_ulimb`] if possible.
-        ///
-        /// [`wrapping_rem`]: Self::wrapping_rem
-        /// [`wrapping_rem_ulimb`]: Self::wrapping_rem_ulimb
-        #[inline(always)]
-        pub fn wrapping_rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
-            self.wrapping_div_rem_uwide(n).1
-        }
     };
 
     (@overflowing) => {
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div_rem`]
-        /// or [`overflowing_div_rem_ulimb`] if possible.
-        ///
-        /// [`overflowing_div_rem`]: Self::overflowing_div_rem
-        /// [`overflowing_div_rem_ulimb`]: Self::overflowing_div_rem_ulimb
-        #[inline]
-        pub fn overflowing_div_rem_uwide(self, n: $crate::UWide) -> ((Self, $crate::UWide), bool) {
-            if n == 0 {
-                ((Self::MAX, 0), true)
-            } else {
-                (self.wrapping_div_rem_uwide(n), false)
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div`]
-        /// or [`overflowing_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`overflowing_div`]: Self::overflowing_div
-        /// [`overflowing_div_ulimb`]: Self::overflowing_div_ulimb
-        #[inline(always)]
-        pub fn overflowing_div_uwide(self, n: $crate::UWide) -> (Self, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
-            (value.0, overflowed)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_rem`]
-        /// or [`overflowing_rem_ulimb`] if possible.
-        ///
-        /// [`overflowing_rem`]: Self::overflowing_rem
-        /// [`overflowing_rem_ulimb`]: Self::overflowing_rem_ulimb
-        #[inline(always)]
-        pub fn overflowing_rem_uwide(self, n: $crate::UWide) -> ($crate::UWide, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
-            (value.1, overflowed)
-        }
     };
 
     (@checked) => {
@@ -2058,50 +1938,6 @@ macro_rules! wide_ops_define {
             } else {
                 Some(value)
             }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div_rem`]
-        /// or [`checked_div_rem_ulimb`] if possible.
-        ///
-        /// [`checked_div_rem`]: Self::checked_div_rem
-        /// [`checked_div_rem_ulimb`]: Self::checked_div_rem_ulimb
-        #[inline]
-        pub fn checked_div_rem_uwide(self, n: $crate::UWide) -> Option<(Self, $crate::UWide)> {
-            if n == 0 {
-                None
-            } else {
-                Some(self.wrapping_div_rem_uwide(n))
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div`]
-        /// or [`checked_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`checked_div`]: Self::checked_div
-        /// [`checked_div_ulimb`]: Self::checked_div_ulimb
-        #[inline(always)]
-        pub fn checked_div_uwide(self, n: $crate::UWide) -> Option<Self> {
-            Some(self.checked_div_rem_uwide(n)?.0)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_rem`]
-        /// or [`checked_rem_ulimb`] if possible.
-        ///
-        /// [`checked_rem`]: Self::checked_rem
-        /// [`checked_rem_ulimb`]: Self::checked_rem_ulimb
-        #[inline(always)]
-        pub fn checked_rem_uwide(self, n: $crate::UWide) -> Option<$crate::UWide> {
-            Some(self.checked_div_rem_uwide(n)?.1)
         }
     };
 

@@ -576,6 +576,9 @@ quickcheck! {
         })
     }
 
+    // NOTE: We check all the div/rem ones below because they have to match **FLOOR**
+    // division and not the Rust standard behavior.
+
     fn i256_wrapping_add_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
         signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_ulimb)
     }
@@ -586,24 +589,6 @@ quickcheck! {
 
     fn i256_wrapping_mul_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
         signed_limb_op_equal!(wrap x0, x1, y, wrapping_mul, wrapping_mul_ulimb)
-    }
-
-    fn i256_wrapping_div_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(wrap x0, x1, y, wrapping_div, wrapping_div_ulimb)
-        } else {
-            true
-        }
-    }
-
-    fn i256_wrapping_rem_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_ulimb, |x, y| {
-                x == i256::i256::from_u64(y)
-            })
-        } else {
-            true
-        }
     }
 
     fn i256_overflowing_add_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
@@ -618,24 +603,6 @@ quickcheck! {
         signed_limb_op_equal!(over x0, x1, y, overflowing_mul, overflowing_mul_ulimb)
     }
 
-    fn i256_overflowing_div_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(over x0, x1, y, overflowing_div, overflowing_div_ulimb)
-        } else {
-            true
-        }
-    }
-
-    fn i256_overflowing_rem_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_ulimb, |x: (i256::i256, bool), y: (u64, bool)| {
-                x.0 == i256::i256::from_u64(y.0) && x.1 == y.1
-            })
-        } else {
-            true
-        }
-    }
-
     fn i256_checked_add_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
         signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_ulimb)
     }
@@ -646,24 +613,6 @@ quickcheck! {
 
     fn i256_checked_mul_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
         signed_limb_op_equal!(check x0, x1, y, checked_mul, checked_mul_ulimb)
-    }
-
-    fn i256_checked_div_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(check x0, x1, y, checked_div, checked_div_ulimb)
-        } else {
-            true
-        }
-    }
-
-    fn i256_checked_rem_ulimb_quickcheck(x0: u128, x1: i128, y: u64) -> bool {
-        if y != 0 {
-            signed_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_ulimb, |x: Option<i256::i256>, y: Option<u64>| {
-                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::i256::from_u64(v).to_le_bytes())
-            })
-        } else {
-            true
-        }
     }
 
     fn i256_wrapping_add_ilimb_quickcheck(x0: u128, x1: i128, y: i64) -> bool {
@@ -867,4 +816,30 @@ fn next_power_of_two_tests() {
 
     let x = i256::u256::new(3, 0).wrapping_next_power_of_two();
     assert_eq!(x, i256::u256::new(4, 0));
+}
+
+#[test]
+fn wrapping_add_ilimb_tests() {
+    let x = i256::i256::new(0, 0).wrapping_add_ilimb(-1);
+    assert_eq!(x, i256::i256::new(u128::MAX, u128::MAX as i128));
+}
+
+#[test]
+fn checked_rem_tests() {
+    let num = i256::i256::new(0, -1);
+    let den = i256::i256::new(1, 1);
+    let (quo, rem) = num.wrapping_div_rem(den);
+    assert_eq!(rem, i256::i256::new(0, -1));
+    assert_eq!(quo, i256::i256::from_i8(0));
+}
+
+#[test]
+fn checked_rem_ulimb_tests() {
+    // NOTE: With `ulimb` we have to have Python-like handling of the values,
+    // rather than how Rust handles remainders.
+    let num = i256::i256::new(0, -1);
+    let den = u64::MAX;
+    let (quo, rem) = num.wrapping_div_rem_ulimb(den);
+    assert_eq!(rem, 18446744073709551614);
+    assert_eq!(quo, i256::i256::from_i128(-18446744073709551618));
 }
