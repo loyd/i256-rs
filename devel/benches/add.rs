@@ -16,13 +16,13 @@ macro_rules! add_group {
             let mut rng = fastrand::Rng::with_seed(seed);
             add_benches!(group, $strategy, rng, $prefix, wrapping_add);
 
-            let wide_data = get_wide_data($strategy, &mut rng);
-            add_bench!(group, concat!($prefix, "::u256-wide"), wide_data.iter(), |x: &(
+            let limb_data = get_limb_data($strategy, &mut rng);
+            add_bench!(group, concat!($prefix, "::u256-limb"), limb_data.iter(), |x: &(
                 u256,
-                u128
+                u64
             )| x
                 .0
-                .wrapping_add_uwide(x.1));
+                .wrapping_add_ulimb(x.1));
         }
     };
 }

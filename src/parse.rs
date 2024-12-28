@@ -44,7 +44,7 @@ pub(crate) const fn char_to_digit(c: u8, radix: u32) -> Option<u32> {
 macro_rules! unchecked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
-        use $crate::{IntErrorKind, ParseIntError, ULimb, UWide};
+        use $crate::{IntErrorKind, ParseIntError, ULimb};
 
         let digits = $digits;
         let radix = $radix;
@@ -56,7 +56,7 @@ macro_rules! unchecked_loop {
                 Some(v) => v,
                 None => return Err(ParseIntError::new(IntErrorKind::InvalidDigit)),
             };
-            res = res.wrapping_mul_ulimb(radix as ULimb).$add_op(digit as UWide);
+            res = res.wrapping_mul_ulimb(radix as ULimb).$add_op(digit as ULimb);
             index += 1;
         }
 
@@ -69,7 +69,7 @@ macro_rules! unchecked_loop {
 macro_rules! checked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $overflow:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
-        use $crate::{IntErrorKind, ParseIntError, ULimb, UWide};
+        use $crate::{IntErrorKind, ParseIntError, ULimb};
 
         let digits = $digits;
         let radix = $radix;
@@ -85,7 +85,7 @@ macro_rules! checked_loop {
                 Some(v) => v,
                 None => return Err(ParseIntError::new(IntErrorKind::$overflow)),
             };
-            res = match value.$add_op(digit as UWide) {
+            res = match value.$add_op(digit as ULimb) {
                 Some(v) => v,
                 None => return Err(ParseIntError::new(IntErrorKind::$overflow)),
             };
@@ -151,13 +151,13 @@ macro_rules! from_str_radix_define {
             let cannot_overflow = (digits.len() - index) <= overflow_digits;
 
             if cannot_overflow && is_negative {
-                unchecked_loop!(Self, digits, radix, index, wrapping_sub_uwide)
+                unchecked_loop!(Self, digits, radix, index, wrapping_sub_ulimb)
             } else if cannot_overflow {
-                unchecked_loop!(Self, digits, radix, index, wrapping_add_uwide)
+                unchecked_loop!(Self, digits, radix, index, wrapping_add_ulimb)
             } else if is_negative {
-                checked_loop!(Self, digits, radix, index, NegOverflow, checked_sub_uwide)
+                checked_loop!(Self, digits, radix, index, NegOverflow, checked_sub_ulimb)
             } else {
-                checked_loop!(Self, digits, radix, index, PosOverflow, checked_add_uwide)
+                checked_loop!(Self, digits, radix, index, PosOverflow, checked_add_ulimb)
             }
         }
     };

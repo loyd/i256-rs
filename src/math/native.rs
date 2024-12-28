@@ -72,125 +72,113 @@ macro_rules! add_unsigned_impl {
     (
         $u:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_wide =>
-        $wrapping_wide:ident,overflowing_wide =>
-        $overflowing_wide:ident $(,)?
+        $overflowing_full:ident,wrapping_limb =>
+        $wrapping_limb:ident,overflowing_limb =>
+        $overflowing_limb:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_add` for internal algorithm use.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
         ///
         /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `add` and 1 `adc` instruction.
+        /// for a 256-bit addition (4x u64 + 4x u64), it optimizes to 1
+        /// `add` and 3 `adc` instructions.
         ///
         /// ```asm
         /// wrapping_add:
         ///     mov     rax, rdi
-        ///     add     rax, rdx
-        ///     adc     rsi, rcx
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`, for
-        /// a 256-bit addition (2x u128 + 2x u128), it optimizes to 2
-        /// `add` and 4 `adc` instructions.
-        ///
-        /// ```asm
-        /// wrapping_add:
-        ///     add     rcx, qword ptr [rsp + 24]
-        ///     adc     r8, qword ptr [rsp + 32]
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     adc     rdx, qword ptr [rsp + 16]
-        ///     adc     rcx, 0
-        ///     mov     rax, rdi
-        ///     adc     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     add     rcx, qword ptr [rdx]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     adc     rdi, qword ptr [rdx + 8]
+        ///     mov     r9, qword ptr [rdx + 24]
+        ///     adc     r8, qword ptr [rdx + 16]
+        ///     adc     r9, qword ptr [rsi + 24]
+        ///     mov     qword ptr [rax], rcx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], r9
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
-            // NOTE: This is significantly slower than implementing with overflowing.
-            let (v0, c0) = x0.overflowing_add(y0);
-            let v1 = x1.wrapping_add(y1);
-            let v1 = v1.wrapping_add(c0 as $u);
-            (v0, v1)
+        pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
+            // FIXME: Move to `carrying_add` once stable.
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            let vn = ne_index(x, index).wrapping_add(ne_index(y, index));
+            result[to_ne_index(index, N)] = vn.wrapping_add(c as $u);
+
+            result
         }
 
         /// Const implementation of `overflowing_add` for internal algorithm use.
         ///
-        /// Returns the value and if the add overflowed. In practice,
-        /// the nightly (carrying) and the overflowing add variants
-        /// have the same ASM generated, but this might not be the
-        /// case in the future or for different architectures.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
+        /// Returns the value, wrapping on overflow.
         ///
         /// # Assembly
         ///
         /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `add`, 1 `adc`, and 1 `set` instruction.
+        /// for a 256-bit addition (4x u64 + 4x u64), it optimizes to 1
+        /// `add`, 3 `adc`, and 1 `set` instructions.
         ///
         /// ```asm
         /// overflowing_add:
         ///     mov     rax, rdi
-        ///     add     rsi, rcx
-        ///     adc     rdx, r8
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     setb    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`, for
-        /// a 256-bit addition (2x u128 + 2x u128), it optimizes to 2
-        /// `add`, 4 `adc`, 2 `set` and 1 `or` instructions.
-        ///
-        /// ```asm
-        /// overflowing_add:
-        ///     mov     rax, qword ptr [rsp + 24]
-        ///     add     rax, rcx
-        ///     mov     rax, qword ptr [rsp + 32]
-        ///     adc     rax, r8
-        ///     setb    r9b
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     mov     rax, rdi
-        ///     adc     rdx, qword ptr [rsp + 16]
-        ///     adc     rcx, 0
-        ///     adc     r8, 0
-        ///     setb    dil
-        ///     or      dil, r9b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r8
-        ///     mov     byte ptr [rax + 32], dil
-        ///     ret
+        ///     mov     rcx, qword ptr [rsi]
+        ///     add     rcx, qword ptr [rdx]
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     adc     rdi, qword ptr [rdx + 8]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     adc     r8, qword ptr [rdx + 16]
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     adc     rsi, qword ptr [rdx + 24]
+        ///     mov     qword ptr [rax], rcx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], rsi
+        ///     setb    byte ptr [rax + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
-            let (v0, c0) = x0.overflowing_add(y0);
+        pub const fn $overflowing_full<const N: usize>(
+            x: &[$u; N],
+            y: &[$u; N],
+        ) -> ([$u; N], bool) {
             // FIXME: Move to `carrying_add` once stable.
-            let (v1, c1) = x1.overflowing_add(y1);
-            let (v1, c2) = v1.overflowing_add(c0 as $u);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
 
-            (v0, v1, c1 | c2)
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            let (vn, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+            let (vn, c1) = vn.overflowing_add(c as $u);
+            result[to_ne_index(index, N)] = vn;
+
+            (result, c0 | c1)
         }
 
         /// Const implementation of `wrapping_add` a small number to the wider type.
@@ -203,42 +191,46 @@ macro_rules! add_unsigned_impl {
         ///
         /// # Assembly
         ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `add` and 1 `adc` instruction.
-        ///
-        /// ```asm
-        /// wrapping_add:
-        ///    mov     rax, rdi
-        ///    add     rax, rdx
-        ///    adc     rsi, 0
-        ///    mov     rdx, rsi
-        ///    ret
-        /// ```
-        ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 256-bit addition (2x u128 + 2x u128), it optimizes to 1
         /// `add` and 3 `adc` instructions.
         ///
         /// ```asm
         /// wrapping_add:
-        ///    add     rsi, qword ptr [rsp + 8]
-        ///    adc     rdx, qword ptr [rsp + 16]
-        ///    adc     rcx, 0
-        ///    mov     rax, rdi
-        ///    adc     r8, 0
-        ///    mov     qword ptr [rdi], rsi
-        ///    mov     qword ptr [rdi + 8], rdx
-        ///    mov     qword ptr [rdi + 16], rcx
-        ///    mov     qword ptr [rdi + 24], r8
-        ///    ret
+        ///     mov     rax, rdi
+        ///     mov     rcx, qword ptr [rsi + 8]
+        ///     mov     rdi, qword ptr [rsi + 16]
+        ///     add     rdx, qword ptr [rsi]
+        ///     adc     rcx, 0
+        ///     adc     rdi, 0
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     adc     rsi, 0
+        ///     mov     qword ptr [rax], rdx
+        ///     mov     qword ptr [rax + 8], rcx
+        ///     mov     qword ptr [rax + 16], rdi
+        ///     mov     qword ptr [rax + 24], rsi
+        ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
-            // NOTE: This is significantly slower than implementing with overflowing.
-            let (v0, c0) = x0.overflowing_add(y);
-            let v1 = x1.wrapping_add(c0 as $u);
-            (v0, v1)
+        pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            v = ne_index(x, index).wrapping_add(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            result
         }
 
         /// Const implementation of `overflowing_add` a small number to the wider type.
@@ -251,225 +243,184 @@ macro_rules! add_unsigned_impl {
         ///
         /// # Assembly
         ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `add`, 1 `adc`, and 1 `set` instruction.
-        ///
-        /// ```asm
-        /// overflowing_add:
-        ///     mov     rax, rdi
-        ///     add     rsi, rcx
-        ///     adc     rdx, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     setb    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
-        ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 256-bit addition (2x u128 + 2x u128), it optimizes to 1
         /// `add`, 3 `adc`, and 1 `set` instructions.
         ///
         /// ```asm
         /// overflowing_add:
-        ///     add     rsi, qword ptr [rsp + 8]
         ///     mov     rax, rdi
-        ///     adc     rdx, qword ptr [rsp + 16]
+        ///     mov     rcx, qword ptr [rsi + 8]
+        ///     mov     rdi, qword ptr [rsi + 16]
+        ///     mov     r8, qword ptr [rsi + 24]
+        ///     add     rdx, qword ptr [rsi]
         ///     adc     rcx, 0
+        ///     adc     rdi, 0
         ///     adc     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
-        ///     setb    byte ptr [rdi + 32]
+        ///     mov     qword ptr [rax], rdx
+        ///     mov     qword ptr [rax + 8], rcx
+        ///     mov     qword ptr [rax + 16], rdi
+        ///     mov     qword ptr [rax + 24], r8
+        ///     setb    byte ptr [rax + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_wide(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
-            let (v0, c0) = x0.overflowing_add(y);
-            let (v1, c1) = x1.overflowing_add(c0 as $u);
-            (v0, v1, c1)
+        pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            (v, c) = ne_index(x, index).overflowing_add(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            (result, c)
         }
     };
 }
 
 add_unsigned_impl!(
-    u8,
-    wrapping_full => wrapping_add_u8,
-    overflowing_full => overflowing_add_u8,
-    wrapping_wide => wrapping_add_wide_u8,
-    overflowing_wide => overflowing_add_wide_u8
-);
-add_unsigned_impl!(
-    u16,
-    wrapping_full => wrapping_add_u16,
-    overflowing_full => overflowing_add_u16,
-    wrapping_wide => wrapping_add_wide_u16,
-    overflowing_wide => overflowing_add_wide_u16
-);
-add_unsigned_impl!(
     u32,
     wrapping_full => wrapping_add_u32,
     overflowing_full => overflowing_add_u32,
-    wrapping_wide => wrapping_add_wide_u32,
-    overflowing_wide => overflowing_add_wide_u32
+    wrapping_limb => wrapping_add_limb_u32,
+    overflowing_limb => overflowing_add_limb_u32
 );
 add_unsigned_impl!(
     u64,
     wrapping_full => wrapping_add_u64,
     overflowing_full => overflowing_add_u64,
-    wrapping_wide => wrapping_add_wide_u64,
-    overflowing_wide => overflowing_add_wide_u64
-);
-add_unsigned_impl!(
-    u128,
-    wrapping_full => wrapping_add_u128,
-    overflowing_full => overflowing_add_u128,
-    wrapping_wide => wrapping_add_wide_u128,
-    overflowing_wide => overflowing_add_wide_u128
+    wrapping_limb => wrapping_add_limb_u64,
+    overflowing_limb => overflowing_add_limb_u64
 );
 
 macro_rules! sub_unsigned_impl {
     (
         $u:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_wide =>
-        $wrapping_wide:ident,overflowing_wide =>
-        $overflowing_wide:ident $(,)?
+        $overflowing_full:ident,wrapping_limb =>
+        $wrapping_limb:ident,overflowing_limb =>
+        $overflowing_limb:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
         ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `sub` and 1 `sbb` instruction.
+        /// This optimizes very well, for example, on `x86_64`,
+        /// for a 256-bit subtraction (1x u128, 1x i128 + x u64), it
+        /// optimizes to 1 `sub` and 3 `sbb` instructions.
         ///
         /// ```asm
         /// wrapping_sub:
         ///     mov     rax, rdi
-        ///     sub     rax, rdx
-        ///     sbb     rsi, rcx
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`, for
-        /// a 256-bit subtraction (2x u128 + 2x u128), it optimizes to 2
-        /// `sub` and 4 `sbb` instructions.
-        ///
-        /// ```asm
-        /// wrapping_sub:
-        ///     sub     rcx, qword ptr [rsp + 24]
-        ///     sbb     r8, qword ptr [rsp + 32]
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
-        ///     mov     rax, rdi
-        ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rcx, qword ptr [rsi + 16]
+        ///     mov     rdi, qword ptr [rsi]
+        ///     sub     rdi, qword ptr [rdx]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sbb     r8, qword ptr [rdx + 8]
+        ///     sbb     rcx, qword ptr [rdx + 16]
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, qword ptr [rdx + 24]
+        ///     mov     qword ptr [rax], rdi
+        ///     mov     qword ptr [rax + 8], r8
+        ///     mov     qword ptr [rax + 16], rcx
+        ///     mov     qword ptr [rax + 24], rsi
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u) {
-            let (v0, c0) = x0.overflowing_sub(y0);
-            let v1 = x1.wrapping_sub(y1);
-            let v1 = v1.wrapping_sub(c0 as $u);
-            (v0, v1)
+        pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
+            // FIXME: Move to `borrowing_sub` once stable.
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            let vn = ne_index(x, index).wrapping_sub(ne_index(y, index));
+            result[to_ne_index(index, N)] = vn.wrapping_sub(c as $u);
+
+            result
         }
 
         /// Const implementation of `overflowing_sub` for internal algorithm use.
         ///
         /// Returns the value and if the sub underflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
         ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit subtraction (2x u64 + 2x u64), it optimizes to 1
-        /// `sub`, 1 `sbb`, and 1 `set` instruction.
-        ///
-        /// ```asm
-        /// overflowing_sub:
-        ///     mov     rax, rdi
-        ///     sub     rsi, rcx
-        ///     sbb     rdx, r8
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     setb    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
-        ///
         /// This optimizes extremely well, for example, on `x86_64`, for
-        /// a 256-bit subtraction (2x u128 + 2x u128), it optimizes to 2
-        /// `sub`, 4 `sbb`, 2 `set`, and 1 `or` instructions.
+        /// a 256-bit subtraction (2x u128 + 2x u128), it optimizes to 1
+        /// `sub`, 3 `sbb`, and 1 `set` instructions.
         ///
         /// ```asm
         /// overflowing_sub:
-        ///     sub     rcx, qword ptr [rsp + 24]
-        ///     sbb     r8, qword ptr [rsp + 32]
-        ///     setb    r9b
-        ///     sub     rsi, qword ptr [rsp + 8]
         ///     mov     rax, rdi
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
-        ///     sbb     r8, 0
-        ///     setb    dil
-        ///     or      dil, r9b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r8
-        ///     mov     byte ptr [rax + 32], dil
+        ///     mov     rcx, qword ptr [rsi]
+        ///     sub     rcx, qword ptr [rdx]
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     sbb     rdi, qword ptr [rdx + 8]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     sbb     r8, qword ptr [rdx + 16]
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, qword ptr [rdx + 24]
+        ///     mov     qword ptr [rax], rcx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], rsi
+        ///     setb    byte ptr [rax + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_full(x0: $u, x1: $u, y0: $u, y1: $u) -> ($u, $u, bool) {
-            // NOTE: When we ignore the carry in the caller, this optimizes the same.
-            let (v0, c0) = x0.overflowing_sub(y0);
+        pub const fn $overflowing_full<const N: usize>(
+            x: &[$u; N],
+            y: &[$u; N],
+        ) -> ([$u; N], bool) {
             // FIXME: Move to `borrowing_sub` once stable.
-            let (v1, c1) = x1.overflowing_sub(y1);
-            let (v1, c2) = v1.overflowing_sub(c0 as $u);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
 
-            (v0, v1, c1 | c2)
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            let (vn, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+            let (vn, c1) = vn.overflowing_sub(c as $u);
+            result[to_ne_index(index, N)] = vn;
+
+            (result, c0 | c1)
         }
 
         /// Const implementation of `wrapping_sub` a small number to the wider type.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (2x u64 + 2x u64), it optimizes to 1
-        /// `sub` and 1 `sbb` instruction.
-        ///
-        /// ```asm
-        /// wrapping_sub:
-        ///     mov     rax, rdi
-        ///     sub     rax, rdx
-        ///     sbb     rsi, 0
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
         ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 128-bit subtraction (2x u128 + 2x u128), it optimizes to 1
@@ -477,48 +428,48 @@ macro_rules! sub_unsigned_impl {
         ///
         /// ```asm
         /// wrapping_sub:
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
-        ///     mov     rax, rdi
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sub     rcx, rdx
         ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rax, rdi
+        ///     mov     rdx, qword ptr [rsi + 16]
+        ///     sbb     rdx, 0
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, 0
+        ///     mov     qword ptr [rdi], rcx
+        ///     mov     qword ptr [rdi + 8], r8
+        ///     mov     qword ptr [rdi + 16], rdx
+        ///     mov     qword ptr [rdi + 24], rsi
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_wide(x0: $u, x1: $u, y: $u) -> ($u, $u) {
-            let (v0, c0) = x0.overflowing_sub(y);
-            let v1 = x1.wrapping_sub(c0 as $u);
-            (v0, v1)
+        pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            v = ne_index(x, index).wrapping_sub(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            result
         }
 
         /// Const implementation to subtract a small number from the wider type.
         ///
         /// Returns the value and if the sub overflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit subtraction (2x u64 + 2x u64), it optimizes to 1
-        /// `sub`, 1 `sbb`, and 1 `set` instruction.
-        ///
-        /// ```asm
-        /// overflowing_sub:
-        ///     mov     rax, rdi
-        ///     sub     rsi, rcx
-        ///     sbb     rdx, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     setb    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
         ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 128-bit subtraction (2x u128 + 2x u128), it optimizes to 1
@@ -526,63 +477,59 @@ macro_rules! sub_unsigned_impl {
         ///
         /// ```asm
         /// overflowing_sub:
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     mov     rax, rdi
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sub     rcx, rdx
         ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rdx, qword ptr [rsi + 16]
+        ///     sbb     rdx, 0
+        ///     mov     rax, rdi
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, 0
+        ///     mov     qword ptr [rdi], rcx
+        ///     mov     qword ptr [rdi + 8], r8
+        ///     mov     qword ptr [rdi + 16], rdx
+        ///     mov     qword ptr [rdi + 24], rsi
         ///     setb    byte ptr [rdi + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_wide(x0: $u, x1: $u, y: $u) -> ($u, $u, bool) {
-            // NOTE: When we ignore the carry in the caller, this optimizes the same.
-            // This is super efficient, it becomes an `add` and an `adc` (add carry).
-            let (v0, c0) = x0.overflowing_sub(y);
-            let (v1, c1) = x1.overflowing_sub(c0 as $u);
-            (v0, v1, c1)
+        pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            (v, c) = ne_index(x, index).overflowing_sub(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            (result, c)
         }
     };
 }
 
 sub_unsigned_impl!(
-    u8,
-    wrapping_full => wrapping_sub_u8,
-    overflowing_full => overflowing_sub_u8,
-    wrapping_wide => wrapping_sub_wide_u8,
-    overflowing_wide => overflowing_sub_wide_u8
-);
-sub_unsigned_impl!(
-    u16,
-    wrapping_full => wrapping_sub_u16,
-    overflowing_full => overflowing_sub_u16,
-    wrapping_wide => wrapping_sub_wide_u16,
-    overflowing_wide => overflowing_sub_wide_u16
-);
-sub_unsigned_impl!(
     u32,
     wrapping_full => wrapping_sub_u32,
     overflowing_full => overflowing_sub_u32,
-    wrapping_wide => wrapping_sub_wide_u32,
-    overflowing_wide => overflowing_sub_wide_u32
+    wrapping_limb => wrapping_sub_limb_u32,
+    overflowing_limb => overflowing_sub_limb_u32
 );
 sub_unsigned_impl!(
     u64,
     wrapping_full => wrapping_sub_u64,
     overflowing_full => overflowing_sub_u64,
-    wrapping_wide => wrapping_sub_wide_u64,
-    overflowing_wide => overflowing_sub_wide_u64
-);
-sub_unsigned_impl!(
-    u128,
-    wrapping_full => wrapping_sub_u128,
-    overflowing_full => overflowing_sub_u128,
-    wrapping_wide => wrapping_sub_wide_u128,
-    overflowing_wide => overflowing_sub_wide_u128
+    wrapping_limb => wrapping_sub_limb_u64,
+    overflowing_limb => overflowing_sub_limb_u64
 );
 
 macro_rules! mul_unsigned_impl {
@@ -1268,62 +1215,62 @@ macro_rules! add_signed_impl {
         $u:ty,
         $s:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_uwide =>
-        $wrapping_uwide:ident,overflowing_uwide =>
-        $overflowing_uwide:ident,wrapping_iwide =>
-        $wrapping_iwide:ident,overflowing_iwide =>
-        $overflowing_iwide:ident $(,)?
+        $overflowing_full:ident,wrapping_ulimb =>
+        $wrapping_ulimb:ident,overflowing_ulimb =>
+        $overflowing_ulimb:ident,wrapping_ilimb =>
+        $wrapping_ilimb:ident,overflowing_ilimb =>
+        $overflowing_ilimb:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_add` for internal algorithm use.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
         ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit addition (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `add`, and 1 `adc` instruction.
+        /// This optimizes extremely well, for example, on `x86_64`,
+        /// for a 256-bit addition (4x u64 + 4x u64), it optimizes to 1
+        /// `add` and 3 `adc` instructions.
         ///
         /// ```asm
         /// wrapping_add:
         ///     mov     rax, rdi
-        ///     add     rax, rdx
-        ///     adc     rsi, rcx
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes very well, for example, on `x86_64`,
-        /// for a 256-bit addition (1x u128, 1x i128 + x u64), it
-        /// optimizes to 2 `add` and 4 `adc` instructions.
-        ///
-        /// ```asm
-        /// wrapping_add:
-        ///     add     rcx, qword ptr [rsp + 24]
-        ///     adc     r8, qword ptr [rsp + 32]
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     adc     rdx, qword ptr [rsp + 16]
-        ///     adc     rcx, 0
-        ///     mov     rax, rdi
-        ///     adc     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     add     rcx, qword ptr [rdx]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     adc     rdi, qword ptr [rdx + 8]
+        ///     mov     r9, qword ptr [rdx + 24]
+        ///     adc     r8, qword ptr [rdx + 16]
+        ///     adc     r9, qword ptr [rsi + 24]
+        ///     mov     qword ptr [rax], rcx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], r9
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            let (v0, c0) = x0.overflowing_add(y0);
-            let v1 = x1.wrapping_add(y1);
-            let v1 = v1.wrapping_add(c0 as $s);
-            (v0, v1)
+        pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
+            // FIXME: Move to `carrying_add` once stable.
+            assert!(<$u>::BITS == <$s>::BITS);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            // NOTE: This is the same signed or unsigned.
+            let vn = ne_index(x, index).wrapping_add(ne_index(y, index));
+            result[to_ne_index(index, N)] = vn.wrapping_add(c as $u);
+
+            result
         }
 
         /// Const implementation of `overflowing_add` for internal algorithm use.
@@ -1333,61 +1280,54 @@ macro_rules! add_signed_impl {
         /// have the same ASM generated, but this might not be the
         /// case in the future or for different architectures.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit addition (1x u64, 1x i64 + 1x u64, 1x u64),
-        /// it optimizes to 2
-        /// `add`, 1 `adc`, 2 `set`, and 1 `or` instruction.
-        ///
-        /// ```asm
-        /// overflowing_add:
-        ///     mov     rax, rdi
-        ///     add     rdx, r8
-        ///     seto    dil
-        ///     add     rsi, rcx
-        ///     adc     rdx, 0
-        ///     seto    cl
-        ///     or      cl, dil
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     byte ptr [rax + 16], cl
-        ///     ret
-        /// ```
         ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 256-bit addition (2x u128 + 2x u128), it optimizes to 2
-        /// `add`, 4 `adc`, 2 `set` and 1 `or` instructions.
+        /// `add`, 3 `adc`, 2 `set` and 1 `xor` instructions.
         ///
         /// ```asm
         /// overflowing_add:
-        ///     add     rcx, qword ptr [rsp + 24]
-        ///     adc     r8, qword ptr [rsp + 32]
+        ///     mov     rcx, qword ptr [rsi + 24]
+        ///     add     rcx, qword ptr [rdx + 24]
+        ///     mov     r8, qword ptr [rsi]
         ///     seto    r9b
-        ///     add     rsi, qword ptr [rsp + 8]
+        ///     add     r8, qword ptr [rdx]
+        ///     mov     r10, qword ptr [rsi + 8]
+        ///     adc     r10, qword ptr [rdx + 8]
+        ///     mov     rsi, qword ptr [rsi + 16]
+        ///     adc     rsi, qword ptr [rdx + 16]
         ///     mov     rax, rdi
-        ///     adc     rdx, qword ptr [rsp + 16]
         ///     adc     rcx, 0
-        ///     adc     r8, 0
-        ///     seto    dil
-        ///     or      dil, r9b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r8
-        ///     mov     byte ptr [rax + 32], dil
+        ///     seto    dl
+        ///     xor     dl, r9b
+        ///     mov     qword ptr [rdi], r8
+        ///     mov     qword ptr [rdi + 8], r10
+        ///     mov     qword ptr [rdi + 16], rsi
+        ///     mov     qword ptr [rdi + 24], rcx
+        ///     mov     byte ptr [rdi + 32], dl
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            let (v0, c0) = x0.overflowing_add(y0);
+        pub const fn $overflowing_full<const N: usize>(
+            x: &[$u; N],
+            y: &[$u; N],
+        ) -> ([$u; N], bool) {
             // FIXME: Move to `carrying_add` once stable.
+            assert!(<$u>::BITS == <$s>::BITS);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
 
             // NOTE: There's a **VERY** specific edge-case where we can
             // have overflow but no overflow occurred:
@@ -1399,36 +1339,23 @@ macro_rules! add_signed_impl {
             // `MAX`, which then wraps back to `MIN`, exactly what we
             // needed.
 
-            let (v1, c1) = x1.overflowing_add(y1);
-            let (v1, c2) = v1.overflowing_add(c0 as $s);
+            // NOTE: We need to do this as a **SIGNED** operation.
+            let xn = ne_index(x, index) as $s;
+            let yn = ne_index(y, index) as $s;
+            let (vn, c0) = xn.overflowing_add(yn);
+            let (vn, c1) = vn.overflowing_add(c as $s);
+            result[to_ne_index(index, N)] = vn as $u;
 
-            // `c0 == 0`, then `c2 == 0`, so always want `c1`
-            // `c0 == 1`, then only want `c1` or `c2`, not both
-            (v0, v1, c1 ^ c2)
+            // `c == 0`, then `c1 == 0`, so always want `c1`
+            // `c == 1`, then only want `c0` or `c1`, not both
+            (result, c0 ^ c1)
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit addition (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `add`, and 1 `adc` instruction.
-        ///
-        /// ```asm
-        /// wrapping_add:
-        ///     mov     rax, rdi
-        ///     add     rax, rdx
-        ///     adc     rsi, 0
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
         ///
         /// This optimizes fairly well, for example, on `x86_64`,
         /// for a 256-bit addition (1x u128, 1x i128 + x u64), it
@@ -1436,48 +1363,49 @@ macro_rules! add_signed_impl {
         ///
         /// ```asm
         /// wrapping_add:
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     adc     rdx, qword ptr [rsp + 16]
-        ///     adc     rcx, 0
         ///     mov     rax, rdi
-        ///     adc     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rcx, qword ptr [rsi + 8]
+        ///     mov     rdi, qword ptr [rsi + 16]
+        ///     add     rdx, qword ptr [rsi]
+        ///     adc     rcx, 0
+        ///     adc     rdi, 0
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     adc     rsi, 0
+        ///     mov     qword ptr [rax], rdx
+        ///     mov     qword ptr [rax + 8], rcx
+        ///     mov     qword ptr [rax + 16], rdi
+        ///     mov     qword ptr [rax + 24], rsi
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s) {
-            let (v0, c0) = x0.overflowing_add(y);
-            let v1 = x1.wrapping_add(c0 as $s);
-            (v0, v1)
+        pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
+            assert!(N >= 2);
+            assert!(<$u>::BITS == <$s>::BITS);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            // NOTE: This has the same results as signed or unsigned.
+            v = ne_index(x, index).wrapping_add(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            result
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
         ///
         /// Returns the value and if the add overflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit addition (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `add`, 1 `adc`, and 1 `set` instructions.
-        ///
-        /// ```asm
-        /// overflowing_add:
-        ///     mov     rax, rdi
-        ///     add     rsi, rcx
-        ///     adc     rdx, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     seto    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
         ///
         /// This optimizes fairly well, for example, on `x86_64`,
         /// for a 256-bit addition (1x u128, 1x i128 + x u64), it
@@ -1485,23 +1413,43 @@ macro_rules! add_signed_impl {
         ///
         /// ```asm
         /// overflowing_add:
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     mov     rax, rdi
-        ///     adc     rdx, qword ptr [rsp + 16]
+        ///     add     rdx, qword ptr [rsi]
+        ///     mov     rcx, qword ptr [rsi + 8]
+        ///     mov     r8, qword ptr [rsi + 16]
         ///     adc     rcx, 0
         ///     adc     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rax, rdi
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     adc     rsi, 0
+        ///     mov     qword ptr [rdi], rdx
+        ///     mov     qword ptr [rdi + 8], rcx
+        ///     mov     qword ptr [rdi + 16], r8
+        ///     mov     qword ptr [rdi + 24], rsi
         ///     seto    byte ptr [rdi + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
-            let (v0, c0) = x0.overflowing_add(y);
-            let (v1, c1) = x1.overflowing_add(c0 as $s);
-            (v0, v1, c1)
+        pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
+            assert!(N >= 2);
+            assert!(<$u>::BITS == <$s>::BITS);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_add(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            let xn = ne_index(x, index) as $s;
+            let (v, c) = xn.overflowing_add(c as $s);
+            result[to_ne_index(index, N)] = v as $u;
+
+            (result, c)
         }
 
         /// Const implementation to add a small, signed number to the wider type.
@@ -1510,54 +1458,39 @@ macro_rules! add_signed_impl {
         /// implementation of the wider type, just with an extra bitshift to expand
         /// the type to the wider width.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
         ///
         /// This optimizes well, for example, on `x86_64`,
-        /// for a 128-bit addition (1x u64, 1x i64 + 1x i64), it
-        /// optimizes to 1 `add`, 1 `adc`, and 1 `sar` instruction.
+        /// for a 256-bit addition (1x u128, 1x i128 + 1x i64), it
+        /// optimizes to 1 `add`, 3 `adc`, and 1 `sar` instructions.
         ///
         /// ```asm
         /// wrapping_add:
         ///     mov     rax, rdi
         ///     mov     rcx, rdx
         ///     sar     rcx, 63
-        ///     add     rax, rdx
-        ///     adc     rcx, rsi
-        ///     mov     rdx, rcx
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes well, for example, on `x86_64`,
-        /// for a 256-bit addition (1x u128, 1x i128 + 1x i64), it
-        /// optimizes to 2 `add`, 4 `adc`, and 1 `sar` instructions.
-        ///
-        /// ```asm
-        /// wrapping_add:
-        ///     mov     rax, qword ptr [rsp + 16]
-        ///     mov     r9, rax
-        ///     sar     r9, 63
-        ///     add     rcx, r9
-        ///     adc     r9, r8
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     adc     rdx, rax
-        ///     adc     rcx, 0
-        ///     mov     rax, rdi
-        ///     adc     r9, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r9
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     add     rdx, qword ptr [rsi]
+        ///     adc     rdi, 0
+        ///     adc     r8, 0
+        ///     adc     rcx, qword ptr [rsi + 24]
+        ///     mov     qword ptr [rax], rdx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], rcx
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s) {
-            let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
-            let (y0, y1) = (y as $u, hi as $s);
-            $wrapping_full(x0, x1, y0, y1)
+        pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
+            use $crate::util::to_ne_index;
+
+            // NOTE: We just want to set it as the low bits of `y` and the single high bit.
+            let mut rhs = [0; N];
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            rhs[to_ne_index(0, N)] = y as $u;
+            rhs[to_ne_index(N - 1, N)] = sign_bit;
+            $wrapping_full(x, &rhs)
         }
 
         /// Const implementation to add a small, signed number to the wider type.
@@ -1566,117 +1499,67 @@ macro_rules! add_signed_impl {
         /// implementation of the wider type, just with an extra bitshift to expand
         /// the type to the wider width.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, signed value.
-        ///
         /// # Assembly
         ///
-        /// This optimizes well, for example, on `x86_64`, for a 128-bit addition
-        /// (1x u64, 1x i64 + 1x i64), it optimizes to 2 `add`, 1 `adc`, 2 `set`,
-        /// 1 `or`, and 1 `sar` instructions.
-        ///
-        /// ```asm
-        /// overflowing_add:
-        ///     mov     rax, rdi
-        ///     mov     rdi, rcx
-        ///     sar     rdi, 63
-        ///     add     rdi, rdx
-        ///     seto    dl
-        ///     add     rsi, rcx
-        ///     adc     rdi, 0
-        ///     seto    cl
-        ///     or      cl, dl
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdi
-        ///     mov     byte ptr [rax + 16], cl
-        ///     ret
-        /// ```
-        ///
         /// This optimizes well, for example, on `x86_64`, for a 256-bit addition
-        /// (1x u128, 1x i128 + 1x i128), it optimizes to 2 `add`, 4 `adc`, 2 `set`,
-        /// 1 `or`, and 1 `sar` instructions.
+        /// (1x u128, 1x i128 + 1x i128), it optimizes to 2 `add`, 3 `adc`, 2 `set`,
+        /// 1 `xor`, and 1 `sar` instructions.
         ///
         /// ```asm
         /// overflowing_add:
         ///     mov     rax, rdi
-        ///     mov     rdi, qword ptr [rsp + 16]
-        ///     mov     r9, rdi
-        ///     sar     r9, 63
-        ///     add     rcx, r9
-        ///     adc     r9, r8
-        ///     seto    r8b
-        ///     add     rsi, qword ptr [rsp + 8]
-        ///     adc     rdx, rdi
+        ///     mov     rcx, rdx
+        ///     sar     rcx, 63
+        ///     mov     rdi, qword ptr [rsi + 8]
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     add     rcx, qword ptr [rsi + 24]
+        ///     seto    r9b
+        ///     add     rdx, qword ptr [rsi]
+        ///     adc     rdi, 0
+        ///     adc     r8, 0
         ///     adc     rcx, 0
-        ///     adc     r9, 0
-        ///     seto    dil
-        ///     or      dil, r8b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r9
-        ///     mov     byte ptr [rax + 32], dil
+        ///     seto    sil
+        ///     xor     sil, r9b
+        ///     mov     qword ptr [rax], rdx
+        ///     mov     qword ptr [rax + 8], rdi
+        ///     mov     qword ptr [rax + 16], r8
+        ///     mov     qword ptr [rax + 24], rcx
+        ///     mov     byte ptr [rax + 32], sil
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
-            let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
-            let (y0, y1) = (y as $u, hi as $s);
-            $overflowing_full(x0, x1, y0, y1)
+        pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
+            use $crate::util::to_ne_index;
+
+            // NOTE: We just want to set it as the low bits of `y` and the single high bit.
+            let mut rhs = [0; N];
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            rhs[to_ne_index(0, N)] = y as $u;
+            rhs[to_ne_index(N - 1, N)] = sign_bit;
+            $overflowing_full(x, &rhs)
         }
     };
 }
 
 add_signed_impl!(
-    u8,
-    i8,
-    wrapping_full => wrapping_add_i8,
-    overflowing_full => overflowing_add_i8,
-    wrapping_uwide => wrapping_add_uwide_i8,
-    overflowing_uwide => overflowing_add_uwide_i8,
-    wrapping_iwide => wrapping_add_iwide_i8,
-    overflowing_iwide => overflowing_add_iwide_i8
-);
-add_signed_impl!(
-    u16,
-    i16,
-    wrapping_full => wrapping_add_i16,
-    overflowing_full => overflowing_add_i16,
-    wrapping_uwide => wrapping_add_uwide_i16,
-    overflowing_uwide => overflowing_add_uwide_i16,
-    wrapping_iwide => wrapping_add_iwide_i16,
-    overflowing_iwide => overflowing_add_iwide_i16
-);
-add_signed_impl!(
     u32,
     i32,
     wrapping_full => wrapping_add_i32,
     overflowing_full => overflowing_add_i32,
-    wrapping_uwide => wrapping_add_uwide_i32,
-    overflowing_uwide => overflowing_add_uwide_i32,
-    wrapping_iwide => wrapping_add_iwide_i32,
-    overflowing_iwide => overflowing_add_iwide_i32
+    wrapping_ulimb => wrapping_add_ulimb_i32,
+    overflowing_ulimb => overflowing_add_ulimb_i32,
+    wrapping_ilimb => wrapping_add_ilimb_i32,
+    overflowing_ilimb => overflowing_add_ilimb_i32
 );
 add_signed_impl!(
     u64,
     i64,
     wrapping_full => wrapping_add_i64,
     overflowing_full => overflowing_add_i64,
-    wrapping_uwide => wrapping_add_uwide_i64,
-    overflowing_uwide => overflowing_add_uwide_i64,
-    wrapping_iwide => wrapping_add_iwide_i64,
-    overflowing_iwide => overflowing_add_iwide_i64
-);
-add_signed_impl!(
-    u128,
-    i128,
-    wrapping_full => wrapping_add_i128,
-    overflowing_full => overflowing_add_i128,
-    wrapping_uwide => wrapping_add_uwide_i128,
-    overflowing_uwide => overflowing_add_uwide_i128,
-    wrapping_iwide => wrapping_add_iwide_i128,
-    overflowing_iwide => overflowing_add_iwide_i128
+    wrapping_ulimb => wrapping_add_ulimb_i64,
+    overflowing_ulimb => overflowing_add_ulimb_i64,
+    wrapping_ilimb => wrapping_add_ilimb_i64,
+    overflowing_ilimb => overflowing_add_ilimb_i64
 );
 
 macro_rules! sub_signed_impl {
@@ -1684,124 +1567,116 @@ macro_rules! sub_signed_impl {
         $u:ty,
         $s:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
-        $overflowing_full:ident,wrapping_uwide =>
-        $wrapping_uwide:ident,overflowing_uwide =>
-        $overflowing_uwide:ident,wrapping_iwide =>
-        $wrapping_iwide:ident,overflowing_iwide =>
-        $overflowing_iwide:ident $(,)?
+        $overflowing_full:ident,wrapping_ulimb =>
+        $wrapping_ulimb:ident,overflowing_ulimb =>
+        $overflowing_ulimb:ident,wrapping_ilimb =>
+        $wrapping_ilimb:ident,overflowing_ilimb =>
+        $overflowing_ilimb:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
         ///
         /// Returns the value and if the sub underflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit subtraction (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `sub`, and 1 `sbb` instruction.
-        ///
-        /// ```asm
-        /// wrapping_sub:
-        ///     mov     rax, rdi
-        ///     sub     rax, rdx
-        ///     sbb     rsi, rcx
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
         ///
         /// This optimizes very well, for example, on `x86_64`,
         /// for a 256-bit subtraction (1x u128, 1x i128 + x u64), it
-        /// optimizes to 2 `sub` and 4 `sbb` instructions.
+        /// optimizes to 1 `sub` and 3 `sbb` instructions.
         ///
         /// ```asm
         /// wrapping_sub:
-        ///     sub     rcx, qword ptr [rsp + 24]
-        ///     sbb     r8, qword ptr [rsp + 32]
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
         ///     mov     rax, rdi
-        ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rcx, qword ptr [rsi + 16]
+        ///     mov     rdi, qword ptr [rsi]
+        ///     sub     rdi, qword ptr [rdx]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sbb     r8, qword ptr [rdx + 8]
+        ///     sbb     rcx, qword ptr [rdx + 16]
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, qword ptr [rdx + 24]
+        ///     mov     qword ptr [rax], rdi
+        ///     mov     qword ptr [rax + 8], r8
+        ///     mov     qword ptr [rax + 16], rcx
+        ///     mov     qword ptr [rax + 24], rsi
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s) {
-            // NOTE: When we ignore the carry in the caller, this optimizes the same.
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            let (v0, c0) = x0.overflowing_sub(y0);
-            let v1 = x1.wrapping_sub(y1);
-            let v1 = v1.wrapping_sub(c0 as $s);
-            (v0, v1)
+        pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
+            // FIXME: Move to `borrowing_sub` once stable.
+            assert!(<$u>::BITS == <$s>::BITS);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
+
+            // NOTE: This is the same signed or unsigned.
+            let vn = ne_index(x, index).wrapping_sub(ne_index(y, index));
+            result[to_ne_index(index, N)] = vn.wrapping_sub(c as $u);
+
+            result
         }
 
         /// Const implementation of `overflowing_sub` for internal algorithm use.
         ///
         /// Returns the value and if the sub underflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes extremely well, for example, on `x86_64`,
-        /// for a 128-bit subtraction (1x u64, 1x i64 + 1x u64, 1x u64),
-        /// it optimizes to 2
-        /// `sub`, 1 `sbb`, 2 `set`, and 1 `or` instruction.
-        ///
-        /// ```asm
-        /// overflowing_sub:
-        ///     mov     rax, rdi
-        ///     sub     rdx, r8
-        ///     seto    dil
-        ///     sub     rsi, rcx
-        ///     sbb     rdx, 0
-        ///     seto    cl
-        ///     or      cl, dil
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     byte ptr [rax + 16], cl
-        ///     ret
-        /// ```
         ///
         /// This optimizes extremely well, for example, on `x86_64`, for
         /// a 256-bit subtraction (2x u128 + 2x u128), it optimizes to 2
-        /// `sub`, 4 `sbb`, 2 `set` and 1 `or` instructions.
+        /// `sub`, 3 `sbb`, 2 `set` and 1 `xor` instructions.
         ///
         /// ```asm
         /// overflowing_sub:
-        ///     sub     rcx, qword ptr [rsp + 24]
-        ///     sbb     r8, qword ptr [rsp + 32]
+        ///     mov     rcx, qword ptr [rsi + 24]
+        ///     sub     rcx, qword ptr [rdx + 24]
+        ///     mov     r8, qword ptr [rsi]
         ///     seto    r9b
-        ///     sub     rsi, qword ptr [rsp + 8]
+        ///     sub     r8, qword ptr [rdx]
+        ///     mov     r10, qword ptr [rsi + 8]
+        ///     sbb     r10, qword ptr [rdx + 8]
+        ///     mov     rsi, qword ptr [rsi + 16]
+        ///     sbb     rsi, qword ptr [rdx + 16]
         ///     mov     rax, rdi
-        ///     sbb     rdx, qword ptr [rsp + 16]
         ///     sbb     rcx, 0
-        ///     sbb     r8, 0
-        ///     seto    dil
-        ///     or      dil, r9b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r8
-        ///     mov     byte ptr [rax + 32], dil
+        ///     seto    dl
+        ///     xor     dl, r9b
+        ///     mov     qword ptr [rdi], r8
+        ///     mov     qword ptr [rdi + 8], r10
+        ///     mov     qword ptr [rdi + 16], rsi
+        ///     mov     qword ptr [rdi + 24], rcx
+        ///     mov     byte ptr [rdi + 32], dl
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_full(x0: $u, x1: $s, y0: $u, y1: $s) -> ($u, $s, bool) {
-            // NOTE: When we ignore the carry in the caller, this optimizes the same.
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            let (v0, c0) = x0.overflowing_sub(y0);
+        pub const fn $overflowing_full<const N: usize>(
+            x: &[$u; N],
+            y: &[$u; N],
+        ) -> ([$u; N], bool) {
+            // FIXME: Move to `borrowing_sub` once stable.
+            assert!(<$u>::BITS == <$s>::BITS);
+            assert!(N >= 2);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let mut c: bool = false;
+            while index < N - 1 {
+                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c1) = vi.overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = vi;
+                c = c0 | c1;
+                index += 1;
+            }
 
             // NOTE: There's a **VERY** specific edge-case where we can
             // have overflow but no overflow occurred:
@@ -1813,36 +1688,23 @@ macro_rules! sub_signed_impl {
             // `MIN - 1`, which then wraps back to `MAX`, exactly what
             // we needed.
 
-            let (v1, c1) = x1.overflowing_sub(y1);
-            let (v1, c2) = v1.overflowing_sub(c0 as $s);
+            // NOTE: We need to do this as a **SIGNED** operation.
+            let xn = ne_index(x, index) as $s;
+            let yn = ne_index(y, index) as $s;
+            let (vn, c0) = xn.overflowing_sub(yn);
+            let (vn, c1) = vn.overflowing_sub(c as $s);
+            result[to_ne_index(index, N)] = vn as $u;
 
-            // `c0 == 0`, then `c2 == 0`, so always want `c1`
-            // `c0 == 1`, then only want `c1` or `c2`, not both
-            (v0, v1, c1 ^ c2)
+            // `c == 0`, then `c1 == 0`, so always want `c1`
+            // `c == 1`, then only want `c0` or `c1`, not both
+            (result, c0 ^ c1)
         }
 
         /// Const implementation to subtract a small, unsigned number to the wider type.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit subtraction (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `sub`, and 1 `sbb` instruction.
-        ///
-        /// ```asm
-        /// wrapping_sub:
-        ///     mov     rax, rdi
-        ///     sub     rax, rdx
-        ///     sbb     rsi, 0
-        ///     mov     rdx, rsi
-        ///     ret
-        /// ```
         ///
         /// This optimizes fairly well, for example, on `x86_64`,
         /// for a 256-bit subtraction (1x u128, 1x i128 + x u64), it
@@ -1850,48 +1712,50 @@ macro_rules! sub_signed_impl {
         ///
         /// ```asm
         /// wrapping_sub:
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
-        ///     mov     rax, rdi
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sub     rcx, rdx
         ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rax, rdi
+        ///     mov     rdx, qword ptr [rsi + 16]
+        ///     sbb     rdx, 0
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, 0
+        ///     mov     qword ptr [rdi], rcx
+        ///     mov     qword ptr [rdi + 8], r8
+        ///     mov     qword ptr [rdi + 16], rdx
+        ///     mov     qword ptr [rdi + 24], rsi
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s) {
-            let (v0, c0) = x0.overflowing_sub(y);
-            let v1 = x1.wrapping_sub(c0 as $s);
-            (v0, v1)
+        pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
+            assert!(N >= 2);
+            assert!(<$u>::BITS == <$s>::BITS);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            // NOTE: This has the same results as signed or unsigned.
+            v = ne_index(x, index).wrapping_sub(c as $u);
+            result[to_ne_index(index, N)] = v;
+
+            result
         }
 
         /// Const implementation to subtract a small, unsigned number to the wider type.
         ///
         /// Returns the value and if the subtract overflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
-        ///
-        /// This optimizes very well, for example, on `x86_64`, for a
-        /// 128-bit subtraction (1x u64, 1x i64 + 1x u64), it optimizes
-        /// to 1 `sub`, 1 `sbb`, and 1 `set` instructions.
-        ///
-        /// ```asm
-        /// overflowing_sub:
-        ///     mov     rax, rdi
-        ///     sub     rsi, rcx
-        ///     sbb     rdx, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     seto    byte ptr [rdi + 16]
-        ///     ret
-        /// ```
         ///
         /// This optimizes fairly well, for example, on `x86_64`,
         /// for a 256-bit subtraction (1x u128, 1x i128 + x u64), it
@@ -1899,199 +1763,155 @@ macro_rules! sub_signed_impl {
         ///
         /// ```asm
         /// overflowing_sub:
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     mov     rax, rdi
-        ///     sbb     rdx, qword ptr [rsp + 16]
-        ///     sbb     rcx, 0
+        ///     mov     rcx, qword ptr [rsi]
+        ///     mov     r8, qword ptr [rsi + 8]
+        ///     sub     rcx, rdx
         ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], rcx
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rdx, qword ptr [rsi + 16]
+        ///     sbb     rdx, 0
+        ///     mov     rax, rdi
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sbb     rsi, 0
+        ///     mov     qword ptr [rdi], rcx
+        ///     mov     qword ptr [rdi + 8], r8
+        ///     mov     qword ptr [rdi + 16], rdx
+        ///     mov     qword ptr [rdi + 24], rsi
         ///     seto    byte ptr [rdi + 32]
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_uwide(x0: $u, x1: $s, y: $u) -> ($u, $s, bool) {
-            // NOTE: Since this is always X - Y, the end result has to
-            // be the same sign, which is as expected.
-            let (v0, c0) = x0.overflowing_sub(y);
-            let (v1, c1) = x1.overflowing_sub(c0 as $s);
-            (v0, v1, c1)
+        pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
+            assert!(N >= 2);
+            assert!(<$u>::BITS == <$s>::BITS);
+            use $crate::util::{ne_index, to_ne_index};
+
+            let mut index = 0;
+            let mut result = [0; N];
+            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
+            result[to_ne_index(index, N)] = v;
+            index += 1;
+            while index < N - 1 {
+                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
+                result[to_ne_index(index, N)] = v;
+                index += 1;
+            }
+
+            let xn = ne_index(x, index) as $s;
+            let (v, c) = xn.overflowing_sub(c as $s);
+            result[to_ne_index(index, N)] = v as $u;
+
+            (result, c)
         }
 
         /// Const implementation to subtract a small, unsigned number to the wider type.
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, unsigned value.
-        ///
         /// # Assembly
         ///
         /// This optimizes well, for example, on `x86_64`,
-        /// for a 128-bit subtraction (1x u64, 1x i64 + 1x i64), it
-        /// optimizes to 1 `add`, 1 `sub`, 1 `sbb`, and 1 `shr`
-        /// instruction.
+        /// for a 256-bit subtraction (1x u128, 1x i128 + 1x i64), it
+        /// optimizes to 1 `add`, 1 `sub`, 3 `sbb`, and 1 `shr`
+        /// instructions.
         ///
         /// ```asm
         /// wrapping_sub:
-        ///     mov     rax, rdi
         ///     mov     rcx, rdx
         ///     shr     rcx, 63
-        ///     add     rcx, rsi
-        ///     sub     rax, rdx
-        ///     sbb     rcx, 0
-        ///     mov     rdx, rcx
-        ///     ret
-        /// ```
-        ///
-        /// This optimizes well, for example, on `x86_64`,
-        /// for a 256-bit subtraction (1x u128, 1x i128 + 1x i64), it
-        /// optimizes to 1 `add`, 1 `adc`, 1 `sub`, 3 `sbb`, and 1
-        /// `shr` instructions.
-        ///
-        /// ```asm
-        /// wrapping_sub:
-        ///     mov     rax, qword ptr [rsp + 16]
-        ///     mov     r9, rax
-        ///     shr     r9, 63
-        ///     add     r9, rcx
-        ///     adc     r8, 0
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, rax
-        ///     sbb     r9, 0
-        ///     mov     rax, rdi
+        ///     mov     r8, qword ptr [rsi + 16]
+        ///     mov     r9, qword ptr [rsi]
+        ///     mov     r10, qword ptr [rsi + 8]
+        ///     add     rcx, qword ptr [rsi + 24]
+        ///     sub     r9, rdx
+        ///     sbb     r10, 0
         ///     sbb     r8, 0
-        ///     mov     qword ptr [rdi], rsi
-        ///     mov     qword ptr [rdi + 8], rdx
-        ///     mov     qword ptr [rdi + 16], r9
-        ///     mov     qword ptr [rdi + 24], r8
+        ///     mov     rax, rdi
+        ///     sbb     rcx, 0
+        ///     mov     qword ptr [rdi], r9
+        ///     mov     qword ptr [rdi + 8], r10
+        ///     mov     qword ptr [rdi + 16], r8
+        ///     mov     qword ptr [rdi + 24], rcx
         ///     ret
         /// ```
         #[inline]
-        pub const fn $wrapping_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s) {
-            let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
-            let (y0, y1) = (y as $u, hi as $s);
-            $wrapping_full(x0, x1, y0, y1)
+        pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
+            use $crate::util::to_ne_index;
+
+            // NOTE: We just want to set it as the low bits of `y` and the single high bit.
+            let mut rhs = [0; N];
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            rhs[to_ne_index(0, N)] = y as $u;
+            rhs[to_ne_index(N - 1, N)] = sign_bit;
+            $wrapping_full(x, &rhs)
         }
 
         /// Const implementation to subtract a small, signed number to the wider type.
         ///
         /// Returns the value and if the subtract overflowed.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small, signed value.
-        ///
         /// # Assembly
         ///
-        /// This optimizes well, for example, on `x86_64`, for a 128-bit subtraction
-        /// (1x u64, 1x i64 + 1x i64), it optimizes to 2 `sub`, 1 `sbb`, 2 `set`,
-        /// 1 `or`, and 1 `sar` instructions.
-        ///
-        /// ```asm
-        /// overflowing_sub:
-        ///     mov     rax, rdi
-        ///     mov     rdi, rcx
-        ///     sar     rdi, 63
-        ///     sub     rdx, rdi
-        ///     seto    dil
-        ///     sub     rsi, rcx
-        ///     sbb     rdx, 0
-        ///     seto    cl
-        ///     or      cl, dil
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     byte ptr [rax + 16], cl
-        ///     ret
-        /// ```
-        ///
         /// This optimizes well, for example, on `x86_64`, for a 256-bit subtraction
-        /// (1x u128, 1x i128 + 1x i128), it optimizes to 2 `sub`, 4 `sbb`, 2 `set`,
-        /// 1 `or`, and 1 `sar` instructions.
+        /// (1x u128, 1x i128 + 1x i128), it optimizes to 2 `sub`, 3 `sbb`, 2 `set`,
+        /// 1 `xor`, and 1 `sar` instructions.
         ///
         /// ```asm
         /// overflowing_sub:
         ///     mov     rax, rdi
-        ///     mov     rdi, qword ptr [rsp + 16]
-        ///     mov     r9, rdi
-        ///     sar     r9, 63
-        ///     sub     rcx, r9
-        ///     sbb     r8, r9
-        ///     seto    r9b
-        ///     sub     rsi, qword ptr [rsp + 8]
-        ///     sbb     rdx, rdi
-        ///     sbb     rcx, 0
-        ///     sbb     r8, 0
-        ///     seto    dil
-        ///     or      dil, r9b
-        ///     mov     qword ptr [rax], rsi
-        ///     mov     qword ptr [rax + 8], rdx
-        ///     mov     qword ptr [rax + 16], rcx
-        ///     mov     qword ptr [rax + 24], r8
-        ///     mov     byte ptr [rax + 32], dil
+        ///     mov     rcx, rdx
+        ///     sar     rcx, 63
+        ///     mov     rdi, qword ptr [rsi + 16]
+        ///     mov     r8, qword ptr [rsi]
+        ///     mov     r9, qword ptr [rsi + 8]
+        ///     mov     rsi, qword ptr [rsi + 24]
+        ///     sub     rsi, rcx
+        ///     seto    cl
+        ///     sub     r8, rdx
+        ///     sbb     r9, 0
+        ///     sbb     rdi, 0
+        ///     sbb     rsi, 0
+        ///     seto    dl
+        ///     xor     dl, cl
+        ///     mov     qword ptr [rax], r8
+        ///     mov     qword ptr [rax + 8], r9
+        ///     mov     qword ptr [rax + 16], rdi
+        ///     mov     qword ptr [rax + 24], rsi
+        ///     mov     byte ptr [rax + 32], dl
         ///     ret
         /// ```
         #[inline]
-        pub const fn $overflowing_iwide(x0: $u, x1: $s, y: $s) -> ($u, $s, bool) {
-            let hi = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
-            let (y0, y1) = (y as $u, hi as $s);
-            $overflowing_full(x0, x1, y0, y1)
+        pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
+            use $crate::util::to_ne_index;
+
+            // NOTE: We just want to set it as the low bits of `y` and the single high bit.
+            let mut rhs = [0; N];
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            rhs[to_ne_index(0, N)] = y as $u;
+            rhs[to_ne_index(N - 1, N)] = sign_bit;
+            $overflowing_full(x, &rhs)
         }
     };
 }
 
 sub_signed_impl!(
-    u8,
-    i8,
-    wrapping_full => wrapping_sub_i8,
-    overflowing_full => overflowing_sub_i8,
-    wrapping_uwide => wrapping_sub_uwide_i8,
-    overflowing_uwide => overflowing_sub_uwide_i8,
-    wrapping_iwide => wrapping_sub_iwide_i8,
-    overflowing_iwide => overflowing_sub_iwide_i8
-);
-sub_signed_impl!(
-    u16,
-    i16,
-    wrapping_full => wrapping_sub_i16,
-    overflowing_full => overflowing_sub_i16,
-    wrapping_uwide => wrapping_sub_uwide_i16,
-    overflowing_uwide => overflowing_sub_uwide_i16,
-    wrapping_iwide => wrapping_sub_iwide_i16,
-    overflowing_iwide => overflowing_sub_iwide_i16
-);
-sub_signed_impl!(
     u32,
     i32,
     wrapping_full => wrapping_sub_i32,
     overflowing_full => overflowing_sub_i32,
-    wrapping_uwide => wrapping_sub_uwide_i32,
-    overflowing_uwide => overflowing_sub_uwide_i32,
-    wrapping_iwide => wrapping_sub_iwide_i32,
-    overflowing_iwide => overflowing_sub_iwide_i32
+    wrapping_ulimb => wrapping_sub_ulimb_i32,
+    overflowing_ulimb => overflowing_sub_ulimb_i32,
+    wrapping_ilimb => wrapping_sub_ilimb_i32,
+    overflowing_ilimb => overflowing_sub_ilimb_i32
 );
 sub_signed_impl!(
     u64,
     i64,
     wrapping_full => wrapping_sub_i64,
     overflowing_full => overflowing_sub_i64,
-    wrapping_uwide => wrapping_sub_uwide_i64,
-    overflowing_uwide => overflowing_sub_uwide_i64,
-    wrapping_iwide => wrapping_sub_iwide_i64,
-    overflowing_iwide => overflowing_sub_iwide_i64
-);
-sub_signed_impl!(
-    u128,
-    i128,
-    wrapping_full => wrapping_sub_i128,
-    overflowing_full => overflowing_sub_i128,
-    wrapping_uwide => wrapping_sub_uwide_i128,
-    overflowing_uwide => overflowing_sub_uwide_i128,
-    wrapping_iwide => wrapping_sub_iwide_i128,
-    overflowing_iwide => overflowing_sub_iwide_i128
+    wrapping_ulimb => wrapping_sub_ulimb_i64,
+    overflowing_ulimb => overflowing_sub_ulimb_i64,
+    wrapping_ilimb => wrapping_sub_ilimb_i64,
+    overflowing_ilimb => overflowing_sub_ilimb_i64
 );
 
 macro_rules! mul_signed_impl {
@@ -3218,25 +3038,25 @@ mod tests {
 
     #[test]
     fn overflowing_add_u32_test() {
-        assert_eq!(overflowing_add_u32(1, 0, 1, 0), (2, 0, false));
-        assert_eq!(overflowing_add_u32(u32::MAX, 0, u32::MAX, 0), (u32::MAX - 1, 1, false));
-        assert_eq!(overflowing_add_u32(u32::MAX, 1, u32::MAX, 0), (u32::MAX - 1, 2, false));
-        assert_eq!(overflowing_add_u32(u32::MAX, u32::MAX, 1, 0), (0, 0, true));
-        assert_eq!(overflowing_add_u32(u32::MAX, u32::MAX, 2, 0), (1, 0, true));
+        assert_eq!(overflowing_add_u32(&[1, 0], &[1, 0]), ([2, 0], false));
+        assert_eq!(overflowing_add_u32(&[u32::MAX, 0], &[u32::MAX, 0]), ([u32::MAX - 1, 1], false));
+        assert_eq!(overflowing_add_u32(&[u32::MAX, 1], &[u32::MAX, 0]), ([u32::MAX - 1, 2], false));
+        assert_eq!(overflowing_add_u32(&[u32::MAX, u32::MAX], &[1, 0]), ([0, 0], true));
+        assert_eq!(overflowing_add_u32(&[u32::MAX, u32::MAX], &[2, 0]), ([1, 0], true));
         assert_eq!(
-            overflowing_add_u32(u32::MAX, u32::MAX, u32::MAX, u32::MAX),
-            (u32::MAX - 1, u32::MAX, true)
+            overflowing_add_u32(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX]),
+            ([u32::MAX - 1, u32::MAX], true)
         );
     }
 
     #[test]
     fn overflowing_sub_u32_test() {
-        assert_eq!(overflowing_sub_u32(0, 0, 1, 0), (u32::MAX, u32::MAX, true));
-        assert_eq!(overflowing_sub_u32(1, 0, 1, 0), (0, 0, false));
-        assert_eq!(overflowing_sub_u32(1, 0, 0, 0), (1, 0, false));
-        assert_eq!(overflowing_sub_u32(u32::MAX, 1, 0, 2), (u32::MAX, u32::MAX, true));
-        assert_eq!(overflowing_sub_u32(0, 1, 0, 2), (0, 4294967295, true));
-        assert_eq!(overflowing_sub_u32(0, 1, 1, 1), (u32::MAX, u32::MAX, true));
+        assert_eq!(overflowing_sub_u32(&[0, 0], &[1, 0]), ([u32::MAX, u32::MAX], true));
+        assert_eq!(overflowing_sub_u32(&[1, 0], &[1, 0]), ([0, 0], false));
+        assert_eq!(overflowing_sub_u32(&[1, 0], &[0, 0]), ([1, 0], false));
+        assert_eq!(overflowing_sub_u32(&[u32::MAX, 1], &[0, 2]), ([u32::MAX, u32::MAX], true));
+        assert_eq!(overflowing_sub_u32(&[0, 1], &[0, 2]), ([0, 4294967295], true));
+        assert_eq!(overflowing_sub_u32(&[0, 1], &[1, 1]), ([u32::MAX, u32::MAX], true));
     }
 
     #[test]
@@ -3299,14 +3119,20 @@ mod tests {
 
     #[test]
     fn overflowing_add_i32_test() {
-        assert_eq!(overflowing_add_i32(1, 0, 1, 0), (2, 0, false));
-        assert_eq!(overflowing_add_i32(u32::MAX, 0, u32::MAX, 0), (u32::MAX - 1, 1, false));
-        assert_eq!(overflowing_add_i32(u32::MAX, 1, u32::MAX, 0), (u32::MAX - 1, 2, false));
-        assert_eq!(overflowing_add_i32(u32::MAX, i32::MAX, 1, 0), (0, i32::MIN, true));
-        assert_eq!(overflowing_add_i32(u32::MAX, i32::MAX, 2, 0), (1, i32::MIN, true));
+        assert_eq!(overflowing_add_i32(&[1, 0], &[1, 0]), ([2, 0], false));
+        assert_eq!(overflowing_add_i32(&[u32::MAX, 0], &[u32::MAX, 0]), ([u32::MAX - 1, 1], false));
+        assert_eq!(overflowing_add_i32(&[u32::MAX, 1], &[u32::MAX, 0]), ([u32::MAX - 1, 2], false));
         assert_eq!(
-            overflowing_add_i32(u32::MAX, i32::MAX, u32::MAX, i32::MAX),
-            (u32::MAX - 1, -1, true)
+            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[1, 0]),
+            ([0, i32::MIN as u32], true)
+        );
+        assert_eq!(
+            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[2, 0]),
+            ([1, i32::MIN as u32], true)
+        );
+        assert_eq!(
+            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[u32::MAX, i32::MAX as u32]),
+            ([u32::MAX - 1, -1i32 as u32], true)
         );
     }
 

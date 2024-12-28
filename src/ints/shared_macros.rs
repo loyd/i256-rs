@@ -579,7 +579,7 @@ macro_rules! byte_order_define {
         /// Get the limb indexing from the least-significant order.
         #[inline(always)]
         const fn get_limb(self, index: usize) -> $crate::ULimb {
-            self.limbs[limb_index!(index)]
+            $crate::util::ne_index(&self.limbs, index)
         }
 
         /// Get the wide value indexing from the least-significant order.
@@ -1721,6 +1721,36 @@ macro_rules! unbounded_define {
 
 macro_rules! limb_ops_define {
     () => {
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn add_ulimb(self, n: $crate::ULimb) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_add_ulimb(n)
+            } else {
+                match self.checked_add_ulimb(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to add with overflow"),
+                }
+            }
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn sub_ulimb(self, n: $crate::ULimb) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_sub_ulimb(n)
+            } else {
+                match self.checked_sub_ulimb(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to subtract with overflow"),
+                }
+            }
+        }
+
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -1823,6 +1853,32 @@ macro_rules! limb_ops_define {
     };
 
     (@checked) => {
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn checked_add_ulimb(self, n: $crate::ULimb) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_add_ulimb(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn checked_sub_ulimb(self, n: $crate::ULimb) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_sub_ulimb(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -1875,35 +1931,6 @@ macro_rules! limb_ops_define {
 
 macro_rules! wide_ops_define {
     () => {
-        /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-        /// This allows optimizations a full addition cannot do.
-        #[inline(always)]
-        pub const fn add_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_add_uwide(n)
-            } else {
-                match self.checked_add_uwide(n) {
-                    Some(v) => v,
-                    None => core::panic!("attempt to add with overflow"),
-                }
-            }
-        }
-
-        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full subtraction cannot do.
-        #[inline(always)]
-        pub const fn sub_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_sub_uwide(n)
-            } else {
-                match self.checked_sub_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to subtract with overflow"),
-                }
-            }
-        }
-
         /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -2047,32 +2074,6 @@ macro_rules! wide_ops_define {
     };
 
     (@checked) => {
-        /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full addition cannot do.
-        #[inline(always)]
-        pub const fn checked_add_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_add_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-
-        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full subtraction cannot do.
-        #[inline(always)]
-        pub const fn checked_sub_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_sub_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-
         /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -2514,7 +2515,6 @@ macro_rules! traits_define {
 
         ref_trait_define!($t, Shr, shr, other: &$t);
         binop_ref_trait_define!($t, Shr, shr);
-        // TODO: i256
         shift_define! { @mod base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
         shift_define! { base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
 

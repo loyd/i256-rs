@@ -212,7 +212,9 @@ pub fn get_i256_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u256)> {
         .collect()
 }
 
+#[deprecated]
 pub fn get_wide_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u128)> {
+    // TODO: Remove
     u128::gen_n::<3>(strategy, rng, DEFAULT_COUNT)
         .iter()
         .map(|x| (u256::new(x[0], x[1]), x[2]))

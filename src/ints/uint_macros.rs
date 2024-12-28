@@ -373,6 +373,38 @@ macro_rules! uint_bigint_define {
 macro_rules! uint_wrapping_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         wrapping_define!(type => $s_t, wide_type => $wide_t);
+
+        /// Wrapping (modular) addition. Computes `self + rhs`,
+        /// wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add`].")]
+        #[inline(always)]
+        pub const fn wrapping_add(self, rhs: Self) -> Self {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            Self::from_ne_limbs(math::wrapping_add_u64(&lhs, &rhs))
+        }
+
+        /// Wrapping (modular) addition with a signed integer. Computes
+        /// `self + rhs`, wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add_signed`].")]
+        #[inline(always)]
+        pub const fn wrapping_add_signed(self, rhs: i256) -> Self {
+            self.wrapping_add(rhs.as_unsigned())
+        }
+
+        /// Wrapping (modular) subtraction. Computes `self - rhs`,
+        /// wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_sub`].")]
+        #[inline(always)]
+        pub const fn wrapping_sub(self, rhs: Self) -> Self {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            Self::from_ne_limbs(math::wrapping_sub_u64(&lhs, &rhs))
+        }
+
         /// Div/Rem operation on a 256-bit integer.
         ///
         /// This allows storing of both the quotient and remainder without
@@ -490,6 +522,21 @@ macro_rules! uint_overflowing_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         overflowing_define!(type => $s_t, wide_type => $wide_t);
 
+        /// Calculates `self` + `rhs`.
+        ///
+        /// Returns a tuple of the addition along with a boolean indicating
+        /// whether an arithmetic overflow would occur. If an overflow would
+        /// have occurred then the wrapped value is returned.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add`].")]
+        #[inline(always)]
+        pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_add_u64(&lhs, &rhs);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
         /// Calculates `self` + `rhs` with a signed `rhs`.
         ///
         /// Returns a tuple of the addition along with a boolean indicating
@@ -501,6 +548,21 @@ macro_rules! uint_overflowing_define {
             let is_negative = rhs.is_negative();
             let (r, overflowed) = self.overflowing_add(Self::from_signed(rhs));
             (r, overflowed ^ is_negative)
+        }
+
+        /// Calculates `self` - `rhs`.
+        ///
+        /// Returns a tuple of the subtraction along with a boolean indicating
+        /// whether an arithmetic overflow would occur. If an overflow would
+        /// have occurred then the wrapped value is returned.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_sub`].")]
+        #[inline(always)]
+        pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_sub_u64(&lhs, &rhs);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Calculates `self` - `rhs` with a signed `rhs`
@@ -952,10 +1014,48 @@ macro_rules! uint_limb_ops_define {
 
     (@wrapping) => {
         limb_ops_define!(@wrapping);
+
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn wrapping_add_ulimb(self, n: ULimb) -> Self {
+            let lhs = self.to_ne_limbs();
+            let limbs = math::wrapping_add_limb_u64(&lhs, n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn wrapping_sub_ulimb(self, n: ULimb) -> Self {
+            let lhs = self.to_ne_limbs();
+            let limbs = math::wrapping_sub_limb_u64(&lhs, n);
+            Self::from_ne_limbs(limbs)
+        }
     };
 
     (@overflowing) => {
         limb_ops_define!(@overflowing);
+
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn overflowing_add_ulimb(self, n: ULimb) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_add_limb_u64(&lhs, n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn overflowing_sub_ulimb(self, n: ULimb) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_sub_limb_u64(&lhs, n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
     };
 
     (@checked) => {

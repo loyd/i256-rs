@@ -67,26 +67,6 @@ impl i256 {
         Self::new(lo, hi)
     }
 
-    /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at
-    /// the boundary of the type.
-    ///
-    /// See [`i128::wrapping_add`].
-    #[inline(always)]
-    pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_add_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        i256::new(lo, hi)
-    }
-
-    /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around
-    /// at the boundary of the type.
-    ///
-    /// See [`i128::wrapping_sub`].
-    #[inline(always)]
-    pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_sub_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        i256::new(lo, hi)
-    }
-
     /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping
     /// around at the boundary of the type.
     ///
@@ -131,34 +111,6 @@ impl i256 {
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
         let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
-    }
-
-    /// Calculates `self` + `rhs`.
-    ///
-    /// Returns a tuple of the addition along with a boolean indicating
-    /// whether an arithmetic overflow would occur. If an overflow would have
-    /// occurred then the wrapped value is returned.
-    ///
-    /// See [`i128::overflowing_add`].
-    #[inline(always)]
-    pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) =
-            math::overflowing_add_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Calculates `self` - `rhs`.
-    ///
-    /// Returns a tuple of the subtraction along with a boolean indicating
-    /// whether an arithmetic overflow would occur. If an overflow would
-    /// have occurred then the wrapped value is returned.
-    ///
-    /// See [`i128::overflowing_sub`].
-    #[inline(always)]
-    pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) =
-            math::overflowing_sub_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        (Self::new(lo, hi), overflowed)
     }
 
     /// Calculates the multiplication of `self` and `rhs`.
@@ -295,78 +247,6 @@ impl i256 {
     #[inline(always)]
     pub const fn as_signed(&self) -> Self {
         self.as_i256()
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn wrapping_add_uwide(self, n: UWide) -> Self {
-        let (lo, hi) = math::wrapping_add_uwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn overflowing_add_uwide(self, n: UWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_uwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn wrapping_add_iwide(self, n: IWide) -> Self {
-        let (lo, hi) = math::wrapping_add_iwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn overflowing_add_iwide(self, n: IWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_iwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn wrapping_sub_uwide(self, n: UWide) -> Self {
-        let (lo, hi) = math::wrapping_sub_uwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn overflowing_sub_uwide(self, n: UWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_uwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn wrapping_sub_iwide(self, n: IWide) -> Self {
-        let (lo, hi) = math::wrapping_sub_iwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn overflowing_sub_iwide(self, n: IWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_iwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
     }
 
     /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.

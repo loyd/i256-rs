@@ -62,35 +62,6 @@ impl u256 {
         Self::new(lo, hi)
     }
 
-    /// Wrapping (modular) addition. Computes `self + rhs`,
-    /// wrapping around at the boundary of the type.
-    ///
-    /// See [`u128::wrapping_add`].
-    #[inline(always)]
-    pub const fn wrapping_add(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_add_u128(self.low(), self.high(), rhs.low(), rhs.high());
-        u256::new(lo, hi)
-    }
-
-    /// Wrapping (modular) addition with a signed integer. Computes
-    /// `self + rhs`, wrapping around at the boundary of the type.
-    ///
-    /// See [`u128::wrapping_add_signed`].
-    #[inline(always)]
-    pub const fn wrapping_add_signed(self, rhs: i256) -> Self {
-        self.wrapping_add(Self::from_i256(rhs))
-    }
-
-    /// Wrapping (modular) subtraction. Computes `self - rhs`,
-    /// wrapping around at the boundary of the type.
-    ///
-    /// See [`u128::wrapping_sub`].
-    #[inline(always)]
-    pub const fn wrapping_sub(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_sub_u128(self.low(), self.high(), rhs.low(), rhs.high());
-        u256::new(lo, hi)
-    }
-
     /// Wrapping (modular) multiplication. Computes `self *
     /// rhs`, wrapping around at the boundary of the type.
     ///
@@ -430,34 +401,6 @@ impl u256 {
         Self::new(lo, hi)
     }
 
-    /// Calculates `self` + `rhs`.
-    ///
-    /// Returns a tuple of the addition along with a boolean indicating
-    /// whether an arithmetic overflow would occur. If an overflow would
-    /// have occurred then the wrapped value is returned.
-    ///
-    /// See [`u128::overflowing_add`].
-    #[inline(always)]
-    pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) =
-            math::overflowing_add_u128(self.low(), self.high(), rhs.low(), rhs.high());
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Calculates `self` - `rhs`.
-    ///
-    /// Returns a tuple of the subtraction along with a boolean indicating
-    /// whether an arithmetic overflow would occur. If an overflow would
-    /// have occurred then the wrapped value is returned.
-    ///
-    /// See [`u128::overflowing_sub`].
-    #[inline(always)]
-    pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) =
-            math::overflowing_sub_u128(self.low(), self.high(), rhs.low(), rhs.high());
-        (Self::new(lo, hi), overflowed)
-    }
-
     /// Calculates the multiplication of `self` and `rhs`.
     ///
     /// Returns a tuple of the multiplication along with a boolean
@@ -584,38 +527,6 @@ impl u256 {
     #[inline(always)]
     pub const fn as_signed(&self) -> i256 {
         self.as_i256()
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn wrapping_add_uwide(self, n: UWide) -> Self {
-        let (lo, hi) = math::wrapping_add_wide_u128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-    /// This allows optimizations a full addition cannot do.
-    #[inline(always)]
-    pub const fn overflowing_add_uwide(self, n: UWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_add_wide_u128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn wrapping_sub_uwide(self, n: UWide) -> Self {
-        let (lo, hi) = math::wrapping_sub_wide_u128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-    /// This allows optimizations a full subtraction cannot do.
-    #[inline(always)]
-    pub const fn overflowing_sub_uwide(self, n: UWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_sub_wide_u128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
     }
 
     /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
