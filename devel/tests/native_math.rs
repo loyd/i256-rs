@@ -262,7 +262,6 @@ quickcheck! {
         expected == (actual as i64, overflowed)
     }
 
-    // TODO: Restore
     fn wrapping_mul_i32_quickcheck(x: i64, y: i64) -> bool {
         let (x0, x1) = split(x as u64);
         let (y0, y1) = split(y as u64);

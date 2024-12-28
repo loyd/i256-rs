@@ -216,6 +216,7 @@ macro_rules! cmp_define {
             let mut is_eq = true;
             let mut i = 0;
             while i < Self::WIDE {
+                // NOTE: This can be in any order
                 is_eq &= (lhs[i] == rhs[i]);
                 i += 1;
             }

@@ -2537,62 +2537,151 @@ signed_primitive_cast!(
 mod tests {
     use super::*;
 
+    fn from_le_wrap<T: Copy>(
+        x: &[T; 2],
+        y: &[T; 2],
+        cb: impl Fn(&[T; 2], &[T; 2]) -> [T; 2],
+    ) -> [T; 2] {
+        if cfg!(target_endian = "big") {
+            let result = cb(&[x[1], x[0]], &[y[1], y[0]]);
+            [result[1], result[0]]
+        } else {
+            cb(x, y)
+        }
+    }
+
+    fn from_le_over<T: Copy>(
+        x: &[T; 2],
+        y: &[T; 2],
+        cb: impl Fn(&[T; 2], &[T; 2]) -> ([T; 2], bool),
+    ) -> ([T; 2], bool) {
+        if cfg!(target_endian = "big") {
+            let (result, overflowed) = cb(&[x[1], x[0]], &[y[1], y[0]]);
+            ([result[1], result[0]], overflowed)
+        } else {
+            cb(x, y)
+        }
+    }
+
+    fn from_le_limb_wrap<T: Copy>(x: &[T; 2], y: T, cb: impl Fn(&[T; 2], T) -> [T; 2]) -> [T; 2] {
+        if cfg!(target_endian = "big") {
+            let result = cb(&[x[1], x[0]], y);
+            [result[1], result[0]]
+        } else {
+            cb(x, y)
+        }
+    }
+
+    fn from_le_limb_over<T: Copy>(
+        x: &[T; 2],
+        y: T,
+        cb: impl Fn(&[T; 2], T) -> ([T; 2], bool),
+    ) -> ([T; 2], bool) {
+        if cfg!(target_endian = "big") {
+            let (result, overflowed) = cb(&[x[1], x[0]], y);
+            ([result[1], result[0]], overflowed)
+        } else {
+            cb(x, y)
+        }
+    }
+
     #[test]
     fn overflowing_add_u32_test() {
-        assert_eq!(overflowing_add_u32(&[1, 0], &[1, 0]), ([2, 0], false));
-        assert_eq!(overflowing_add_u32(&[u32::MAX, 0], &[u32::MAX, 0]), ([u32::MAX - 1, 1], false));
-        assert_eq!(overflowing_add_u32(&[u32::MAX, 1], &[u32::MAX, 0]), ([u32::MAX - 1, 2], false));
-        assert_eq!(overflowing_add_u32(&[u32::MAX, u32::MAX], &[1, 0]), ([0, 0], true));
-        assert_eq!(overflowing_add_u32(&[u32::MAX, u32::MAX], &[2, 0]), ([1, 0], true));
+        assert_eq!(from_le_over(&[1, 0], &[1, 0], overflowing_add_u32), ([2, 0], false));
         assert_eq!(
-            overflowing_add_u32(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX]),
+            from_le_over(&[u32::MAX, 0], &[u32::MAX, 0], overflowing_add_u32),
+            ([u32::MAX - 1, 1], false)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, 1], &[u32::MAX, 0], overflowing_add_u32),
+            ([u32::MAX - 1, 2], false)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, u32::MAX], &[1, 0], overflowing_add_u32),
+            ([0, 0], true)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, u32::MAX], &[2, 0], overflowing_add_u32),
+            ([1, 0], true)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX], overflowing_add_u32),
             ([u32::MAX - 1, u32::MAX], true)
         );
     }
 
     #[test]
     fn overflowing_sub_u32_test() {
-        assert_eq!(overflowing_sub_u32(&[0, 0], &[1, 0]), ([u32::MAX, u32::MAX], true));
-        assert_eq!(overflowing_sub_u32(&[1, 0], &[1, 0]), ([0, 0], false));
-        assert_eq!(overflowing_sub_u32(&[1, 0], &[0, 0]), ([1, 0], false));
-        assert_eq!(overflowing_sub_u32(&[u32::MAX, 1], &[0, 2]), ([u32::MAX, u32::MAX], true));
-        assert_eq!(overflowing_sub_u32(&[0, 1], &[0, 2]), ([0, 4294967295], true));
-        assert_eq!(overflowing_sub_u32(&[0, 1], &[1, 1]), ([u32::MAX, u32::MAX], true));
+        assert_eq!(
+            from_le_over(&[0, 0], &[1, 0], overflowing_sub_u32),
+            ([u32::MAX, u32::MAX], true)
+        );
+        assert_eq!(from_le_over(&[1, 0], &[1, 0], overflowing_sub_u32), ([0, 0], false));
+        assert_eq!(from_le_over(&[1, 0], &[0, 0], overflowing_sub_u32), ([1, 0], false));
+        assert_eq!(
+            from_le_over(&[u32::MAX, 1], &[0, 2], overflowing_sub_u32),
+            ([u32::MAX, u32::MAX], true)
+        );
+        assert_eq!(from_le_over(&[0, 1], &[0, 2], overflowing_sub_u32), ([0, 4294967295], true));
+        assert_eq!(
+            from_le_over(&[0, 1], &[1, 1], overflowing_sub_u32),
+            ([u32::MAX, u32::MAX], true)
+        );
     }
 
     #[test]
     fn overflowing_mul_u32_test() {
         assert_eq!(
-            overflowing_mul_u32(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX]),
+            from_le_over(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX], overflowing_mul_u32),
             ([1, 0], true)
         );
-        assert_eq!(overflowing_mul_u32(&[1, 0], &[u32::MAX, 1]), ([u32::MAX, 1], false));
-        assert_eq!(overflowing_mul_u32(&[2, 0], &[2147483648, 0]), ([0, 1], false));
-        assert_eq!(overflowing_mul_u32(&[1, 0], &[1, 0]), ([1, 0], false));
-        assert_eq!(overflowing_mul_u32(&[1, 0], &[0, 0]), ([0, 0], false));
-        assert_eq!(overflowing_mul_u32(&[u32::MAX, 1], &[0, 2]), ([0, u32::MAX - 1], true));
-        assert_eq!(overflowing_mul_u32(&[0, 1], &[0, 2]), ([0, 0], true));
+        assert_eq!(
+            from_le_over(&[1, 0], &[u32::MAX, 1], overflowing_mul_u32),
+            ([u32::MAX, 1], false)
+        );
+        assert_eq!(from_le_over(&[2, 0], &[2147483648, 0], overflowing_mul_u32), ([0, 1], false));
+        assert_eq!(from_le_over(&[1, 0], &[1, 0], overflowing_mul_u32), ([1, 0], false));
+        assert_eq!(from_le_over(&[1, 0], &[0, 0], overflowing_mul_u32), ([0, 0], false));
+        assert_eq!(
+            from_le_over(&[u32::MAX, 1], &[0, 2], overflowing_mul_u32),
+            ([0, u32::MAX - 1], true)
+        );
+        assert_eq!(from_le_over(&[0, 1], &[0, 2], overflowing_mul_u32), ([0, 0], true));
         // NOTE: This fails for small
-        assert_eq!(overflowing_mul_u32(&[67, 0], &[64103990, 0]), ([34, 1], false));
+        assert_eq!(from_le_over(&[67, 0], &[64103990, 0], overflowing_mul_u32), ([34, 1], false));
     }
 
     #[test]
     fn wrapping_mul_limb_u32_test() {
-        assert_eq!(wrapping_mul_limb_u32(&[67, 0], 64103990), [34, 1]);
-        assert_eq!(wrapping_mul_limb_u32(&[2, 0], 2147483648), [0, 1]);
-        assert_eq!(wrapping_mul_limb_u32(&[0, 2147483648], 2), [0, 0]);
-        assert_eq!(wrapping_mul_limb_u32(&[2, 2147483648], 2), [4, 0]);
-        assert_eq!(wrapping_mul_limb_u32(&[2147483647, 2147483647], 2), [4294967294, 4294967294]);
+        assert_eq!(from_le_limb_wrap(&[67, 0], 64103990, wrapping_mul_limb_u32), [34, 1]);
+        assert_eq!(from_le_limb_wrap(&[2, 0], 2147483648, wrapping_mul_limb_u32), [0, 1]);
+        assert_eq!(from_le_limb_wrap(&[0, 2147483648], 2, wrapping_mul_limb_u32), [0, 0]);
+        assert_eq!(from_le_limb_wrap(&[2, 2147483648], 2, wrapping_mul_limb_u32), [4, 0]);
+        assert_eq!(from_le_limb_wrap(&[2147483647, 2147483647], 2, wrapping_mul_limb_u32), [
+            4294967294, 4294967294
+        ]);
     }
 
     #[test]
     fn overflowing_mul_limb_u32_test() {
-        assert_eq!(overflowing_mul_limb_u32(&[67, 0], 64103990), ([34, 1], false));
-        assert_eq!(overflowing_mul_limb_u32(&[2, 0], 2147483648), ([0, 1], false));
-        assert_eq!(overflowing_mul_limb_u32(&[0, 2147483648], 2), ([0, 0], true));
-        assert_eq!(overflowing_mul_limb_u32(&[2, 2147483648], 2), ([4, 0], true));
         assert_eq!(
-            overflowing_mul_limb_u32(&[2147483647, 2147483647], 2),
+            from_le_limb_over(&[67, 0], 64103990, overflowing_mul_limb_u32),
+            ([34, 1], false)
+        );
+        assert_eq!(
+            from_le_limb_over(&[2, 0], 2147483648, overflowing_mul_limb_u32),
+            ([0, 1], false)
+        );
+        assert_eq!(
+            from_le_limb_over(&[0, 2147483648], 2, overflowing_mul_limb_u32),
+            ([0, 0], true)
+        );
+        assert_eq!(
+            from_le_limb_over(&[2, 2147483648], 2, overflowing_mul_limb_u32),
+            ([4, 0], true)
+        );
+        assert_eq!(
+            from_le_limb_over(&[2147483647, 2147483647], 2, overflowing_mul_limb_u32),
             ([4294967294, 4294967294], false)
         );
     }
@@ -2623,52 +2712,68 @@ mod tests {
 
     #[test]
     fn overflowing_add_i32_test() {
-        assert_eq!(overflowing_add_i32(&[1, 0], &[1, 0]), ([2, 0], false));
-        assert_eq!(overflowing_add_i32(&[u32::MAX, 0], &[u32::MAX, 0]), ([u32::MAX - 1, 1], false));
-        assert_eq!(overflowing_add_i32(&[u32::MAX, 1], &[u32::MAX, 0]), ([u32::MAX - 1, 2], false));
+        assert_eq!(from_le_over(&[1, 0], &[1, 0], overflowing_add_i32), ([2, 0], false));
         assert_eq!(
-            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[1, 0]),
+            from_le_over(&[u32::MAX, 0], &[u32::MAX, 0], overflowing_add_i32),
+            ([u32::MAX - 1, 1], false)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, 1], &[u32::MAX, 0], overflowing_add_i32),
+            ([u32::MAX - 1, 2], false)
+        );
+        assert_eq!(
+            from_le_over(&[u32::MAX, i32::MAX as u32], &[1, 0], overflowing_add_i32),
             ([0, i32::MIN as u32], true)
         );
         assert_eq!(
-            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[2, 0]),
+            from_le_over(&[u32::MAX, i32::MAX as u32], &[2, 0], overflowing_add_i32),
             ([1, i32::MIN as u32], true)
         );
         assert_eq!(
-            overflowing_add_i32(&[u32::MAX, i32::MAX as u32], &[u32::MAX, i32::MAX as u32]),
+            from_le_over(
+                &[u32::MAX, i32::MAX as u32],
+                &[u32::MAX, i32::MAX as u32],
+                overflowing_add_i32
+            ),
             ([u32::MAX - 1, -1i32 as u32], true)
         );
     }
 
     #[test]
     fn wrapping_mul_i32_test() {
-        assert_eq!(wrapping_mul_i32(&[1, 0], &[0, 1]), [0, 1]);
-        assert_eq!(wrapping_mul_i32(&[u32::MAX, u32::MAX], &[1, 0]), [u32::MAX, u32::MAX]);
+        assert_eq!(from_le_wrap(&[1, 0], &[0, 1], wrapping_mul_i32), [0, 1]);
+        assert_eq!(from_le_wrap(&[u32::MAX, u32::MAX], &[1, 0], wrapping_mul_i32), [
+            u32::MAX,
+            u32::MAX
+        ]);
     }
 
     #[test]
     fn overflowing_mul_i32_test() {
         // -1 * -2^31, which should wrap exactly
         assert_eq!(
-            overflowing_mul_i32(&[u32::MAX, u32::MAX], &[0, i32::MIN as u32]),
+            from_le_over(&[u32::MAX, u32::MAX], &[0, i32::MIN as u32], overflowing_mul_i32),
             ([0, i32::MIN as u32], true)
         );
         assert_eq!(
-            overflowing_mul_i32(&[u32::MAX, u32::MAX], &[0, i32::MAX as u32]),
+            from_le_over(&[u32::MAX, u32::MAX], &[0, i32::MAX as u32], overflowing_mul_i32),
             ([0, -i32::MAX as u32], false)
         );
         assert_eq!(
-            overflowing_mul_i32(&[u32::MAX, u32::MAX], &[0, 0x80000000u32]),
+            from_le_over(&[u32::MAX, u32::MAX], &[0, 0x80000000u32], overflowing_mul_i32),
             ([0, i32::MIN as u32], true)
         );
         assert_eq!(
-            overflowing_mul_i32(&[0, i32::MIN as u32], &[1, 0]),
+            from_le_over(&[0, i32::MIN as u32], &[1, 0], overflowing_mul_i32),
             ([0, i32::MIN as u32], false)
         );
         assert_eq!(
-            overflowing_mul_i32(&[u32::MAX, i32::MIN as u32], &[1, 0]),
+            from_le_over(&[u32::MAX, i32::MIN as u32], &[1, 0], overflowing_mul_i32),
             ([u32::MAX, i32::MIN as u32], false)
         );
-        assert_eq!(overflowing_mul_i32(&[u32::MAX, i32::MIN as u32], &[0, 0]), ([0, 0], false));
+        assert_eq!(
+            from_le_over(&[u32::MAX, i32::MIN as u32], &[0, 0], overflowing_mul_i32),
+            ([0, 0], false)
+        );
     }
 }
