@@ -1347,6 +1347,11 @@ macro_rules! bigint_define {
         /// can be useful for bignum addition.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::carrying_add`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
@@ -1365,6 +1370,11 @@ macro_rules! bigint_define {
         /// bignum subtraction.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::borrowing_sub`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
@@ -1656,6 +1666,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_add`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_add(self, rhs: Self) -> Self {
@@ -1676,6 +1691,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_sub`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_sub(self, rhs: Self) -> Self {
@@ -1696,6 +1716,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_mul`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_mul(self, rhs: Self) -> Self {
@@ -1716,6 +1741,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_pow`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_pow(self, rhs: u32) -> Self {
@@ -1736,6 +1766,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_shl`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_shl(self, rhs: u32) -> Self {
@@ -1756,6 +1791,11 @@ macro_rules! strict_define {
         /// overflow checks are enabled.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::strict_shr`].")]
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn strict_shr(self, rhs: u32) -> Self {
@@ -1778,6 +1818,9 @@ macro_rules! unchecked_define {
         ///
         /// If you're just trying to avoid the panic in debug mode, then **do not**
         /// use this.  Instead, you're looking for [`wrapping_add`].
+        ///
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
         ///
         /// # Safety
         ///
@@ -1807,6 +1850,9 @@ macro_rules! unchecked_define {
         /// If you're just trying to avoid the panic in debug mode, then **do not**
         /// use this.  Instead, you're looking for [`wrapping_sub`].
         ///
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        ///
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
@@ -1835,6 +1881,9 @@ macro_rules! unchecked_define {
         /// If you're just trying to avoid the panic in debug mode, then **do not**
         /// use this.  Instead, you're looking for [`wrapping_mul`].
         ///
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        ///
         /// # Safety
         ///
         /// This results in undefined behavior when the value overflows.
@@ -1857,6 +1906,9 @@ macro_rules! unchecked_define {
         /// Unchecked shift left. Computes `self << rhs`, assuming that
         /// `rhs` is less than the number of bits in `self`.
         ///
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        ///
         /// # Safety
         ///
         /// This results in undefined behavior if `rhs` is larger than
@@ -1878,6 +1930,9 @@ macro_rules! unchecked_define {
 
         /// Unchecked shift right. Computes `self >> rhs`, assuming that
         /// `rhs` is less than the number of bits in `self`.
+        ///
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
         ///
         /// # Safety
         ///
@@ -1908,6 +1963,11 @@ macro_rules! unbounded_define {
         ///
         /// If `rhs` is larger or equal to the number of bits in `self`,
         /// the entire value is shifted out, and `0` is returned.
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn unbounded_shl(self, rhs: u32) -> Self {
@@ -1923,6 +1983,11 @@ macro_rules! unbounded_define {
         ///
         /// If `rhs` is larger or equal to the number of bits in `self`,
         /// the entire value is shifted out, and `0` is returned.
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
         #[inline]
         #[must_use]
         pub const fn unbounded_shr(self, rhs: u32) -> Self {
