@@ -58,6 +58,7 @@ macro_rules! to_str_radix_define {
             }
 
             // always have one trailing digit
+            assert!(self.lt_const(limit), "overflowed our buffer");
             index -= 1;
             buffer[index] = $crate::write::digit_to_char(self.get_limb(0) as u32, radix);
 

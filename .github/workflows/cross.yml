@@ -1,6 +1,6 @@
 name: Cross
 
-on: [push, pull_request, workflow_dispatch]
+on: [workflow_dispatch]
 
 jobs:
   cross:
@@ -10,7 +10,7 @@ jobs:
       matrix:
         # NOTE: mips was dropped from tier 2 support, so remove this
         # when we go to higher versions. This is just to test BE support.
-        target: [mips64el-unknown-linux-gnuabi64, aarch64-unknown-linux-gnu]
+        target: [mips64-unknown-linux-gnuabi64, aarch64-unknown-linux-gnu]
 
     steps:
     - name: Checkout

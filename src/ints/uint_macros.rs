@@ -1508,12 +1508,12 @@ macro_rules! uint_limb_ops_define {
         #[inline(always)]
         pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
              #[cfg(not(feature = "limb32"))]
-            let (r, overflow) = math::overflowing_mul_limb_u64(&self.to_le_limbs(), n);
+            let (r, overflow) = math::overflowing_mul_limb_u64(&self.to_ne_limbs(), n);
 
             #[cfg(feature = "limb32")]
-            let (r, overflow) = math::overflowing_mul_limb_u32(&self.to_le_limbs(), n);
+            let (r, overflow) = math::overflowing_mul_limb_u32(&self.to_ne_limbs(), n);
 
-            (Self::from_le_limbs(r), overflow)
+            (Self::from_ne_limbs(r), overflow)
         }
     };
 
