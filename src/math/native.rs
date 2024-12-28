@@ -1486,10 +1486,9 @@ macro_rules! add_signed_impl {
             use $crate::util::to_ne_index;
 
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
-            let mut rhs = [0; N];
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
             rhs[to_ne_index(0, N)] = y as $u;
-            rhs[to_ne_index(N - 1, N)] = sign_bit;
             $wrapping_full(x, &rhs)
         }
 
@@ -1532,10 +1531,9 @@ macro_rules! add_signed_impl {
             use $crate::util::to_ne_index;
 
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
-            let mut rhs = [0; N];
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
             rhs[to_ne_index(0, N)] = y as $u;
-            rhs[to_ne_index(N - 1, N)] = sign_bit;
             $overflowing_full(x, &rhs)
         }
     };
@@ -1838,10 +1836,9 @@ macro_rules! sub_signed_impl {
             use $crate::util::to_ne_index;
 
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
-            let mut rhs = [0; N];
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
             rhs[to_ne_index(0, N)] = y as $u;
-            rhs[to_ne_index(N - 1, N)] = sign_bit;
             $wrapping_full(x, &rhs)
         }
 
@@ -1865,18 +1862,18 @@ macro_rules! sub_signed_impl {
         ///     mov     r9, qword ptr [rsi + 8]
         ///     mov     rsi, qword ptr [rsi + 24]
         ///     sub     rsi, rcx
-        ///     seto    cl
+        ///     seto    r10b
         ///     sub     r8, rdx
-        ///     sbb     r9, 0
-        ///     sbb     rdi, 0
+        ///     sbb     r9, rcx
+        ///     sbb     rdi, rcx
         ///     sbb     rsi, 0
-        ///     seto    dl
-        ///     xor     dl, cl
+        ///     seto    cl
+        ///     xor     cl, r10b
         ///     mov     qword ptr [rax], r8
         ///     mov     qword ptr [rax + 8], r9
         ///     mov     qword ptr [rax + 16], rdi
         ///     mov     qword ptr [rax + 24], rsi
-        ///     mov     byte ptr [rax + 32], dl
+        ///     mov     byte ptr [rax + 32], cl
         ///     ret
         /// ```
         #[inline]
@@ -1884,10 +1881,9 @@ macro_rules! sub_signed_impl {
             use $crate::util::to_ne_index;
 
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
-            let mut rhs = [0; N];
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
             rhs[to_ne_index(0, N)] = y as $u;
-            rhs[to_ne_index(N - 1, N)] = sign_bit;
             $overflowing_full(x, &rhs)
         }
     };
