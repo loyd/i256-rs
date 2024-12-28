@@ -26,7 +26,7 @@
 
 use core::cmp::Ordering;
 
-use super::types::{ULimb, UWide};
+use crate::types::{ULimb, UWide};
 
 // NOTE: This cannot be made `const`, nor should it be attempted to be made so.
 // We had a Knuth division algorithm previously in lexical, but it was removed

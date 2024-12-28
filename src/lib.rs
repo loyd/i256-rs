@@ -31,10 +31,13 @@
 #[macro_use]
 mod parse;
 #[macro_use]
+mod util;
+#[macro_use]
 mod write;
 
 mod error;
 mod ints;
+mod types;
 
 // exposed only for testing
 pub mod math;
@@ -42,4 +45,4 @@ pub mod math;
 pub use error::{IntErrorKind, ParseIntError, TryFromIntError};
 pub use ints::i256::{i256, i256 as I256};
 pub use ints::u256::{u256, u256 as U256};
-pub use math::{ILimb, IWide, ULimb, UWide};
+pub use types::{ILimb, IWide, ULimb, UWide};

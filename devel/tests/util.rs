@@ -245,3 +245,87 @@ macro_rules! signed_op_equal {
         signed_op_equal!($x0, $x1, $y0, $y1, $op, |x, y| x == y)
     }};
 }
+
+macro_rules! unsigned_limb_op_equal {
+    ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
+        let x = i256::u256::new($x0, $x1);
+        let fres = x.$full(i256::u256::from_u64($y));
+        let lres = x.$limb($y);
+
+        $cmp(fres, lres)
+    }};
+
+    (wrap $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        unsigned_limb_op_equal!($x0, $x1, $y, $full, $limb, |x: i256::u256, y: i256::u256| {
+            x.to_le_bytes() == y.to_le_bytes()
+        })
+    }};
+
+    (over $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        unsigned_limb_op_equal!(
+            $x0,
+            $x1,
+            $y,
+            $full,
+            $limb,
+            |x: (i256::u256, bool), y: (i256::u256, bool)| {
+                x.0.to_le_bytes() == y.0.to_le_bytes() && x.1 == y.1
+            }
+        )
+    }};
+
+    (check $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        unsigned_limb_op_equal!(
+            $x0,
+            $x1,
+            $y,
+            $full,
+            $limb,
+            |x: Option<i256::u256>, y: Option<i256::u256>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| v.to_le_bytes())
+            }
+        )
+    }};
+}
+
+macro_rules! signed_limb_op_equal {
+    ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
+        let x = i256::i256::new($x0, $x1);
+        let fres = x.$full($y.into());
+        let lres = x.$limb($y);
+
+        $cmp(fres, lres)
+    }};
+
+    (wrap $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        signed_limb_op_equal!($x0, $x1, $y, $full, $limb, |x: i256::i256, y: i256::i256| {
+            x.to_le_bytes() == y.to_le_bytes()
+        })
+    }};
+
+    (over $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        signed_limb_op_equal!(
+            $x0,
+            $x1,
+            $y,
+            $full,
+            $limb,
+            |x: (i256::i256, bool), y: (i256::i256, bool)| {
+                x.0.to_le_bytes() == y.0.to_le_bytes() && x.1 == y.1
+            }
+        )
+    }};
+
+    (check $x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident) => {{
+        signed_limb_op_equal!(
+            $x0,
+            $x1,
+            $y,
+            $full,
+            $limb,
+            |x: Option<i256::i256>, y: Option<i256::i256>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| v.to_le_bytes())
+            }
+        )
+    }};
+}

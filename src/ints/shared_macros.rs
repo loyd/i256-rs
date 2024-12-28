@@ -3,29 +3,6 @@
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
 
-/// Shared helper for indexing consistent across byte orders.
-macro_rules! be_index {
-    ($index:expr, $max:expr) => {{
-        if cfg!(target_endian = "big") {
-            $max - 1 - $index
-        } else {
-            $index
-        }
-    }};
-}
-
-macro_rules! limb_index {
-    ($index:expr) => {{
-        be_index!($index, Self::LIMBS)
-    }};
-}
-
-macro_rules! wide_index {
-    ($index:expr) => {{
-        be_index!($index, Self::WIDE)
-    }};
-}
-
 macro_rules! int_define {
     (
         name => $name:ident,
@@ -170,15 +147,15 @@ macro_rules! cmp_define {
         let rhs = $rhs.to_ne_wide();
 
         let mut i = Self::WIDE - 1;
-        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
-        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let lhs_0 = ne_index!(lhs[i]) as $hi_t;
+        let rhs_0 = ne_index!(rhs[i]) as $hi_t;
         let mut is_ord = lhs_0 $op1 rhs_0;
         let mut is_eq = lhs_0 == rhs_0;
 
         while i > 0 && !is_ord && is_eq {
             i -= 1;
-            let lhs_i = lhs[wide_index!(i)] as $lo_t;
-            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            let lhs_i = ne_index!(lhs[i]) as $lo_t;
+            let rhs_i = ne_index!(rhs[i]) as $lo_t;
             is_ord = lhs_i $op2 rhs_i;
             is_eq = lhs_i == rhs_i;
         }
@@ -197,16 +174,16 @@ macro_rules! cmp_define {
         let rhs = $rhs.to_ne_wide();
 
         let mut i = Self::WIDE - 1;
-        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
-        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let lhs_0 = ne_index!(lhs[i]) as $hi_t;
+        let rhs_0 = ne_index!(rhs[i]) as $hi_t;
         let mut is_eq = lhs_0 == rhs_0;
         let mut is_lt = lhs_0 < rhs_0;
         let mut is_gt = lhs_0 > rhs_0;
 
         while i > 0 && !is_lt && !is_gt && is_eq {
             i -= 1;
-            let lhs_i = lhs[wide_index!(i)] as $lo_t;
-            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            let lhs_i = ne_index!(lhs[i]) as $lo_t;
+            let rhs_i = ne_index!(rhs[i]) as $lo_t;
             is_eq = lhs_i == rhs_i;
             is_lt = lhs_i < rhs_i;
             is_gt = lhs_i > rhs_i;
@@ -476,13 +453,6 @@ macro_rules! casts_define {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed wide type, as if by an `as` cast.")]
-        #[inline(always)]
-        #[allow(clippy::unnecessary_cast)]
-        pub const fn from_iwide(value: $crate::IWide) -> Self {
-            Self::from_i128(value as i128)
-        }
-
         #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u8(&self) -> u8 {
@@ -554,14 +524,6 @@ macro_rules! casts_define {
             assert!($crate::ILimb::BITS <= 128);
             self.as_i128() as $crate::ILimb
         }
-
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed wide type, as if by an `as` cast.")]
-        #[inline(always)]
-        #[allow(clippy::unnecessary_cast)]
-        pub const fn as_iwide(&self) -> $crate::IWide {
-            assert!($crate::IWide::BITS <= 128);
-            self.as_i128() as $crate::IWide
-        }
     };
 }
 
@@ -579,7 +541,7 @@ macro_rules! byte_order_define {
         /// Get the limb indexing from the least-significant order.
         #[inline(always)]
         const fn get_limb(self, index: usize) -> $crate::ULimb {
-            self.limbs[limb_index!(index)]
+            self.limbs[$crate::util::to_ne_index(index, Self::LIMBS)]
         }
 
         /// Get the wide value indexing from the least-significant order.
@@ -1721,6 +1683,36 @@ macro_rules! unbounded_define {
 
 macro_rules! limb_ops_define {
     () => {
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn add_ulimb(self, n: $crate::ULimb) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_add_ulimb(n)
+            } else {
+                match self.checked_add_ulimb(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to add with overflow"),
+                }
+            }
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn sub_ulimb(self, n: $crate::ULimb) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_sub_ulimb(n)
+            } else {
+                match self.checked_sub_ulimb(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to subtract with overflow"),
+                }
+            }
+        }
+
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -1796,11 +1788,7 @@ macro_rules! limb_ops_define {
         /// This allows optimizations a full division cannot do.
         #[inline]
         pub fn overflowing_div_rem_ulimb(self, n: $crate::ULimb) -> ((Self, $crate::ULimb), bool) {
-            if n == 0 {
-                ((Self::MAX, 0), true)
-            } else {
-                (self.wrapping_div_rem_ulimb(n), false)
-            }
+            (self.wrapping_div_rem_ulimb(n), false)
         }
 
         /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
@@ -1823,6 +1811,32 @@ macro_rules! limb_ops_define {
     };
 
     (@checked) => {
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn checked_add_ulimb(self, n: $crate::ULimb) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_add_ulimb(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn checked_sub_ulimb(self, n: $crate::ULimb) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_sub_ulimb(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
         /// Multiply the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full multiplication cannot do.
@@ -1870,272 +1884,6 @@ macro_rules! limb_ops_define {
         limb_define!(@wrapping);
         limb_define!(@overflowing);
         limb_define!(@checked);
-    };
-}
-
-macro_rules! wide_ops_define {
-    () => {
-        /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-        /// This allows optimizations a full addition cannot do.
-        #[inline(always)]
-        pub const fn add_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_add_uwide(n)
-            } else {
-                match self.checked_add_uwide(n) {
-                    Some(v) => v,
-                    None => core::panic!("attempt to add with overflow"),
-                }
-            }
-        }
-
-        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full subtraction cannot do.
-        #[inline(always)]
-        pub const fn sub_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_sub_uwide(n)
-            } else {
-                match self.checked_sub_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to subtract with overflow"),
-                }
-            }
-        }
-
-        /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn mul_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_mul_uwide(n)
-            } else {
-                match self.checked_mul_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to multiply with overflow"),
-                }
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`div_rem`]
-        /// or [`div_rem_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`div_rem`]: Self::div_rem
-        /// [`div_rem_ulimb`]: Self::div_rem_ulimb
-        #[inline]
-        pub fn div_rem_uwide(self, n: $crate::UWide) -> (Self, $crate::UWide) {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_div_rem_uwide(n)
-            } else {
-                match self.checked_div_rem_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to divide by zero"),
-                }
-            }
-        }
-
-        /// Div the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`div`]
-        /// or [`div_ulimb`] if possible.
-        ///
-        /// [`div`]: Self::div
-        /// [`div_ulimb`]: Self::div_ulimb
-        #[inline(always)]
-        pub fn div_uwide(self, n: $crate::UWide) -> Self {
-            self.div_rem_uwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`rem`]
-        /// or [`rem_ulimb`] if possible.
-        ///
-        /// [`rem`]: Self::rem
-        /// [`rem_ulimb`]: Self::rem_ulimb
-        #[inline(always)]
-        pub fn rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
-            self.div_rem_uwide(n).1
-        }
-
-    };
-
-    (@wrapping) => {
-        /// Div the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_div`]
-        /// or [`wrapping_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`wrapping_div`]: Self::wrapping_div
-        /// [`wrapping_div_ulimb`]: Self::wrapping_div_ulimb
-        #[inline(always)]
-        pub fn wrapping_div_uwide(self, n: $crate::UWide) -> Self {
-            self.wrapping_div_rem_uwide(n).0
-        }
-
-        /// Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`wrapping_rem`]
-        /// or [`wrapping_rem_ulimb`] if possible.
-        ///
-        /// [`wrapping_rem`]: Self::wrapping_rem
-        /// [`wrapping_rem_ulimb`]: Self::wrapping_rem_ulimb
-        #[inline(always)]
-        pub fn wrapping_rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
-            self.wrapping_div_rem_uwide(n).1
-        }
-    };
-
-    (@overflowing) => {
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div_rem`]
-        /// or [`overflowing_div_rem_ulimb`] if possible.
-        ///
-        /// [`overflowing_div_rem`]: Self::overflowing_div_rem
-        /// [`overflowing_div_rem_ulimb`]: Self::overflowing_div_rem_ulimb
-        #[inline]
-        pub fn overflowing_div_rem_uwide(self, n: $crate::UWide) -> ((Self, $crate::UWide), bool) {
-            if n == 0 {
-                ((Self::MAX, 0), true)
-            } else {
-                (self.wrapping_div_rem_uwide(n), false)
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_div`]
-        /// or [`overflowing_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`overflowing_div`]: Self::overflowing_div
-        /// [`overflowing_div_ulimb`]: Self::overflowing_div_ulimb
-        #[inline(always)]
-        pub fn overflowing_div_uwide(self, n: $crate::UWide) -> (Self, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
-            (value.0, overflowed)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`overflowing_rem`]
-        /// or [`overflowing_rem_ulimb`] if possible.
-        ///
-        /// [`overflowing_rem`]: Self::overflowing_rem
-        /// [`overflowing_rem_ulimb`]: Self::overflowing_rem_ulimb
-        #[inline(always)]
-        pub fn overflowing_rem_uwide(self, n: $crate::UWide) -> ($crate::UWide, bool) {
-            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
-            (value.1, overflowed)
-        }
-    };
-
-    (@checked) => {
-        /// Add the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full addition cannot do.
-        #[inline(always)]
-        pub const fn checked_add_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_add_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-
-        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full subtraction cannot do.
-        #[inline(always)]
-        pub const fn checked_sub_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_sub_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-
-        /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn checked_mul_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_mul_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div_rem`]
-        /// or [`checked_div_rem_ulimb`] if possible.
-        ///
-        /// [`checked_div_rem`]: Self::checked_div_rem
-        /// [`checked_div_rem_ulimb`]: Self::checked_div_rem_ulimb
-        #[inline]
-        pub fn checked_div_rem_uwide(self, n: $crate::UWide) -> Option<(Self, $crate::UWide)> {
-            if n == 0 {
-                None
-            } else {
-                Some(self.wrapping_div_rem_uwide(n))
-            }
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_div`]
-        /// or [`checked_div_ulimb`] if possible.
-        ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
-        ///
-        /// [`checked_div`]: Self::checked_div
-        /// [`checked_div_ulimb`]: Self::checked_div_ulimb
-        #[inline(always)]
-        pub fn checked_div_uwide(self, n: $crate::UWide) -> Option<Self> {
-            Some(self.checked_div_rem_uwide(n)?.0)
-        }
-
-        /// Div/Rem the 256-bit integer by a wide, 64-bit unsigned factor.
-        ///
-        /// This is a convenience function: always prefer [`checked_rem`]
-        /// or [`checked_rem_ulimb`] if possible.
-        ///
-        /// [`checked_rem`]: Self::checked_rem
-        /// [`checked_rem_ulimb`]: Self::checked_rem_ulimb
-        #[inline(always)]
-        pub fn checked_rem_uwide(self, n: $crate::UWide) -> Option<$crate::UWide> {
-            Some(self.checked_div_rem_uwide(n)?.1)
-        }
-    };
-
-    (@all) => {
-        wide_define!();
-        wide_define!(@wrapping);
-        wide_define!(@overflowing);
-        wide_define!(@checked);
     };
 }
 
@@ -2514,7 +2262,6 @@ macro_rules! traits_define {
 
         ref_trait_define!($t, Shr, shr, other: &$t);
         binop_ref_trait_define!($t, Shr, shr);
-        // TODO: i256
         shift_define! { @mod base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
         shift_define! { base => $t, impl => i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize }
 
@@ -2566,7 +2313,6 @@ macro_rules! try_from_define {
 
 // Internal implementation helpers.
 pub(crate) use associated_consts_define;
-pub(crate) use be_index;
 pub(crate) use bigint_define;
 pub(crate) use binop_ref_trait_define;
 pub(crate) use binop_trait_define;
@@ -2579,7 +2325,6 @@ pub(crate) use extensions_define;
 pub(crate) use from_trait_define;
 pub(crate) use high_low_define;
 pub(crate) use int_define;
-pub(crate) use limb_index;
 pub(crate) use limb_ops_define;
 pub(crate) use ops_define;
 pub(crate) use overflowing_define;
@@ -2591,6 +2336,4 @@ pub(crate) use traits_define;
 pub(crate) use try_from_define;
 pub(crate) use unbounded_define;
 pub(crate) use unchecked_define;
-pub(crate) use wide_index;
-pub(crate) use wide_ops_define;
 pub(crate) use wrapping_define;

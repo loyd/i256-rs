@@ -17,14 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Behavior for `overflowing_div` and similar division methods when dividing by zero to properly panic.
 - Overflow checks for `shr` and `shl` implementations.
 - Fixed the padding and formatting for `Octal`, `UpperHex`, `LowerHex` and `Binary`.
+- Division by an unsigned factor from a signed big integer, to correctly adjust the quotient and remainder for floor division.
 
 ## Changed
 
 - Made the internal implementation size-generic, mostly, so we can use higher order types for our precomputed division.
+- Improved addition and subtraction performance.
 
 ## Removed
 
 - The `shr_const_*` and `shl_const_*` methods, since `wrapping_shr` should cover every use-case.
+- Our entire wide API, and replaced only with limb.
 
 ## [0.1.1] 2024-12-24
 

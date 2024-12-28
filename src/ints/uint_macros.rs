@@ -313,7 +313,7 @@ macro_rules! uint_ops_define {
 
         /// Returns `true` if and only if `self == 2^k` for some `k`.
         ///
-        /// See [`u128::is_power_of_two`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::is_power_of_two`].")]
         #[inline(always)]
         pub const fn is_power_of_two(self) -> bool {
             self.count_ones() == 1
@@ -373,6 +373,206 @@ macro_rules! uint_bigint_define {
 macro_rules! uint_wrapping_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         wrapping_define!(type => $s_t, wide_type => $wide_t);
+
+        /// Wrapping (modular) addition. Computes `self + rhs`,
+        /// wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add`].")]
+        #[inline(always)]
+        pub const fn wrapping_add(self, rhs: Self) -> Self {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            Self::from_ne_limbs(math::wrapping_add_u64(&lhs, &rhs))
+        }
+
+        /// Wrapping (modular) addition with a signed integer. Computes
+        /// `self + rhs`, wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add_signed`].")]
+        #[inline(always)]
+        pub const fn wrapping_add_signed(self, rhs: i256) -> Self {
+            self.wrapping_add(rhs.as_unsigned())
+        }
+
+        /// Wrapping (modular) subtraction. Computes `self - rhs`,
+        /// wrapping around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_sub`].")]
+        #[inline(always)]
+        pub const fn wrapping_sub(self, rhs: Self) -> Self {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            Self::from_ne_limbs(math::wrapping_sub_u64(&lhs, &rhs))
+        }
+
+        /// Wrapping (modular) multiplication. Computes `self *
+        /// rhs`, wrapping around at the boundary of the type.
+        ///
+        /// Many different algorithms were attempted, with a soft [`mulx`] approach
+        /// (1), a flat, fixed-width long multiplication (2), and a
+        /// short-circuiting long multiplication (3). Algorithm (3) had the best
+        /// performance for 128-bit multiplication, however, algorithm (1) was
+        /// better for smaller type sizes.
+        ///
+        /// This also optimized much better when multiplying by a single or a
+        /// half-sized item: rather than using 4 limbs, if we're multiplying
+        /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+        /// for `(u128, u128) * u64`, only
+        ///
+        /// # Assembly
+        ///
+        /// For a 128-bit multiplication (2x `u64` + 2x `u64`), algorithm (1) had
+        /// 6 `mul`, 6 `add`, and 6 bitshift instructions. Algorithm (3) had 10
+        /// `mul`, 12 `add`, and 12 bitshift instructions in the worst case, with
+        /// a minimum of 4 `mul` and 2 `add` instructions, along with a lot of
+        /// branching. That is, it was almost never worth it.
+        ///
+        /// However, for 256-bit multiplication, the switch flips, with algorithm
+        /// (1) having 10 `mul` and 14 `add` instructions. However, algorithm (3)
+        /// has in the worst case 10 `mul` and 13 `add` instructions, however,
+        /// because of branching in nearly every case, it has better performance
+        /// and optimizes nicely for small multiplications.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_mul`].")]
+        ///
+        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[inline(always)]
+        pub const fn wrapping_mul(self, rhs: Self) -> Self {
+            // 256-Bit
+            // -------
+            // long_u128:
+            //      push    rbp
+            //      push    r15
+            //      push    r14
+            //      push    r13
+            //      push    r12
+            //      push    rbx
+            //      mov     r9, rdx
+            //      mov     r15, qword ptr [rdx]
+            //      mov     r12, qword ptr [rdx + 8]
+            //      mov     rbp, qword ptr [rsi]
+            //      mov     r10, qword ptr [rsi + 8]
+            //      mov     rax, qword ptr [rsi + 16]
+            //      mov     r11, qword ptr [rsi + 24]
+            //      mov     r14, rax
+            //      mul     r15
+            //      mov     qword ptr [rsp - 16], rax
+            //      mov     qword ptr [rsp - 8], rdx
+            //      imul    r14, r12
+            //      mov     rax, r10
+            //      mul     r12
+            //      mov     r8, rdx
+            //      mov     rbx, rax
+            //      mov     rax, r10
+            //      mul     r15
+            //      mov     qword ptr [rsp - 24], rdx
+            //      mov     qword ptr [rsp - 32], rax
+            //      mov     rax, r12
+            //      mul     rbp
+            //      mov     r13, rax
+            //      mov     rsi, rdx
+            //      imul    r11, r15
+            //      mov     rax, r15
+            //      mul     rbp
+            //      mov     r15, rax
+            //      mov     r12, rdx
+            //      mov     rcx, qword ptr [r9 + 16]
+            //      mov     rax, rcx
+            //      mul     rbp
+            //      imul    r10, rcx
+            //      imul    rbp, qword ptr [r9 + 24]
+            //      add     rbp, r10
+            //      add     r12, r13
+            //      adc     rax, rsi
+            //      adc     rbp, rdx
+            //      add     rax, rbx
+            //      adc     r8, 0
+            //      add     r14, r11
+            //      add     r14, rbp
+            //      add     r12, qword ptr [rsp - 32]
+            //      adc     rax, qword ptr [rsp - 24]
+            //      adc     r14, r8
+            //      add     rax, qword ptr [rsp - 16]
+            //      adc     r14, qword ptr [rsp - 8]
+            //      mov     qword ptr [rdi], r15
+            //      mov     qword ptr [rdi + 8], r12
+            //      mov     qword ptr [rdi + 16], rax
+            //      mov     qword ptr [rdi + 24], r14
+            //      mov     rax, rdi
+            //      pop     rbx
+            //      pop     r12
+            //      pop     r13
+            //      pop     r14
+            //      pop     r15
+            //      pop     rbp
+            //      ret
+            //
+            // mulx_u128:
+            //     push    rbp
+            //     push    r15
+            //     push    r14
+            //     push    r13
+            //     push    r12
+            //     push    rbx
+            //     mov     r13, rdx
+            //     mov     r12, qword ptr [rsp + 56]
+            //     mov     r14, qword ptr [rsp + 64]
+            //     mov     rax, r12
+            //     mul     rsi
+            //     mov     qword ptr [rsp - 24], rdx
+            //     mov     qword ptr [rsp - 8], rax
+            //     mov     rax, r14
+            //     mul     rsi
+            //     mov     rbx, rax
+            //     mov     qword ptr [rsp - 16], rdx
+            //     mov     rax, r12
+            //     mul     r13
+            //     mov     r15, rdx
+            //     mov     rbp, rax
+            //     mov     rax, r14
+            //     mul     r13
+            //     mov     r10, rax
+            //     mov     r9, rdx
+            //     mov     rax, qword ptr [rsp + 72]
+            //     imul    r13, rax
+            //     mul     rsi
+            //     mov     r11, rax
+            //     add     rdx, r13
+            //     imul    rsi, qword ptr [rsp + 80]
+            //     add     rsi, rdx
+            //     imul    r8, r12
+            //     mov     rax, r12
+            //     mul     rcx
+            //     add     rdx, r8
+            //     imul    r14, rcx
+            //     add     r14, rdx
+            //     add     rax, r10
+            //     adc     r14, r9
+            //     add     rax, r11
+            //     adc     r14, rsi
+            //     add     rbp, qword ptr [rsp - 24]
+            //     adc     rax, r15
+            //     adc     r14, 0
+            //     add     rbp, rbx
+            //     adc     rax, qword ptr [rsp - 16]
+            //     mov     rcx, qword ptr [rsp - 8]
+            //     mov     qword ptr [rdi], rcx
+            //     mov     qword ptr [rdi + 8], rbp
+            //     mov     qword ptr [rdi + 16], rax
+            //     adc     r14, 0
+            //     mov     qword ptr [rdi + 24], r14
+            //     mov     rax, rdi
+            //     pop     rbx
+            //     pop     r12
+            //     pop     r13
+            //     pop     r14
+            //     pop     r15
+            //     pop     rbp
+            //     ret
+            let r = math::wrapping_mul_u64(&self.to_le_limbs(), &rhs.to_le_limbs());
+            Self::from_le_limbs(r)
+        }
+
         /// Div/Rem operation on a 256-bit integer.
         ///
         /// This allows storing of both the quotient and remainder without
@@ -490,6 +690,21 @@ macro_rules! uint_overflowing_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         overflowing_define!(type => $s_t, wide_type => $wide_t);
 
+        /// Calculates `self` + `rhs`.
+        ///
+        /// Returns a tuple of the addition along with a boolean indicating
+        /// whether an arithmetic overflow would occur. If an overflow would
+        /// have occurred then the wrapped value is returned.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add`].")]
+        #[inline(always)]
+        pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_add_u64(&lhs, &rhs);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
         /// Calculates `self` + `rhs` with a signed `rhs`.
         ///
         /// Returns a tuple of the addition along with a boolean indicating
@@ -503,6 +718,21 @@ macro_rules! uint_overflowing_define {
             (r, overflowed ^ is_negative)
         }
 
+        /// Calculates `self` - `rhs`.
+        ///
+        /// Returns a tuple of the subtraction along with a boolean indicating
+        /// whether an arithmetic overflow would occur. If an overflow would
+        /// have occurred then the wrapped value is returned.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_sub`].")]
+        #[inline(always)]
+        pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_sub_u64(&lhs, &rhs);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
         /// Calculates `self` - `rhs` with a signed `rhs`
         ///
         /// Returns a tuple of the subtraction along with a boolean indicating
@@ -513,6 +743,38 @@ macro_rules! uint_overflowing_define {
         pub const fn overflowing_sub_signed(self, rhs: $s_t) -> (Self, bool) {
             let (res, overflow) = self.overflowing_sub(rhs.as_unsigned());
             (res, overflow ^ (rhs.is_negative()))
+        }
+
+        /// Calculates the multiplication of `self` and `rhs`.
+        ///
+        /// Returns a tuple of the multiplication along with a boolean
+        /// indicating whether an arithmetic overflow would occur. If an
+        /// overflow would have occurred then the wrapped value is returned.
+        ///
+        /// Many different algorithms were attempted, with a soft [`mulx`] approach
+        /// (1), a flat, fixed-width long multiplication (2), and a
+        /// short-circuiting long multiplication (3). Algorithm (3) had the best
+        /// performance for 128-bit multiplication, however, algorithm (1) was
+        /// better for smaller type sizes.
+        ///
+        /// This also optimized much better when multiplying by a single or a
+        /// half-sized item: rather than using 4 limbs, if we're multiplying
+        /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+        /// for `(u128, u128) * u64`, only 1 limb.
+        ///
+        /// # Assembly
+        ///
+        /// The analysis here is practically identical to that of [`wrapping_mul`].
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_mul`].")]
+        ///
+        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        /// [`wrapping_mul`]: Self::wrapping_mul
+        #[inline(always)]
+        pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+            // FIXME: Native endian indexing
+            let (r, overflow) = math::overflowing_mul_u64(&self.to_le_limbs(), &rhs.to_le_limbs());
+            (Self::from_le_limbs(r), overflow)
         }
 
         /// Calculates the divisor when `self` is divided by `rhs`.
@@ -952,10 +1214,143 @@ macro_rules! uint_limb_ops_define {
 
     (@wrapping) => {
         limb_ops_define!(@wrapping);
+
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn wrapping_add_ulimb(self, n: ULimb) -> Self {
+            let lhs = self.to_ne_limbs();
+            let limbs = math::wrapping_add_limb_u64(&lhs, n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Subtract the 256-bit integer by a wide, 128-bit unsigned factor.
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn wrapping_sub_ulimb(self, n: ULimb) -> Self {
+            let lhs = self.to_ne_limbs();
+            let limbs = math::wrapping_sub_limb_u64(&lhs, n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full multiplication cannot do.
+        ///
+        /// Many different algorithms were attempted, with a soft [`mulx`] approach
+        /// (1), a flat, fixed-width long multiplication (2), and a
+        /// short-circuiting long multiplication (3). Algorithm (3) had the best
+        /// performance for 128-bit multiplication, however, algorithm (1) was
+        /// better for smaller type sizes.
+        ///
+        /// This also optimized much better when multiplying by a single or a
+        /// half-sized item: rather than using 4 limbs, if we're multiplying
+        /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+        /// for `(u128, u128) * u64`, only 1 limb.
+        ///
+        /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in
+        /// the worst case 10 `mul` and 13 `add` instructions, while `(u128,
+        /// u128) + u64` is always 4 `mul` and 3 `add` instructions without any
+        /// branching. This is extremely efficient.
+        ///
+        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[inline(always)]
+        pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
+            // 256-Bit
+            // -------
+            // wrapping_mul:
+            //      push    rbx
+            //      mov     rcx, rdx
+            //      mov     rax, rdx
+            //      mul     qword ptr [rsi + 16]
+            //      mov     r8, rax
+            //      mov     r9, rdx
+            //      mov     rax, rcx
+            //      mul     qword ptr [rsi + 8]
+            //      mov     r10, rax
+            //      mov     r11, rdx
+            //      mov     rbx, qword ptr [rsi + 24]
+            //      imul    rbx, rcx
+            //      mov     rax, rcx
+            //      mul     qword ptr [rsi]
+            //      add     rdx, r10
+            //      adc     r11, r8
+            //      adc     r9, rbx
+            //      mov     qword ptr [rdi], rax
+            //      mov     qword ptr [rdi + 8], rdx
+            //      mov     qword ptr [rdi + 16], r11
+            //      mov     qword ptr [rdi + 24], r9
+            //      mov     rax, rdi
+            //      pop     rbx
+            //      ret
+            let r = math::wrapping_mul_limb_u64(&self.to_le_limbs(), n);
+            Self::from_le_limbs(r)
+        }
+
+        /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full division cannot do.
+        ///
+        /// # Panics
+        ///
+        /// This panics if the divisor is 0.
+        #[inline(always)]
+        pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
+            let x = self.to_le_limbs();
+            let (div, rem) = math::div_rem_limb(&x, n);
+            let div = u256::from_le_limbs(div);
+            (div, rem)
+        }
     };
 
     (@overflowing) => {
         limb_ops_define!(@overflowing);
+
+        /// Add the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full addition cannot do.
+        #[inline(always)]
+        pub const fn overflowing_add_ulimb(self, n: ULimb) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_add_limb_u64(&lhs, n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
+        /// Subtract the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full subtraction cannot do.
+        #[inline(always)]
+        pub const fn overflowing_sub_ulimb(self, n: ULimb) -> (Self, bool) {
+            let lhs = self.to_ne_limbs();
+            let (limbs, overflowed) = math::overflowing_sub_limb_u64(&lhs, n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
+        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// Many different algorithms were attempted, with a soft [`mulx`] approach
+        /// (1), a flat, fixed-width long multiplication (2), and a
+        /// short-circuiting long multiplication (3). Algorithm (3) had the best
+        /// performance for 128-bit multiplication, however, algorithm (1) was
+        /// better for smaller type sizes.
+        ///
+        /// This also optimized much better when multiplying by a single or a
+        /// half-sized item: rather than using 4 limbs, if we're multiplying
+        /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
+        /// for `(u128, u128) * u64`, only 1 limb.
+        ///
+        /// # Assembly
+        ///
+        /// The analysis here is practically identical to that of
+        /// [`wrapping_mul_ulimb`].
+        ///
+        /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
+        #[inline(always)]
+        pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
+            let (r, overflow) = math::overflowing_mul_limb_u64(&self.to_le_limbs(), n);
+            (Self::from_le_limbs(r), overflow)
+        }
     };
 
     (@checked) => {
@@ -967,31 +1362,6 @@ macro_rules! uint_limb_ops_define {
         uint_limb_ops_define!(@wrapping);
         uint_limb_ops_define!(@overflowing);
         uint_limb_ops_define!(@checked);
-    };
-}
-
-macro_rules! uint_wide_ops_define {
-    () => {
-        wide_ops_define!();
-    };
-
-    (@wrapping) => {
-        wide_ops_define!(@wrapping);
-    };
-
-    (@overflowing) => {
-        wide_ops_define!(@overflowing);
-    };
-
-    (@checked) => {
-        wide_ops_define!(@checked);
-    };
-
-    (@all) => {
-        uint_wide_ops_define!();
-        uint_wide_ops_define!(@wrapping);
-        uint_wide_ops_define!(@overflowing);
-        uint_wide_ops_define!(@checked);
     };
 }
 
@@ -1207,6 +1577,5 @@ macro_rules! uint_impl_define {
         uint_unchecked_define!(signed_type => $s_t, wide_type => $wide_u_t);
         uint_unbounded_define!(signed_type => $s_t, wide_type => $wide_u_t);
         uint_limb_ops_define!(@all);
-        uint_wide_ops_define!(@all);
     };
 }
