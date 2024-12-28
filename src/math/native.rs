@@ -159,10 +159,6 @@ macro_rules! add_unsigned_impl {
         ///
         /// Returns the value, wrapping on overflow.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small value.
-        ///
         /// # Assembly
         ///
         /// This optimizes extremely well, for example, on `x86_64`, for
@@ -209,10 +205,6 @@ macro_rules! add_unsigned_impl {
         /// Const implementation of `overflowing_add` a small number to the wider type.
         ///
         /// Returns the value, wrapping on overflow, and if the add overflowed.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y` - The small value.
         ///
         /// # Assembly
         ///
@@ -520,9 +512,6 @@ macro_rules! mul_unsigned_impl {
         /// This uses long multiplication of smaller limbs, which has significantly
         /// better performance than an algorithm with a simulated [`mulx`] approach.
         ///
-        /// * `x` - The multiplier.
-        /// * `y` - The multiplicand.
-        ///
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
@@ -594,9 +583,6 @@ macro_rules! mul_unsigned_impl {
         ///
         /// This uses long multiplication of smaller limbs, which has significantly
         /// better performance than an algorithm with a simulated [`mulx`] approach.
-        ///
-        /// * `x` - The multiplier.
-        /// * `y` - The multiplicand.
         ///
         /// Returns the low and high bits, in that order.
         ///
@@ -686,10 +672,6 @@ macro_rules! shift_unsigned_impl {
     ($($u:ty => $shl:ident, $shr:ident,)*) => ($(
         /// Const implementation of `Shl` for internal algorithm use.
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `shift` - The number of bits to shift.
-        ///
         /// # Design & Assembly
         ///
         /// There were 3 different variants attempted, of which the
@@ -778,10 +760,6 @@ macro_rules! shift_unsigned_impl {
         }
 
         /// Const implementation of `Shr` for internal algorithm use.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `shift` - The number of bits to shift.
         ///
         /// # Design & Assembly
         ///
@@ -2060,10 +2038,6 @@ macro_rules! shift_signed_impl {
         /// assert_eq!(1i16 << 15, i16::MIN);
         /// ```
         ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `shift` - The number of bits to shift.
-        ///
         /// # Design & Assembly
         ///
         /// There were 3 different variants attempted, of which the
@@ -2161,11 +2135,8 @@ macro_rules! shift_signed_impl {
         /// `a / 2^b`, rounded-down to -Inf. So, `-a >> b` will be never go
         /// to `0`, at worst it will be `-1`.
         ///
-        /// On x86, this is done via the `sar` instruction, which is
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `shift` - The number of bits to shift.
+        /// On x86, this is done via the `sar` instruction, which is quite
+        /// efficient.
         ///
         /// # Design & Assembly
         ///

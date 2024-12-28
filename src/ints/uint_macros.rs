@@ -313,7 +313,7 @@ macro_rules! uint_ops_define {
 
         /// Returns `true` if and only if `self == 2^k` for some `k`.
         ///
-        /// See [`u128::is_power_of_two`].
+        #[doc = concat!("See [`", stringify!($wide_t), "::is_power_of_two`].")]
         #[inline(always)]
         pub const fn is_power_of_two(self) -> bool {
             self.count_ones() == 1
@@ -429,7 +429,7 @@ macro_rules! uint_wrapping_define {
         ///
         /// However, for 256-bit multiplication, the switch flips, with algorithm
         /// (1) having 10 `mul` and 14 `add` instructions. However, algorithm (3)
-        /// has in the worst case 10 `mul` and 15 `add` instructions, however,
+        /// has in the worst case 10 `mul` and 13 `add` instructions, however,
         /// because of branching in nearly every case, it has better performance
         /// and optimizes nicely for small multiplications.
         ///
@@ -438,209 +438,74 @@ macro_rules! uint_wrapping_define {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn wrapping_mul(self, rhs: Self) -> Self {
-            // 128-Bit
-            // -------
-            // long_u64:
-            //     push    r15
-            //     push    r14
-            //     push    rbx
-            //     mov     r11, rdi
-            //     shr     r11, 32
-            //     mov     r8, rdx
-            //     shr     r8, 32
-            //     test    edi, edi
-            //     je      .LBB0_1
-            //     mov     ebx, edi
-            //     mov     r9, rcx
-            //     shr     r9, 32
-            //     mov     eax, edx
-            //     imul    rax, rbx
-            //     mov     r10d, eax
-            //     mov     r14, rax
-            //     shr     r14, 32
-            //     mov     rax, r8
-            //     imul    rax, rbx
-            //     add     rax, r14
-            //     mov     r14, rax
-            //     shr     r14, 32
-            //     mov     r15d, ecx
-            //     imul    r15, rbx
-            //     imul    r9d, edi
-            //     shl     r9, 32
-            //     add     r9, r15
-            //     add     r9, r14
-            //     movabs  rdi, -4294967296
-            //     test    r11, r11
-            //     je      .LBB0_5
-            // .LBB0_4:
-            //     mov     ebx, edx
-            //     imul    rbx, r11
-            //     mov     eax, eax
-            //     add     rax, rbx
-            //     mov     rbx, rax
-            //     shr     rbx, 32
-            //     mov     r14, r8
-            //     imul    r14, r11
-            //     mov     r15d, r9d
-            //     add     r15, r14
-            //     add     r15, rbx
-            //     mov     ebx, r15d
-            //     imul    r11d, ecx
-            //     shl     r11, 32
-            //     add     r11, r15
-            //     and     r11, rdi
-            //     add     r11, r9
-            //     and     r11, rdi
-            //     or      r11, rbx
-            //     mov     r9, r11
-            // .LBB0_5:
-            //     test    esi, esi
-            //     je      .LBB0_7
-            //     mov     ecx, esi
-            //     mov     r11d, edx
-            //     imul    r11, rcx
-            //     mov     ecx, r9d
-            //     add     rcx, r11
-            //     mov     r11d, ecx
-            //     imul    r8d, esi
-            //     shl     r8, 32
-            //     add     r8, rcx
-            //     and     r8, rdi
-            //     add     r8, r9
-            //     and     r8, rdi
-            //     or      r8, r11
-            //     mov     r9, r8
-            // .LBB0_7:
-            //     shr     rsi, 32
-            //     imul    edx, esi
-            //     shl     rdx, 32
-            //     test    rsi, rsi
-            //     cmove   rdx, rsi
-            //     add     rdx, r9
-            //     shl     rax, 32
-            //     or      rax, r10
-            //     pop     rbx
-            //     pop     r14
-            //     pop     r15
-            //     ret
-            // .LBB0_1:
-            //     xor     r9d, r9d
-            //     xor     eax, eax
-            //     xor     r10d, r10d
-            //     movabs  rdi, -4294967296
-            //     test    r11, r11
-            //     jne     .LBB0_4
-            //     jmp     .LBB0_5
-            //
-            // mulx_u64:
-            //     mov     eax, edi
-            //     imul    rcx, rdi
-            //     shr     rdi, 32
-            //     mov     r8d, edx
-            //     mov     r9, rdx
-            //     shr     r9, 32
-            //     mov     r10, r8
-            //     imul    r10, rax
-            //     imul    rax, r9
-            //     imul    r8, rdi
-            //     imul    r9, rdi
-            //     mov     edi, r10d
-            //     shr     r10, 32
-            //     add     r10, r8
-            //     mov     r8d, r10d
-            //     shr     r10, 32
-            //     add     r8, rax
-            //     mov     rax, r8
-            //     shl     rax, 32
-            //     or      rax, rdi
-            //     shr     r8, 32
-            //     imul    rdx, rsi
-            //     add     rdx, rcx
-            //     add     rdx, r9
-            //     add     rdx, r10
-            //     add     rdx, r8
-            //     ret
-            //
             // 256-Bit
             // -------
             // long_u128:
-            //     push    r15
-            //     push    r14
-            //     push    r13
-            //     push    r12
-            //     push    rbx
-            //     mov     r12, rdx
-            //     mov     r15, qword ptr [rsp + 64]
-            //     mov     r11, qword ptr [rsp + 56]
-            //     mov     rbx, qword ptr [rsp + 48]
-            //     test    rsi, rsi
-            //     je      .LBB1_1
-            //     mov     rax, rbx
-            //     mul     rsi
-            //     mov     r14, rdx
-            //     mov     r9, rax
-            //     mov     rax, r11
-            //     mul     rsi
-            //     mov     r13, rdx
-            //     mov     r10, rax
-            //     add     r10, r14
-            //     adc     r13, 0
-            //     mov     rax, r15
-            //     mul     rsi
-            //     mov     r14, rax
-            //     imul    rsi, qword ptr [rsp + 72]
-            //     add     r14, r13
-            //     adc     rsi, rdx
-            //     test    r12, r12
-            //     je      .LBB1_5
-            // .LBB1_4:
-            //     mov     rax, rbx
-            //     mul     r12
-            //     mov     r13, rdx
-            //     add     r10, rax
-            //     adc     r13, 0
-            //     mov     rax, r11
-            //     mul     r12
-            //     add     rax, r13
-            //     adc     rdx, 0
-            //     imul    r15, r12
-            //     add     r14, rax
-            //     adc     r15, rdx
-            //     add     rsi, r15
-            // .LBB1_5:
-            //     test    rcx, rcx
-            //     je      .LBB1_7
-            //     mov     rax, rbx
-            //     mul     rcx
-            //     imul    r11, rcx
-            //     add     r14, rax
-            //     adc     r11, rdx
-            //     add     rsi, r11
-            // .LBB1_7:
-            //     test    r8, r8
-            //     je      .LBB1_9
-            //     imul    r8, rbx
-            //     add     rsi, r8
-            // .LBB1_9:
-            //     mov     qword ptr [rdi + 8], r10
-            //     mov     qword ptr [rdi], r9
-            //     mov     qword ptr [rdi + 24], rsi
-            //     mov     qword ptr [rdi + 16], r14
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     pop     r12
-            //     pop     r13
-            //     pop     r14
-            //     pop     r15
-            //     ret
-            // .LBB1_1:
-            //     xor     esi, esi
-            //     xor     r14d, r14d
-            //     xor     r10d, r10d
-            //     xor     r9d, r9d
-            //     test    r12, r12
-            //     jne     .LBB1_4
-            //     jmp     .LBB1_5
+            //      push    rbp
+            //      push    r15
+            //      push    r14
+            //      push    r13
+            //      push    r12
+            //      push    rbx
+            //      mov     r9, rdx
+            //      mov     r15, qword ptr [rdx]
+            //      mov     r12, qword ptr [rdx + 8]
+            //      mov     rbp, qword ptr [rsi]
+            //      mov     r10, qword ptr [rsi + 8]
+            //      mov     rax, qword ptr [rsi + 16]
+            //      mov     r11, qword ptr [rsi + 24]
+            //      mov     r14, rax
+            //      mul     r15
+            //      mov     qword ptr [rsp - 16], rax
+            //      mov     qword ptr [rsp - 8], rdx
+            //      imul    r14, r12
+            //      mov     rax, r10
+            //      mul     r12
+            //      mov     r8, rdx
+            //      mov     rbx, rax
+            //      mov     rax, r10
+            //      mul     r15
+            //      mov     qword ptr [rsp - 24], rdx
+            //      mov     qword ptr [rsp - 32], rax
+            //      mov     rax, r12
+            //      mul     rbp
+            //      mov     r13, rax
+            //      mov     rsi, rdx
+            //      imul    r11, r15
+            //      mov     rax, r15
+            //      mul     rbp
+            //      mov     r15, rax
+            //      mov     r12, rdx
+            //      mov     rcx, qword ptr [r9 + 16]
+            //      mov     rax, rcx
+            //      mul     rbp
+            //      imul    r10, rcx
+            //      imul    rbp, qword ptr [r9 + 24]
+            //      add     rbp, r10
+            //      add     r12, r13
+            //      adc     rax, rsi
+            //      adc     rbp, rdx
+            //      add     rax, rbx
+            //      adc     r8, 0
+            //      add     r14, r11
+            //      add     r14, rbp
+            //      add     r12, qword ptr [rsp - 32]
+            //      adc     rax, qword ptr [rsp - 24]
+            //      adc     r14, r8
+            //      add     rax, qword ptr [rsp - 16]
+            //      adc     r14, qword ptr [rsp - 8]
+            //      mov     qword ptr [rdi], r15
+            //      mov     qword ptr [rdi + 8], r12
+            //      mov     qword ptr [rdi + 16], rax
+            //      mov     qword ptr [rdi + 24], r14
+            //      mov     rax, rdi
+            //      pop     rbx
+            //      pop     r12
+            //      pop     r13
+            //      pop     r14
+            //      pop     r15
+            //      pop     rbp
+            //      ret
             //
             // mulx_u128:
             //     push    rbp
@@ -896,11 +761,6 @@ macro_rules! uint_overflowing_define {
         /// half-sized item: rather than using 4 limbs, if we're multiplying
         /// `(u128, u128) * u128`, we can use 2 limbs for the right operand, and
         /// for `(u128, u128) * u64`, only 1 limb.
-        ///
-        /// * `x0` - The lower half of x.
-        /// * `x1` - The upper half of x.
-        /// * `y0` - The lower half of y.
-        /// * `y1` - The upper half of y.
         ///
         /// # Assembly
         ///
@@ -1389,7 +1249,7 @@ macro_rules! uint_limb_ops_define {
         /// for `(u128, u128) * u64`, only 1 limb.
         ///
         /// Using algorithm (3), the addition of `(u128, u128) + (u128, u128)` is in
-        /// the worst case 10 `mul` and 15 `add` instructions, while `(u128,
+        /// the worst case 10 `mul` and 13 `add` instructions, while `(u128,
         /// u128) + u64` is always 4 `mul` and 3 `add` instructions without any
         /// branching. This is extremely efficient.
         ///
@@ -1399,29 +1259,30 @@ macro_rules! uint_limb_ops_define {
             // 256-Bit
             // -------
             // wrapping_mul:
-            //     push    rbx
-            //     mov     rax, rcx
-            //     mov     rcx, rdx
-            //     imul    r8, r9
-            //     mul     r9
-            //     mov     r10, rdx
-            //     mov     r11, rax
-            //     mov     rax, rcx
-            //     mul     r9
-            //     mov     rcx, rdx
-            //     mov     rbx, rax
-            //     mov     rax, rsi
-            //     mul     r9
-            //     add     rdx, rbx
-            //     adc     rcx, r11
-            //     adc     r10, r8
-            //     mov     qword ptr [rdi], rax
-            //     mov     qword ptr [rdi + 8], rdx
-            //     mov     qword ptr [rdi + 16], rcx
-            //     mov     qword ptr [rdi + 24], r10
-            //     mov     rax, rdi
-            //     pop     rbx
-            //     ret
+            //      push    rbx
+            //      mov     rcx, rdx
+            //      mov     rax, rdx
+            //      mul     qword ptr [rsi + 16]
+            //      mov     r8, rax
+            //      mov     r9, rdx
+            //      mov     rax, rcx
+            //      mul     qword ptr [rsi + 8]
+            //      mov     r10, rax
+            //      mov     r11, rdx
+            //      mov     rbx, qword ptr [rsi + 24]
+            //      imul    rbx, rcx
+            //      mov     rax, rcx
+            //      mul     qword ptr [rsi]
+            //      add     rdx, r10
+            //      adc     r11, r8
+            //      adc     r9, rbx
+            //      mov     qword ptr [rdi], rax
+            //      mov     qword ptr [rdi + 8], rdx
+            //      mov     qword ptr [rdi + 16], r11
+            //      mov     qword ptr [rdi + 24], r9
+            //      mov     rax, rdi
+            //      pop     rbx
+            //      ret
             let r = math::wrapping_mul_limb_u64(&self.to_le_limbs(), n);
             Self::from_le_limbs(r)
         }
