@@ -22,7 +22,7 @@
 use core::ops::*;
 
 use super::shared_macros::*;
-use crate::{math, u256, ILimb, IWide, TryFromIntError, ULimb, UWide};
+use crate::{math, u256, ILimb, TryFromIntError, ULimb};
 
 int_define!(
     name => i256,
@@ -67,16 +67,6 @@ impl i256 {
         Self::new(lo, hi)
     }
 
-    /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping
-    /// around at the boundary of the type.
-    ///
-    /// See [`i128::wrapping_mul`].
-    #[inline(always)]
-    pub const fn wrapping_mul(self, rhs: Self) -> Self {
-        let (lo, hi) = math::wrapping_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        i256::new(lo, hi)
-    }
-
     /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
     /// removes any high-order bits of `rhs` that would cause the shift to
     /// exceed the bitwidth of the type.
@@ -111,20 +101,6 @@ impl i256 {
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
         let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % 256);
         Self::new(lo, hi)
-    }
-
-    /// Calculates the multiplication of `self` and `rhs`.
-    ///
-    /// Returns a tuple of the multiplication along with a boolean
-    /// indicating whether an arithmetic overflow would occur. If an
-    /// overflow would have occurred then the wrapped value is returned.
-    ///
-    /// See [`i128::overflowing_mul`].
-    #[inline(always)]
-    pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-        let (lo, hi, overflowed) =
-            math::overflowing_mul_i128(self.low(), self.high(), rhs.low(), rhs.high());
-        (i256::new(lo, hi), overflowed)
     }
 
     from_str_radix_define!(true);
@@ -247,78 +223,6 @@ impl i256 {
     #[inline(always)]
     pub const fn as_signed(&self) -> Self {
         self.as_i256()
-    }
-
-    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn wrapping_mul_uwide(self, n: UWide) -> Self {
-        let (lo, hi) = math::wrapping_mul_uwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn overflowing_mul_uwide(self, n: UWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_uwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Multiply the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn wrapping_mul_iwide(self, n: IWide) -> Self {
-        let (lo, hi) = math::wrapping_mul_iwide_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Multiply the 256-bit integer by a wide, 128-bit signed factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn overflowing_mul_iwide(self, n: IWide) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_iwide_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
-        let (lo, hi) = math::wrapping_mul_ulimb_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Multiply the 256-bit integer by a 64-bit unsigned factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_ulimb_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
-    }
-
-    /// Multiply the 256-bit integer by a 64-bit signed factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn wrapping_mul_ilimb(self, n: ILimb) -> Self {
-        let (lo, hi) = math::wrapping_mul_ilimb_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Multiply the 256-bit integer by a 64-bit signed factor.
-    ///
-    /// This allows optimizations a full multiplication cannot do.
-    #[inline(always)]
-    pub const fn overflowing_mul_ilimb(self, n: ILimb) -> (Self, bool) {
-        let (lo, hi, overflowed) = math::overflowing_mul_ilimb_i128(self.low(), self.high(), n);
-        (Self::new(lo, hi), overflowed)
     }
 }
 

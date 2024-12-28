@@ -487,6 +487,19 @@ macro_rules! int_wrapping_define {
             self.wrapping_sub(Self::from_unsigned(rhs))
         }
 
+        /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping
+        /// around at the boundary of the type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_mul`].")]
+        #[inline(always)]
+        pub const fn wrapping_mul(self, rhs: Self) -> Self {
+            // FIXME: Change to native indexing
+            let lhs = self.to_le_limbs();
+            let rhs = rhs.to_le_limbs();
+            let limbs = math::wrapping_mul_i64(&lhs, &rhs);
+            Self::from_le_limbs(limbs)
+        }
+
         /// Div/Rem operation on a 256-bit integer.
         ///
         /// This allows storing of both the quotient and remainder without
@@ -697,6 +710,22 @@ macro_rules! int_overflowing_define {
             let rhs = rhs.as_signed();
             let (res, overflowed) = self.overflowing_sub(rhs);
             (res, overflowed ^ rhs.lt_const(Self::from_u8(0)))
+        }
+
+        /// Calculates the multiplication of `self` and `rhs`.
+        ///
+        /// Returns a tuple of the multiplication along with a boolean
+        /// indicating whether an arithmetic overflow would occur. If an
+        /// overflow would have occurred then the wrapped value is returned.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_mul`].")]
+        #[inline(always)]
+        pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+            // FIXME: Change to native indexing
+            let lhs = self.to_le_limbs();
+            let rhs = rhs.to_le_limbs();
+            let (limbs, overflowed) = math::overflowing_mul_i64(&lhs, &rhs);
+            (Self::from_le_limbs(limbs), overflowed)
         }
 
         /// Calculates the divisor when `self` is divided by `rhs`.
@@ -1409,6 +1438,28 @@ macro_rules! int_limb_ops_define {
             Self::from_ne_limbs(limbs)
         }
 
+        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full multiplication cannot do.
+        #[inline(always)]
+        pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
+            // FIXME: Change to ne indexing
+            let lhs = self.to_le_limbs();
+            let limbs = math::wrapping_mul_ulimb_i64(&lhs, n);
+            Self::from_le_limbs(limbs)
+        }
+
+        /// Multiply the 256-bit integer by a 64-bit signed factor.
+        ///
+        /// This allows optimizations a full multiplication cannot do.
+        #[inline(always)]
+        pub const fn wrapping_mul_ilimb(self, n: ILimb) -> Self {
+            // FIXME: Change to ne indexing
+            let lhs = self.to_le_limbs();
+            let limbs = math::wrapping_mul_ilimb_i64(&lhs, n);
+            Self::from_le_limbs(limbs)
+        }
+
         /// Div/Rem the 256-bit integer by a 64-bit unsigned factor.
         ///
         /// This allows optimizations a full division cannot do. This always
@@ -1518,6 +1569,28 @@ macro_rules! int_limb_ops_define {
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
+        /// Multiply the 256-bit integer by a 64-bit unsigned factor.
+        ///
+        /// This allows optimizations a full multiplication cannot do.
+        #[inline(always)]
+        pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
+            // FIXME: Change to ne indexing
+            let lhs = self.to_le_limbs();
+            let (limbs, overflowed) = math::overflowing_mul_ulimb_i64(&lhs, n);
+            (Self::from_le_limbs(limbs), overflowed)
+        }
+
+        /// Multiply the 256-bit integer by a 64-bit signed factor.
+        ///
+        /// This allows optimizations a full multiplication cannot do.
+        #[inline(always)]
+        pub const fn overflowing_mul_ilimb(self, n: ILimb) -> (Self, bool) {
+            // FIXME: Change to ne indexing
+            let lhs = self.to_le_limbs();
+            let (limbs, overflowed) = math::overflowing_mul_ilimb_i64(&lhs, n);
+            (Self::from_le_limbs(limbs), overflowed)
+        }
+
         /// Div/Rem the 256-bit integer by a 64-bit signed factor.
         ///
         /// This allows optimizations a full division cannot do.
@@ -1622,59 +1695,6 @@ macro_rules! int_limb_ops_define {
         int_limb_ops_define!(@wrapping);
         int_limb_ops_define!(@overflowing);
         int_limb_ops_define!(@checked);
-    };
-}
-
-macro_rules! int_wide_ops_define {
-    () => {
-        wide_ops_define!();
-
-        /// Multiply the 256-bit integer by a wide, 128-bit signed factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn mul_iwide(self, n: $crate::IWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_mul_iwide(n)
-            } else {
-                match self.checked_mul_iwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to multiply with overflow"),
-                }
-            }
-        }
-    };
-
-    (@wrapping) => {
-        wide_ops_define!(@wrapping);
-    };
-
-    (@overflowing) => {
-        wide_ops_define!(@overflowing);
-    };
-
-    (@checked) => {
-        wide_ops_define!(@checked);
-
-        /// Multiply the 256-bit integer by a wide, 128-bit signed factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn checked_mul_iwide(self, n: $crate::IWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_mul_iwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-    };
-
-    (@all) => {
-        int_wide_ops_define!();
-        int_wide_ops_define!(@wrapping);
-        int_wide_ops_define!(@overflowing);
-        int_wide_ops_define!(@checked);
     };
 }
 
@@ -1863,6 +1883,5 @@ macro_rules! int_impl_define {
         int_unchecked_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_unbounded_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_limb_ops_define!(@all);
-        int_wide_ops_define!(@all);
     };
 }

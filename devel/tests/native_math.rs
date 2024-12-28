@@ -76,34 +76,18 @@ quickcheck! {
     fn wrapping_mul_u32_quickcheck(x: u64, y: u64) -> bool {
         let (x0, x1) = split(x);
         let (y0, y1) = split(y);
-        let (lo, hi) = wrapping_mul_u32(x0, x1, y0, y1);
+        let result = wrapping_mul_u32(&[x0, x1], &[y0, y1]);
         let expected = x.wrapping_mul(y);
-        let actual = unsplit(lo, hi);
+        let actual = unsplit(result[0], result[1]);
         expected == actual
     }
 
     fn overflowing_mul_u32_quickcheck(x: u64, y: u64) -> bool {
         let (x0, x1) = split(x);
         let (y0, y1) = split(y);
-        let (lo, hi, overflowed) = overflowing_mul_u32(x0, x1, y0, y1);
+        let (result, overflowed) = overflowing_mul_u32(&[x0, x1], &[y0, y1]);
         let expected = x.overflowing_mul(y);
-        let actual = unsplit(lo, hi);
-        expected == (actual, overflowed)
-    }
-
-    fn wrapping_mul_wide_u32_quickcheck(x: u64, y: u32) -> bool {
-        let (x0, x1) = split(x);
-        let (lo, hi) = wrapping_mul_wide_u32(x0, x1, y);
-        let expected = x.wrapping_mul(y as u64);
-        let actual = unsplit(lo, hi);
-        expected == actual
-    }
-
-    fn overflowing_mul_wide_u32_quickcheck(x: u64, y: u32) -> bool {
-        let (x0, x1) = split(x);
-        let (lo, hi, overflowed) = overflowing_mul_wide_u32(x0, x1, y);
-        let expected = x.overflowing_mul(y as u64);
-        let actual = unsplit(lo, hi);
+        let actual = unsplit(result[0], result[1]);
         expected == (actual, overflowed)
     }
 
@@ -278,57 +262,54 @@ quickcheck! {
         expected == (actual as i64, overflowed)
     }
 
+    // TODO: Restore
     fn wrapping_mul_i32_quickcheck(x: i64, y: i64) -> bool {
         let (x0, x1) = split(x as u64);
         let (y0, y1) = split(y as u64);
-        let (lo, hi) = wrapping_mul_i32(x0, x1 as i32, y0, y1 as i32);
+        let result = wrapping_mul_i32(&[x0, x1], &[y0, y1]);
         let expected = x.wrapping_mul(y);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
 
     fn overflowing_mul_i32_quickcheck(x: i64, y: i64) -> bool {
         let (x0, x1) = split(x as u64);
         let (y0, y1) = split(y as u64);
-        let (lo, hi, overflowed) = overflowing_mul_i32(x0, x1 as i32, y0, y1 as i32);
+        let (result, overflowed) = overflowing_mul_i32(&[x0, x1], &[y0, y1]);
         let expected = x.overflowing_mul(y);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == (actual as i64, overflowed)
     }
 
-    fn wrapping_mul_uwide_i32_quickcheck(x: i64, y: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi) = wrapping_mul_uwide_i32(x0, x1, y);
+    fn wrapping_mul_ulimb_i32_quickcheck(x: i64, y: u32) -> bool {
+        let (x0, x1) = split(x as u64);
+        let result = wrapping_mul_ulimb_i32(&[x0, x1], y);
         let expected = x.wrapping_mul(y as i64);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
 
-    fn overflowing_mul_uwide_i32_quickcheck(x: i64, y: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi, overflowed) = overflowing_mul_uwide_i32(x0, x1, y);
+    fn overflowing_mul_ulimb_i32_quickcheck(x: i64, y: u32) -> bool {
+        let (x0, x1) = split(x as u64);
+        let (result, overflowed) = overflowing_mul_ulimb_i32(&[x0, x1], y);
         let expected = x.overflowing_mul(y as i64);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == (actual as i64, overflowed)
     }
 
-    fn wrapping_mul_iwide_i32_quickcheck(x: i64, y: i32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi) = wrapping_mul_iwide_i32(x0, x1, y);
+    fn wrapping_mul_ilimb_i32_quickcheck(x: i64, y: i32) -> bool {
+        let (x0, x1) = split(x as u64);
+        let result = wrapping_mul_ilimb_i32(&[x0, x1], y);
         let expected = x.wrapping_mul(y as i64);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
 
-    fn overflowing_mul_iwide_i32_quickcheck(x: i64, y: i32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let (lo, hi, overflowed) = overflowing_mul_iwide_i32(x0, x1, y);
+    fn overflowing_mul_ilimb_i32_quickcheck(x: i64, y: i32) -> bool {
+        let (x0, x1) = split(x as u64);
+        let (result, overflowed) = overflowing_mul_ilimb_i32(&[x0, x1], y);
         let expected = x.overflowing_mul(y as i64);
-        let actual = unsplit(lo, hi as u32);
+        let actual = unsplit(result[0], result[1]);
         expected == (actual as i64, overflowed)
     }
 

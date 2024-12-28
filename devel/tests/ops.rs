@@ -825,6 +825,18 @@ fn wrapping_add_ilimb_tests() {
 }
 
 #[test]
+fn wrapping_mul_ulimb_tests() {
+    let x = i256::i256::new(2, 0).wrapping_mul_ulimb(9223372036854775808);
+    assert_eq!(x, i256::i256::new(18446744073709551616, 0));
+}
+
+#[test]
+fn wrapping_mul_ilimb_tests() {
+    let x = i256::i256::new(0, 1).wrapping_mul_ilimb(-1);
+    assert_eq!(x, i256::i256::new(0, -1));
+}
+
+#[test]
 fn checked_rem_tests() {
     let num = i256::i256::new(0, -1);
     let den = i256::i256::new(1, 1);

@@ -453,13 +453,6 @@ macro_rules! casts_define {
             Self::from_i128(value as i128)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed wide type, as if by an `as` cast.")]
-        #[inline(always)]
-        #[allow(clippy::unnecessary_cast)]
-        pub const fn from_iwide(value: $crate::IWide) -> Self {
-            Self::from_i128(value as i128)
-        }
-
         #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u8`, as if by an `as` cast.")]
         #[inline(always)]
         pub const fn as_u8(&self) -> u8 {
@@ -530,14 +523,6 @@ macro_rules! casts_define {
         pub const fn as_ilimb(&self) -> $crate::ILimb {
             assert!($crate::ILimb::BITS <= 128);
             self.as_i128() as $crate::ILimb
-        }
-
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed wide type, as if by an `as` cast.")]
-        #[inline(always)]
-        #[allow(clippy::unnecessary_cast)]
-        pub const fn as_iwide(&self) -> $crate::IWide {
-            assert!($crate::IWide::BITS <= 128);
-            self.as_i128() as $crate::IWide
         }
     };
 }
@@ -1902,53 +1887,6 @@ macro_rules! limb_ops_define {
     };
 }
 
-macro_rules! wide_ops_define {
-    () => {
-        /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn mul_uwide(self, n: $crate::UWide) -> Self {
-            if cfg!(not(have_overflow_checks)) {
-                self.wrapping_mul_uwide(n)
-            } else {
-                match self.checked_mul_uwide(n) {
-                    Some(v) => v,
-                    _ => core::panic!("attempt to multiply with overflow"),
-                }
-            }
-        }
-    };
-
-    (@wrapping) => {
-    };
-
-    (@overflowing) => {
-    };
-
-    (@checked) => {
-        /// Multiply the 256-bit integer by a wide, 128-bit unsigned factor.
-        ///
-        /// This allows optimizations a full multiplication cannot do.
-        #[inline(always)]
-        pub const fn checked_mul_uwide(self, n: $crate::UWide) -> Option<Self> {
-            let (value, overflowed) = self.overflowing_mul_uwide(n);
-            if overflowed {
-                None
-            } else {
-                Some(value)
-            }
-        }
-    };
-
-    (@all) => {
-        wide_define!();
-        wide_define!(@wrapping);
-        wide_define!(@overflowing);
-        wide_define!(@checked);
-    };
-}
-
 macro_rules! binop_trait_define {
     ($t:ty, $trait:ident, $assign:ident, $op:ident, $op_assign:ident) => {
         impl $trait<&$t> for $t {
@@ -2398,5 +2336,4 @@ pub(crate) use traits_define;
 pub(crate) use try_from_define;
 pub(crate) use unbounded_define;
 pub(crate) use unchecked_define;
-pub(crate) use wide_ops_define;
 pub(crate) use wrapping_define;
