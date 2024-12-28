@@ -7,7 +7,7 @@ pub use crypto_bigint::U256 as CryptoU256;
 use fastrand::Rng;
 pub use i256::u256;
 
-const DEFAULT_COUNT: usize = 10000;
+pub const DEFAULT_COUNT: usize = 10000;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq)]
 pub enum RandomGen {

@@ -88,11 +88,21 @@ macro_rules! leading_zeros_group {
 count_ones_group!(count_ones_uniform, RandomGen::Uniform, "uniform");
 count_ones_group!(count_ones_simple, RandomGen::Simple, "simple");
 count_ones_group!(count_ones_large, RandomGen::Large, "large");
-criterion_group!(count_ones_random_benches, count_ones_uniform, count_ones_simple, count_ones_large);
+criterion_group!(
+    count_ones_random_benches,
+    count_ones_uniform,
+    count_ones_simple,
+    count_ones_large
+);
 
 leading_zeros_group!(leading_zeros_uniform, RandomGen::Uniform, "uniform");
 leading_zeros_group!(leading_zeros_simple, RandomGen::Simple, "simple");
 leading_zeros_group!(leading_zeros_large, RandomGen::Large, "large");
-criterion_group!(leading_zeros_random_benches, leading_zeros_uniform, leading_zeros_simple, leading_zeros_large);
+criterion_group!(
+    leading_zeros_random_benches,
+    leading_zeros_uniform,
+    leading_zeros_simple,
+    leading_zeros_large
+);
 
 criterion_main!(count_ones_random_benches, leading_zeros_random_benches);
