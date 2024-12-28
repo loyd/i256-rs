@@ -107,21 +107,20 @@ macro_rules! add_unsigned_impl {
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             // FIXME: Move to `carrying_add` once stable.
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_add(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
-            let vn = ne_index(x, index).wrapping_add(ne_index(y, index));
-            result[to_ne_index(index, N)] = vn.wrapping_add(c as $u);
+            let vn = ne_index!(x[index]).wrapping_add(ne_index!(y[index]));
+            ne_index!(result[index] = vn.wrapping_add(c as $u));
 
             result
         }
@@ -161,22 +160,21 @@ macro_rules! add_unsigned_impl {
         ) -> ([$u; N], bool) {
             // FIXME: Move to `carrying_add` once stable.
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_add(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
-            let (vn, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+            let (vn, c0) = ne_index!(x[index]).overflowing_add(ne_index!(y[index]));
             let (vn, c1) = vn.overflowing_add(c as $u);
-            result[to_ne_index(index, N)] = vn;
+            ne_index!(result[index] = vn);
 
             (result, c0 | c1)
         }
@@ -214,21 +212,20 @@ macro_rules! add_unsigned_impl {
         #[inline]
         pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_add(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            v = ne_index(x, index).wrapping_add(c as $u);
-            result[to_ne_index(index, N)] = v;
+            v = ne_index!(x[index]).wrapping_add(c as $u);
+            ne_index!(result[index] = v);
 
             result
         }
@@ -267,21 +264,20 @@ macro_rules! add_unsigned_impl {
         #[inline]
         pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_add(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            (v, c) = ne_index(x, index).overflowing_add(c as $u);
-            result[to_ne_index(index, N)] = v;
+            (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
+            ne_index!(result[index] = v);
 
             (result, c)
         }
@@ -342,21 +338,20 @@ macro_rules! sub_unsigned_impl {
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             // FIXME: Move to `borrowing_sub` once stable.
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_sub(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
-            let vn = ne_index(x, index).wrapping_sub(ne_index(y, index));
-            result[to_ne_index(index, N)] = vn.wrapping_sub(c as $u);
+            let vn = ne_index!(x[index]).wrapping_sub(ne_index!(y[index]));
+            ne_index!(result[index] = vn.wrapping_sub(c as $u));
 
             result
         }
@@ -396,22 +391,21 @@ macro_rules! sub_unsigned_impl {
         ) -> ([$u; N], bool) {
             // FIXME: Move to `borrowing_sub` once stable.
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_sub(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
-            let (vn, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+            let (vn, c0) = ne_index!(x[index]).overflowing_sub(ne_index!(y[index]));
             let (vn, c1) = vn.overflowing_sub(c as $u);
-            result[to_ne_index(index, N)] = vn;
+            ne_index!(result[index] = vn);
 
             (result, c0 | c1)
         }
@@ -446,21 +440,20 @@ macro_rules! sub_unsigned_impl {
         #[inline]
         pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            v = ne_index(x, index).wrapping_sub(c as $u);
-            result[to_ne_index(index, N)] = v;
+            v = ne_index!(x[index]).wrapping_sub(c as $u);
+            ne_index!(result[index] = v);
 
             result
         }
@@ -496,21 +489,20 @@ macro_rules! sub_unsigned_impl {
         #[inline]
         pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            (v, c) = ne_index(x, index).overflowing_sub(c as $u);
-            result[to_ne_index(index, N)] = v;
+            (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+            ne_index!(result[index] = v);
 
             (result, c)
         }
@@ -1253,22 +1245,21 @@ macro_rules! add_signed_impl {
             // FIXME: Move to `carrying_add` once stable.
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_add(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
             // NOTE: This is the same signed or unsigned.
-            let vn = ne_index(x, index).wrapping_add(ne_index(y, index));
-            result[to_ne_index(index, N)] = vn.wrapping_add(c as $u);
+            let vn = ne_index!(x[index]).wrapping_add(ne_index!(y[index]));
+            ne_index!(result[index] = vn.wrapping_add(c as $u));
 
             result
         }
@@ -1316,15 +1307,14 @@ macro_rules! add_signed_impl {
             // FIXME: Move to `carrying_add` once stable.
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_add(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_add(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
@@ -1340,11 +1330,11 @@ macro_rules! add_signed_impl {
             // needed.
 
             // NOTE: We need to do this as a **SIGNED** operation.
-            let xn = ne_index(x, index) as $s;
-            let yn = ne_index(y, index) as $s;
+            let xn = ne_index!(x[index]) as $s;
+            let yn = ne_index!(y[index]) as $s;
             let (vn, c0) = xn.overflowing_add(yn);
             let (vn, c1) = vn.overflowing_add(c as $s);
-            result[to_ne_index(index, N)] = vn as $u;
+            ne_index!(result[index] = vn as $u);
 
             // `c == 0`, then `c1 == 0`, so always want `c1`
             // `c == 1`, then only want `c0` or `c1`, not both
@@ -1381,22 +1371,21 @@ macro_rules! add_signed_impl {
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_add(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
             // NOTE: This has the same results as signed or unsigned.
-            v = ne_index(x, index).wrapping_add(c as $u);
-            result[to_ne_index(index, N)] = v;
+            v = ne_index!(x[index]).wrapping_add(c as $u);
+            ne_index!(result[index] = v);
 
             result
         }
@@ -1432,22 +1421,21 @@ macro_rules! add_signed_impl {
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_add(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_add(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_add(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            let xn = ne_index(x, index) as $s;
+            let xn = ne_index!(x[index]) as $s;
             let (v, c) = xn.overflowing_add(c as $s);
-            result[to_ne_index(index, N)] = v as $u;
+            ne_index!(result[index] = v as $u);
 
             (result, c)
         }
@@ -1483,12 +1471,10 @@ macro_rules! add_signed_impl {
         /// ```
         #[inline]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
-            use $crate::util::to_ne_index;
-
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
-            rhs[to_ne_index(0, N)] = y as $u;
+            ne_index!(rhs[0] = y as $u);
             $wrapping_full(x, &rhs)
         }
 
@@ -1528,12 +1514,10 @@ macro_rules! add_signed_impl {
         /// ```
         #[inline]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
-            use $crate::util::to_ne_index;
-
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
-            rhs[to_ne_index(0, N)] = y as $u;
+            ne_index!(rhs[0] = y as $u);
             $overflowing_full(x, &rhs)
         }
     };
@@ -1603,22 +1587,21 @@ macro_rules! sub_signed_impl {
             // FIXME: Move to `borrowing_sub` once stable.
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_sub(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
 
             // NOTE: This is the same signed or unsigned.
-            let vn = ne_index(x, index).wrapping_sub(ne_index(y, index));
-            result[to_ne_index(index, N)] = vn.wrapping_sub(c as $u);
+            let vn = ne_index!(x[index]).wrapping_sub(ne_index!(y[index]));
+            ne_index!(result[index] = vn.wrapping_sub(c as $u));
 
             result
         }
@@ -1663,15 +1646,14 @@ macro_rules! sub_signed_impl {
             // FIXME: Move to `borrowing_sub` once stable.
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
             let mut c: bool = false;
             while index < N - 1 {
-                let (vi, c0) = ne_index(x, index).overflowing_sub(ne_index(y, index));
+                let (vi, c0) = ne_index!(x[index]).overflowing_sub(ne_index!(y[index]));
                 let (vi, c1) = vi.overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = vi;
+                ne_index!(result[index] = vi);
                 c = c0 | c1;
                 index += 1;
             }
@@ -1687,11 +1669,11 @@ macro_rules! sub_signed_impl {
             // we needed.
 
             // NOTE: We need to do this as a **SIGNED** operation.
-            let xn = ne_index(x, index) as $s;
-            let yn = ne_index(y, index) as $s;
+            let xn = ne_index!(x[index]) as $s;
+            let yn = ne_index!(y[index]) as $s;
             let (vn, c0) = xn.overflowing_sub(yn);
             let (vn, c1) = vn.overflowing_sub(c as $s);
-            result[to_ne_index(index, N)] = vn as $u;
+            ne_index!(result[index] = vn as $u);
 
             // `c == 0`, then `c1 == 0`, so always want `c1`
             // `c == 1`, then only want `c0` or `c1`, not both
@@ -1729,22 +1711,21 @@ macro_rules! sub_signed_impl {
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
             // NOTE: This has the same results as signed or unsigned.
-            v = ne_index(x, index).wrapping_sub(c as $u);
-            result[to_ne_index(index, N)] = v;
+            v = ne_index!(x[index]).wrapping_sub(c as $u);
+            ne_index!(result[index] = v);
 
             result
         }
@@ -1781,22 +1762,21 @@ macro_rules! sub_signed_impl {
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
-            use $crate::util::{ne_index, to_ne_index};
 
             let mut index = 0;
             let mut result = [0; N];
-            let (mut v, mut c) = ne_index(x, index).overflowing_sub(y);
-            result[to_ne_index(index, N)] = v;
+            let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
+            ne_index!(result[index] = v);
             index += 1;
             while index < N - 1 {
-                (v, c) = ne_index(x, index).overflowing_sub(c as $u);
-                result[to_ne_index(index, N)] = v;
+                (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = v);
                 index += 1;
             }
 
-            let xn = ne_index(x, index) as $s;
+            let xn = ne_index!(x[index]) as $s;
             let (v, c) = xn.overflowing_sub(c as $s);
-            result[to_ne_index(index, N)] = v as $u;
+            ne_index!(result[index] = v as $u);
 
             (result, c)
         }
@@ -1833,12 +1813,10 @@ macro_rules! sub_signed_impl {
         /// ```
         #[inline]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
-            use $crate::util::to_ne_index;
-
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
-            rhs[to_ne_index(0, N)] = y as $u;
+            ne_index!(rhs[0] = y as $u);
             $wrapping_full(x, &rhs)
         }
 
@@ -1878,12 +1856,10 @@ macro_rules! sub_signed_impl {
         /// ```
         #[inline]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
-            use $crate::util::to_ne_index;
-
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
-            rhs[to_ne_index(0, N)] = y as $u;
+            ne_index!(rhs[0] = y as $u);
             $overflowing_full(x, &rhs)
         }
     };

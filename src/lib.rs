@@ -31,12 +31,13 @@
 #[macro_use]
 mod parse;
 #[macro_use]
+mod util;
+#[macro_use]
 mod write;
 
 mod error;
 mod ints;
 mod types;
-mod util;
 
 // exposed only for testing
 pub mod math;

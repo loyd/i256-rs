@@ -3,29 +3,6 @@
 // FIXME: Add support for [Saturating][core::num::Saturating] and
 // [Wrapping][core::num::Wrapping] when we drop support for <1.74.0.
 
-/// Shared helper for indexing consistent across byte orders.
-macro_rules! be_index {
-    ($index:expr, $max:expr) => {{
-        if cfg!(target_endian = "big") {
-            $max - 1 - $index
-        } else {
-            $index
-        }
-    }};
-}
-
-macro_rules! limb_index {
-    ($index:expr) => {{
-        be_index!($index, Self::LIMBS)
-    }};
-}
-
-macro_rules! wide_index {
-    ($index:expr) => {{
-        be_index!($index, Self::WIDE)
-    }};
-}
-
 macro_rules! int_define {
     (
         name => $name:ident,
@@ -170,15 +147,15 @@ macro_rules! cmp_define {
         let rhs = $rhs.to_ne_wide();
 
         let mut i = Self::WIDE - 1;
-        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
-        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let lhs_0 = ne_index!(lhs[i]) as $hi_t;
+        let rhs_0 = ne_index!(rhs[i]) as $hi_t;
         let mut is_ord = lhs_0 $op1 rhs_0;
         let mut is_eq = lhs_0 == rhs_0;
 
         while i > 0 && !is_ord && is_eq {
             i -= 1;
-            let lhs_i = lhs[wide_index!(i)] as $lo_t;
-            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            let lhs_i = ne_index!(lhs[i]) as $lo_t;
+            let rhs_i = ne_index!(rhs[i]) as $lo_t;
             is_ord = lhs_i $op2 rhs_i;
             is_eq = lhs_i == rhs_i;
         }
@@ -197,16 +174,16 @@ macro_rules! cmp_define {
         let rhs = $rhs.to_ne_wide();
 
         let mut i = Self::WIDE - 1;
-        let lhs_0 = lhs[wide_index!(i)] as $hi_t;
-        let rhs_0 = rhs[wide_index!(i)] as $hi_t;
+        let lhs_0 = ne_index!(lhs[i]) as $hi_t;
+        let rhs_0 = ne_index!(rhs[i]) as $hi_t;
         let mut is_eq = lhs_0 == rhs_0;
         let mut is_lt = lhs_0 < rhs_0;
         let mut is_gt = lhs_0 > rhs_0;
 
         while i > 0 && !is_lt && !is_gt && is_eq {
             i -= 1;
-            let lhs_i = lhs[wide_index!(i)] as $lo_t;
-            let rhs_i = rhs[wide_index!(i)] as $lo_t;
+            let lhs_i = ne_index!(lhs[i]) as $lo_t;
+            let rhs_i = ne_index!(rhs[i]) as $lo_t;
             is_eq = lhs_i == rhs_i;
             is_lt = lhs_i < rhs_i;
             is_gt = lhs_i > rhs_i;
@@ -579,7 +556,7 @@ macro_rules! byte_order_define {
         /// Get the limb indexing from the least-significant order.
         #[inline(always)]
         const fn get_limb(self, index: usize) -> $crate::ULimb {
-            $crate::util::ne_index(&self.limbs, index)
+            self.limbs[$crate::util::to_ne_index(index, Self::LIMBS)]
         }
 
         /// Get the wide value indexing from the least-significant order.
@@ -2566,7 +2543,6 @@ macro_rules! try_from_define {
 
 // Internal implementation helpers.
 pub(crate) use associated_consts_define;
-pub(crate) use be_index;
 pub(crate) use bigint_define;
 pub(crate) use binop_ref_trait_define;
 pub(crate) use binop_trait_define;
@@ -2579,7 +2555,6 @@ pub(crate) use extensions_define;
 pub(crate) use from_trait_define;
 pub(crate) use high_low_define;
 pub(crate) use int_define;
-pub(crate) use limb_index;
 pub(crate) use limb_ops_define;
 pub(crate) use ops_define;
 pub(crate) use overflowing_define;
@@ -2591,6 +2566,5 @@ pub(crate) use traits_define;
 pub(crate) use try_from_define;
 pub(crate) use unbounded_define;
 pub(crate) use unchecked_define;
-pub(crate) use wide_index;
 pub(crate) use wide_ops_define;
 pub(crate) use wrapping_define;

@@ -45,7 +45,7 @@ macro_rules! int_associated_consts_define {
         #[deprecated]
         pub const fn min_value() -> Self {
             let mut limbs = [0; Self::LIMBS];
-            limbs[limb_index!(Self::LIMBS - 1)] = $crate::ILimb::MIN as $crate::ULimb;
+            ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MIN as $crate::ULimb);
             Self::from_ne_limbs(limbs)
         }
 
@@ -57,7 +57,7 @@ macro_rules! int_associated_consts_define {
         #[deprecated]
         pub const fn max_value() -> Self {
             let mut limbs = [$crate::ULimb::MAX; Self::LIMBS];
-            limbs[limb_index!(Self::LIMBS - 1)] = $crate::ILimb::MAX as $crate::ULimb;
+            ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MAX as $crate::ULimb);
             Self::from_ne_limbs(limbs)
         }
     };

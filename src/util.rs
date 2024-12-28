@@ -14,12 +14,15 @@ pub(crate) const fn to_ne_index(index: usize, n: usize) -> usize {
     }
 }
 
-/// Get a value at the index, assuming the native endian order.
-///
-/// This indexes from the least-significant element, or for
-/// big-endian, this means indexing from the right end, and little-
-/// endian from the left.
-#[inline(always)]
-pub(crate) const fn ne_index<T: Copy, const N: usize>(array: &[T; N], index: usize) -> T {
-    array[to_ne_index(index, N)]
+/// Index a value, using native indexing.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! ne_index {
+    ($array:ident[$index:expr]) => {
+        $array[$crate::util::to_ne_index($index, $array.len())]
+    };
+
+    ($array:ident[$index:expr] = $value:expr) => {
+        $array[$crate::util::to_ne_index($index, $array.len())] = $value
+    };
 }

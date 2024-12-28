@@ -390,7 +390,7 @@ impl i256 {
     #[inline]
     pub fn wrapping_div_rem_ilimb(self, n: ILimb) -> (Self, ILimb) {
         let x = self.wrapping_abs().as_u256().to_le_limbs();
-        let (div, rem) = math::div_rem_limb(&x, n.wrapping_abs() as ULimb);
+        let (div, rem) = math::div_rem_limb(&x, n.unsigned_abs());
         let mut div = u256::from_le_limbs(div).as_i256();
         let mut rem = rem as ILimb;
 
