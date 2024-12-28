@@ -402,7 +402,7 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     // SAFETY: Safe since we've validated the parameters. This is
     // never UB, since providing a 0 divisor is valid and just leads
     // to a division [`error`](https://www.felixcloutier.com/x86/div).
-    #[cfg(all(target_arch = "x86_64", not(feature = "noasm")))]
+    #[cfg(all(target_arch = "x86_64", not(feature = "noasm"), not(feature = "limb32")))]
     unsafe {
         let mut quot = lo;
         let mut rem = hi;
@@ -423,11 +423,11 @@ fn div_rem_word(hi: ULimb, lo: ULimb, divisor: ULimb) -> (ULimb, ULimb) {
     // - https://codebrowser.dev/llvm/compiler-rt/lib/builtins/udivmodti4.c.html#22
     //
     // What we have is simple and fast.
-    #[cfg(any(not(target_arch = "x86_64"), feature = "noasm"))]
+    #[cfg(any(not(target_arch = "x86_64"), feature = "noasm", feature = "limb32"))]
     {
-        let x = ((hi as u128) << 64) + (lo as u128);
-        let y = divisor as u128;
-        ((x / y) as u64, (x % y) as u64)
+        let x = ((hi as UWide) << ULimb::BITS) + (lo as UWide);
+        let y = divisor as UWide;
+        ((x / y) as ULimb, (x % y) as ULimb)
     }
 }
 

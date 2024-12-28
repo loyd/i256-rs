@@ -4,54 +4,54 @@ mod util;
 use i256::math::{div_rem_full, div_rem_limb, div_rem_wide};
 use quickcheck::quickcheck;
 
-fn u128_div(num: u128, den: u128) -> (u128, u128) {
-    let x0 = num as u64;
-    let x1 = (num >> 64) as u64;
-    let y0 = den as u64;
-    let y1 = (den >> 64) as u64;
+fn uwide_div(num: i256::UWide, den: i256::UWide) -> (i256::UWide, i256::UWide) {
+    let x0 = num as i256::ULimb;
+    let x1 = (num >> i256::ULimb::BITS) as i256::ULimb;
+    let y0 = den as i256::ULimb;
+    let y1 = (den >> i256::ULimb::BITS) as i256::ULimb;
 
     let num = [x0, x1];
     let den = [y0, y1];
     let (div, rem) = div_rem_full(&num, &den);
 
-    let x0 = div[0] as u128;
-    let x1 = div[1] as u128;
-    let y0 = rem[0] as u128;
-    let y1 = rem[1] as u128;
+    let x0 = div[0] as i256::UWide;
+    let x1 = div[1] as i256::UWide;
+    let y0 = rem[0] as i256::UWide;
+    let y1 = rem[1] as i256::UWide;
 
-    (x0 | x1 << 64, y0 | y1 << 64)
+    (x0 | x1 << i256::ULimb::BITS, y0 | y1 << i256::ULimb::BITS)
 }
 
-fn u128_div_wide(num: u128, den: u64) -> (u128, u64) {
-    let x0 = num as u64;
-    let x1 = (num >> 64) as u64;
+fn uwide_div_wide(num: i256::UWide, den: i256::ULimb) -> (i256::UWide, i256::ULimb) {
+    let x0 = num as i256::ULimb;
+    let x1 = (num >> i256::ULimb::BITS) as i256::ULimb;
 
     let num = [x0, x1];
-    let (div, rem) = div_rem_wide(&num, den as u128);
+    let (div, rem) = div_rem_wide(&num, den as i256::UWide);
 
-    let x0 = div[0] as u128;
-    let x1 = div[1] as u128;
+    let x0 = div[0] as i256::UWide;
+    let x1 = div[1] as i256::UWide;
 
-    (x0 | x1 << 64, rem as u64)
+    (x0 | x1 << i256::ULimb::BITS, rem as i256::ULimb)
 }
 
-fn u128_div_limb(num: u128, den: u64) -> (u128, u64) {
-    let x0 = num as u64;
-    let x1 = (num >> 64) as u64;
+fn uwide_div_limb(num: i256::UWide, den: i256::ULimb) -> (i256::UWide, i256::ULimb) {
+    let x0 = num as i256::ULimb;
+    let x1 = (num >> i256::ULimb::BITS) as i256::ULimb;
 
     let num = [x0, x1];
     let (div, rem) = div_rem_limb(&num, den);
 
-    let x0 = div[0] as u128;
-    let x1 = div[1] as u128;
+    let x0 = div[0] as i256::UWide;
+    let x1 = div[1] as i256::UWide;
 
-    (x0 | x1 << 64, rem)
+    (x0 | x1 << i256::ULimb::BITS, rem)
 }
 
 quickcheck! {
-    fn u128_div_quickcheck(num: u128, den: u128) -> bool {
+    fn uwide_div_quickcheck(num: i256::UWide, den: i256::UWide) -> bool {
         if den != 0 {
-            let actual = u128_div(num, den);
+            let actual = uwide_div(num, den);
             let div = num / den;
             let rem = num % den;
             actual == (div, rem)
@@ -60,23 +60,23 @@ quickcheck! {
         }
     }
 
-    fn u128_div_wide_quickcheck(num: u128, den: u64) -> bool {
+    fn uwide_div_wide_quickcheck(num: i256::UWide, den: i256::ULimb) -> bool {
         if den != 0 {
-            let actual = u128_div_wide(num, den);
-            let div = num / (den as u128);
-            let rem = num % (den as u128);
-            actual == (div, rem as u64)
+            let actual = uwide_div_wide(num, den);
+            let div = num / (den as i256::UWide);
+            let rem = num % (den as i256::UWide);
+            actual == (div, rem as i256::ULimb)
         } else {
             true
         }
     }
 
-    fn u128_div_limb_quickcheck(num: u128, den: u64) -> bool {
+    fn uwide_div_limb_quickcheck(num: i256::UWide, den: i256::ULimb) -> bool {
         if den != 0 {
-            let actual = u128_div_limb(num, den);
-            let div = num / (den as u128);
-            let rem = num % (den as u128);
-            actual == (div, rem as u64)
+            let actual = uwide_div_limb(num, den);
+            let div = num / (den as i256::UWide);
+            let rem = num % (den as i256::UWide);
+            actual == (div, rem as i256::ULimb)
         } else {
             true
         }

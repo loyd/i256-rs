@@ -626,7 +626,7 @@ macro_rules! casts_define {
                 let x1 = ne_index!(limbs[1]) as u64;
                 (x0 | (x1 << 32))
             } else {
-                ne_index!(limbs[0]) as $crate::ULimb
+                ne_index!(limbs[0]) as u64
             }
         }
 

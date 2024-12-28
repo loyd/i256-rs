@@ -48,7 +48,7 @@ macro_rules! to_str_radix_define {
             };
 
             // This isn't optimized at all.
-            let mut rem: u64;
+            let mut rem: ULimb;
             let mut index = buffer.len();
             let limit = Self::from_u32(radix);
             while self.ge_const(limit) && index > start_index {

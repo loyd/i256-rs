@@ -30,8 +30,10 @@ std = []
 # Internal only features.
 # Enable the lint checks.
 lint = []
-# For benchmarking our no ASM routines
+# For benchmarking our no ASM routines.
 noasm = []
+# For forcing 32-bit limbs for testing.
+limb32 = []
 
 [lints.rust.unexpected_cfgs]
 level = "warn"
