@@ -2,10 +2,10 @@
 
 use std::mem;
 
-pub use bnum::types::U256 as Bnum256;
+pub use bnum::types::I256 as BnumI256;
+pub use bnum::types::U256 as BnumU256;
 pub use crypto_bigint::U256 as CryptoU256;
 use fastrand::Rng;
-pub use i256::u256;
 
 pub const DEFAULT_COUNT: usize = 10000;
 
@@ -164,69 +164,76 @@ macro_rules! add_bench {
     }};
 }
 
-macro_rules! add_benches {
-    ($group:ident, $strategy:expr, $rng:ident, $prefix:literal, $op:ident) => {{
-        let bnum_data = get_bnum_data($strategy, &mut $rng);
-        let crypto_data = get_crypto_data($strategy, &mut $rng);
-        let i256_data = get_i256_data($strategy, &mut $rng);
+macro_rules! bench_op {
+    ($op:ident, $t:ty) => {
+        |x: &($t, $t)| x.0.$op(x.1)
+    };
 
-        add_bench!($group, concat!($prefix, "::u256-bnum"), bnum_data.iter(), |x: &(
-            Bnum256,
-            Bnum256
-        )| x
-            .0
-            .$op(x.1));
-        add_bench!($group, concat!($prefix, "::u256-crypto"), crypto_data.iter(), |x: &(
-            CryptoU256,
-            CryptoU256
-        )| x
-            .0
-            .$op(&x.1));
-        add_bench!($group, concat!($prefix, "::u256-i256"), i256_data.iter(), |x: &(
-            u256,
-            u256
-        )| x
-            .0
-            .$op(x.1));
-    }};
+    (@ref $op:ident, $t:ty) => {
+        |x: &($t, $t)| x.0.$op(&x.1)
+    };
+
+    ($op:ident, $t:ty, $u:ty) => {
+        |x: &($t, $u)| x.0.$op(x.1)
+    };
 }
 
-pub fn get_bnum_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(Bnum256, Bnum256)> {
-    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
-        .iter()
-        .map(|x| (to_bnum(x[0], x[1]), to_bnum(x[2], x[3])))
-        .collect()
+pub fn to_bnum_udata(data: &[[u128; 4]]) -> Vec<(BnumU256, BnumU256)> {
+    data.iter().map(|x| (to_bunum(x[0], x[1]), to_bunum(x[2], x[3]))).collect()
 }
 
-pub fn get_crypto_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(CryptoU256, CryptoU256)> {
-    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
-        .iter()
-        .map(|x| (to_cryptobi(x[0], x[1]), to_cryptobi(x[2], x[3])))
-        .collect()
+pub fn to_crypto_udata(data: &[[u128; 4]]) -> Vec<(CryptoU256, CryptoU256)> {
+    data.iter().map(|x| (to_cryptobu(x[0], x[1]), to_cryptobu(x[2], x[3]))).collect()
 }
 
-pub fn get_i256_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u256)> {
-    u128::gen_n::<4>(strategy, rng, DEFAULT_COUNT)
-        .iter()
-        .map(|x| (u256::new(x[0], x[1]), u256::new(x[2], x[3])))
-        .collect()
+pub fn to_u256_udata(data: &[[u128; 4]]) -> Vec<(i256::u256, i256::u256)> {
+    data.iter().map(|x| (to_u256(x[0], x[1]), to_u256(x[2], x[3]))).collect()
 }
 
-pub fn get_limb_data(strategy: RandomGen, rng: &mut Rng) -> Vec<(u256, u64)> {
-    let x = u128::gen_n::<2>(strategy, rng, DEFAULT_COUNT);
-    let y = u64::gen_n::<1>(strategy, rng, DEFAULT_COUNT);
-    x.iter().zip(y.iter()).map(|(x, y)| (u256::new(x[0], x[1]), y[0])).collect()
+pub fn to_ulimb_udata(data: &[[u128; 4]]) -> Vec<(i256::u256, i256::ULimb)> {
+    data.iter().map(|x| (to_u256(x[0], x[1]), x[2] as i256::ULimb)).collect()
 }
 
-pub fn to_bnum(x: u128, y: u128) -> Bnum256 {
+pub fn to_bnum_idata(data: &[[i128; 4]]) -> Vec<(BnumI256, BnumI256)> {
+    data.iter().map(|x| (to_binum(x[0], x[1]), to_binum(x[2], x[3]))).collect()
+}
+
+pub fn to_i256_idata(data: &[[i128; 4]]) -> Vec<(i256::i256, i256::i256)> {
+    data.iter().map(|x| (to_i256(x[0], x[1]), to_i256(x[2], x[3]))).collect()
+}
+
+pub fn to_ulimb_idata(data: &[[i128; 4]]) -> Vec<(i256::i256, i256::ULimb)> {
+    data.iter().map(|x| (to_i256(x[0], x[1]), x[2] as i256::ULimb)).collect()
+}
+
+pub fn to_ilimb_idata(data: &[[i128; 4]]) -> Vec<(i256::i256, i256::ILimb)> {
+    data.iter().map(|x| (to_i256(x[0], x[1]), x[2] as i256::ILimb)).collect()
+}
+
+pub fn to_bunum(x: u128, y: u128) -> BnumU256 {
     let buf = [x.to_le_bytes(), y.to_le_bytes()];
     // SAFETY: plain old data
     let slc = unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>(buf) };
-    Bnum256::from_le_slice(&slc).unwrap()
+    BnumU256::from_le_slice(&slc).unwrap()
 }
 
-pub fn to_cryptobi(lo: u128, hi: u128) -> CryptoU256 {
+pub fn to_binum(x: i128, y: i128) -> BnumI256 {
+    let buf = [x.to_le_bytes(), y.to_le_bytes()];
+    // SAFETY: plain old data
+    let slc = unsafe { mem::transmute::<[[u8; 16]; 2], [u8; 32]>(buf) };
+    BnumI256::from_le_slice(&slc).unwrap()
+}
+
+pub fn to_cryptobu(lo: u128, hi: u128) -> CryptoU256 {
     // SAFETY: plain old data
     let bytes: [u8; 32] = unsafe { mem::transmute([lo.to_le_bytes(), hi.to_le_bytes()]) };
     CryptoU256::from_le_slice(&bytes)
+}
+
+pub fn to_u256(x: u128, y: u128) -> i256::u256 {
+    i256::u256::new(x, y)
+}
+
+pub fn to_i256(x: i128, y: i128) -> i256::i256 {
+    i256::i256::new(x as u128, y)
 }
