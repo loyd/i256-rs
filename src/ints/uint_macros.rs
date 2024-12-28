@@ -46,6 +46,7 @@ macro_rules! uint_associated_consts_define {
         #[inline(always)]
         #[deprecated]
         pub const fn min_value() -> Self {
+            assert!($crate::ULimb::BITS * 2 == $crate::UWide::BITS);
             Self::from_ne_limbs([0; Self::LIMBS])
         }
 
@@ -57,6 +58,7 @@ macro_rules! uint_associated_consts_define {
         #[inline(always)]
         #[deprecated]
         pub const fn max_value() -> Self {
+            assert!($crate::ULimb::BITS * 2 == $crate::UWide::BITS);
             Self::from_ne_limbs([$crate::ULimb::MAX; Self::LIMBS])
         }
     };
