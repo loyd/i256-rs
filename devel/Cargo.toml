@@ -47,6 +47,16 @@ path = "benches/mul.rs"
 harness = false
 
 [[bench]]
+name = "rotate"
+path = "benches/rotate.rs"
+harness = false
+
+[[bench]]
+name = "shift"
+path = "benches/shift.rs"
+harness = false
+
+[[bench]]
 name = "sub"
 path = "benches/sub.rs"
 harness = false
