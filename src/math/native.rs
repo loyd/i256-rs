@@ -14,7 +14,7 @@
 macro_rules! is_negative {
     ($x:ident, $s:ty) => {{
         let index = $x.len() - 1;
-        let msl = $x[index] as $s;
+        let msl = ne_index!($x[index]) as $s;
         msl < 0
     }};
 }
@@ -29,17 +29,15 @@ macro_rules! negate {
         let mut v: $lo;
         let mut c = true;
         while index < N - 1 {
-            // FIXME: Go to native indexing
-            let xi = !$x[index];
+            let xi = !ne_index!($x[index]);
             (v, c) = xi.overflowing_add(c as $lo);
-            result[index] = v;
+            ne_index!(result[index] = v);
             index += 1;
         }
 
-        // FIXME: Go to native indexing
-        let xn = !$x[index] as $hi;
+        let xn = !ne_index!($x[index]) as $hi;
         let v = xn.wrapping_add(c as $hi);
-        result[index] = v as $lo;
+        ne_index!(result[index] = v as $lo);
 
         result
     }};
@@ -537,17 +535,17 @@ macro_rules! mul_unsigned_impl {
                 // NOTE: This is likely due to a miscompilation but this
                 // is significantly faster than indexing within the loop
                 // on `x86_64`.
-                let xi = x[i];
+                let xi = ne_index!(x[i]);
                 while j < N {
                     // NOTE: This repeats but it keeps the previous result
                     // `r[ij]` as current.
                     let ij = i + j;
-                    let yj = y[j];
+                    let yj = ne_index!(y[j]);
                     if ij < M {
                         // FIXME: Replace with `carrying_mul` when we add it
                         let full = (xi as $w) * (yj as $w);
-                        let prod = carry as $w + r[ij] as $w + full;
-                        r[ij] = prod as $t;
+                        let prod = carry as $w + ne_index!(r[ij]) as $w + full;
+                        ne_index!(r[ij] = prod as $t);
                         carry = (prod >> SHIFT) as $t;
                     } else if xi != 0 && yj != 0 {
                         break;
@@ -560,7 +558,7 @@ macro_rules! mul_unsigned_impl {
                 // less dimensions, then we might not. Carry the overflow
                 // here. In the next loop this will be added back in.
                 if N < M && i + N < M {
-                    r[i + N] = carry;
+                    ne_index!(r[i + N] = carry);
                 }
                 i += 1;
             }
@@ -610,15 +608,15 @@ macro_rules! mul_unsigned_impl {
                 // NOTE: This is likely due to a miscompilation but this
                 // is significantly faster than indexing within the loop
                 // on `x86_64`.
-                let xi = x[i];
+                let xi = ne_index!(x[i]);
                 while j < N {
                     let ij = i + j;
-                    let yj = y[j];
+                    let yj = ne_index!(y[j]);
                     if ij < M {
                         // FIXME: Replace with `carrying_mul` when we add it
                         let full = (xi as $w) * (yj as $w);
-                        let prod = carry as $w + r[ij] as $w + full;
-                        r[ij] = prod as $t;
+                        let prod = carry as $w + ne_index!(r[ij]) as $w + full;
+                        ne_index!(r[ij] = prod as $t);
                         carry = (prod >> SHIFT) as $t;
                     } else if xi != 0 && yj != 0 {
                         overflowed = true;
@@ -633,7 +631,7 @@ macro_rules! mul_unsigned_impl {
                 // here. In the next loop this will be added back in.
                 // Only if we've carried to the last digit have we overflowed.
                 if N < M && i + N < M {
-                    r[i + N] = carry;
+                    ne_index!(r[i + N] = carry);
                 } else if carry != 0 {
                     overflowed = true;
                 }
@@ -1837,9 +1835,8 @@ macro_rules! mul_signed_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
-            // FIXME: native indexing
             let mut rhs = [0; N];
-            rhs[0] = y;
+            ne_index!(rhs[0] = y);
             $wrapping_full(&x, &rhs)
         }
 
@@ -1871,7 +1868,6 @@ macro_rules! mul_signed_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
-            // FIXME: Native indexing
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
             ne_index!(rhs[0] = y as $u);
@@ -1917,7 +1913,7 @@ macro_rules! mul_signed_impl {
             }
 
             let (mut r, overflowed) = $overflowing_unsigned(&x, &y);
-            let msl = r[M - 1] as $s;
+            let msl = ne_index!(r[M - 1]) as $s;
             let r_is_negative = msl < 0;
             if !should_be_negative {
                 (r, overflowed | r_is_negative)
@@ -1927,7 +1923,6 @@ macro_rules! mul_signed_impl {
                 // wrap and it shouldn't be negative
                 // NOTE: We want to negate this, which will always work since
                 // `::MAX + 1` will wrap to min as expected.
-                // FIXME: switch to native indexing
                 let is_min = msl == <$s>::MIN;
                 r = negate!(r, M, $u, $s);
                 (r, overflowed | (r_is_negative ^ is_min))
@@ -1960,8 +1955,7 @@ macro_rules! mul_signed_impl {
         #[inline(always)]
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             let mut rhs = [0; N];
-            // FIXME: Native indexing
-            rhs[0] = y;
+            ne_index!(rhs[0] = y);
             $overflowing_full(&x, &rhs)
         }
 
@@ -1990,10 +1984,9 @@ macro_rules! mul_signed_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
-            // FIXME: Native indexing
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
-            rhs[0] = y as $u;
+            ne_index!(rhs[0] = y as $u);
             $overflowing_full(&x, &rhs)
         }
     };

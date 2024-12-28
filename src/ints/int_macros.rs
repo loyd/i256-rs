@@ -546,11 +546,10 @@ macro_rules! int_wrapping_define {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn wrapping_mul(self, rhs: Self) -> Self {
-            // FIXME: Change to native indexing
-            let lhs = self.to_le_limbs();
-            let rhs = rhs.to_le_limbs();
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
             let limbs = math::wrapping_mul_i64(&lhs, &rhs);
-            Self::from_le_limbs(limbs)
+            Self::from_ne_limbs(limbs)
         }
 
         /// Div/Rem operation on the integer.
@@ -1597,10 +1596,9 @@ macro_rules! int_limb_ops_define {
         /// which is identical.
         #[inline(always)]
         pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
-            // FIXME: Change to ne indexing
-            let lhs = self.to_le_limbs();
+            let lhs = self.to_ne_limbs();
             let limbs = math::wrapping_mul_ulimb_i64(&lhs, n);
-            Self::from_le_limbs(limbs)
+            Self::from_ne_limbs(limbs)
         }
 
         /// Multiply our big integer by a signed limb, wrapping on overflow.
@@ -1611,10 +1609,9 @@ macro_rules! int_limb_ops_define {
         /// performance and optimizes nicely for small multiplications.
         #[inline(always)]
         pub const fn wrapping_mul_ilimb(self, n: ILimb) -> Self {
-            // FIXME: Change to ne indexing
-            let lhs = self.to_le_limbs();
+            let lhs = self.to_ne_limbs();
             let limbs = math::wrapping_mul_ilimb_i64(&lhs, n);
-            Self::from_le_limbs(limbs)
+            Self::from_ne_limbs(limbs)
         }
 
         /// Get the quotient and remainder of our big integer divided
