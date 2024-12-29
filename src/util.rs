@@ -26,3 +26,19 @@ macro_rules! ne_index {
         $array[$crate::util::to_ne_index($index, $array.len())] = $value
     };
 }
+
+/// Swap the order of limbs, useful for re-arranging for BE/LE order.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! swap_array {
+    ($value:expr) => {{
+        let value = $value;
+        let mut res = value;
+        let mut i = 0;
+        while i < value.len() {
+            res[i] = value[value.len() - i - 1];
+            i += 1;
+        }
+        res
+    }};
+}

@@ -123,6 +123,31 @@ mod tests {
     }
 
     #[test]
+    fn endian_tests() {
+        let data = [0x123456u64, 0x789abcu64, 0xdef012u64, 0x345678u64];
+        let int = u256::from_le_u64(data);
+        assert_eq!(int, u256::from_le_bytes(int.to_le_bytes()));
+        assert_eq!(int, u256::from_be_bytes(int.to_be_bytes()));
+        assert_eq!(int, u256::from_ne_bytes(int.to_ne_bytes()));
+
+        assert_eq!(int, u256::from_le_limbs(int.to_le_limbs()));
+        assert_eq!(int, u256::from_be_limbs(int.to_be_limbs()));
+        assert_eq!(int, u256::from_ne_limbs(int.to_ne_limbs()));
+
+        assert_eq!(int, u256::from_le_wide(int.to_le_wide()));
+        assert_eq!(int, u256::from_be_wide(int.to_be_wide()));
+        assert_eq!(int, u256::from_ne_wide(int.to_ne_wide()));
+
+        assert_eq!(int, u256::from_le_u32(int.to_le_u32()));
+        assert_eq!(int, u256::from_be_u32(int.to_be_u32()));
+        assert_eq!(int, u256::from_ne_u32(int.to_ne_u32()));
+
+        assert_eq!(int, u256::from_le_u64(int.to_le_u64()));
+        assert_eq!(int, u256::from_be_u64(int.to_be_u64()));
+        assert_eq!(int, u256::from_ne_u64(int.to_ne_u64()));
+    }
+
+    #[test]
     fn display_test() {
         let max = u256::MAX;
         let result = max.to_string();
