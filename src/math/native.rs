@@ -536,26 +536,17 @@ macro_rules! mul_unsigned_impl {
             while i < M {
                 carry = 0;
                 j = 0;
-                // NOTE: This is likely due to a miscompilation but this
-                // is significantly faster than indexing within the loop
-                // on `x86_64`.
-                let xi = ne_index!(x[i]);
-                while j < N {
-                    // NOTE: This repeats but it keeps the previous result
-                    // `r[ij]` as current.
+                while j < N && i + j < M {
                     let ij = i + j;
-                    let yj = ne_index!(y[j]);
-                    if ij < M {
-                        // FIXME: Replace with `carrying_mul` when we add it
-                        // NOTE: This is a major miscompilation for performance regression.
-                        // Not having all of these statements on the same line somehow
-                        // causes a performance regression, a serious one.
-                        let prod = carry as $w + ne_index!(r[ij]) as $w + (xi as $w) * (yj as $w);
-                        ne_index!(r[ij] = prod as $t);
-                        carry = (prod >> SHIFT) as $t;
-                    } else if xi != 0 && yj != 0 {
-                        break;
-                    }
+                    // FIXME: Replace with `carrying_mul` when we add it
+                    // NOTE: This is a major miscompilation for performance regression.
+                    // Not having all of these statements on the same line somehow
+                    // causes a performance regression, a serious one.
+                    let prod = carry as $w
+                        + ne_index!(r[ij]) as $w
+                        + (ne_index!(x[i]) as $w) * (ne_index!(y[j]) as $w);
+                    ne_index!(r[ij] = prod as $t);
+                    carry = (prod >> SHIFT) as $t;
                     j += 1;
                 }
 
