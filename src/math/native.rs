@@ -740,15 +740,17 @@ macro_rules! shift_unsigned_impl {
             assert!(N >= 2, "must have at least 2 limbs");
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < N as u32 * BITS, "attempt to shift left with overflow");
-            let shift = shift % (N as u32 * BITS);
+            let limb_n = shift as usize >> BITS.trailing_zeros();
+            let bits_n = shift & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
             let mut result = [0; N];
             if N == 2 {
                 // Simple case, only have to worry about swapping bits, no digits.
                 let x0 = ne_index!(x[0]);
                 let x1 = ne_index!(x[1]);
-                let (r0, r1) = if shift >= BITS {
-                    (0, x0.wrapping_shl(shift - BITS))
+                let (r0, r1) = if limb_n != 0 {
+                    (0, x0 << bits_n)
                 } else if shift == 0 {
                     (x0, x1)
                 } else {
@@ -756,15 +758,33 @@ macro_rules! shift_unsigned_impl {
                     // so to `0xBCDE_FGH0`, or we need to carry the `D`. So,
                     // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
                     // and then the value needs to be shifted left `<< (4 - 1)`.
-                    let hi = x1.wrapping_shl(shift);
-                    let lo = x0.wrapping_shl(shift);
-                    let carry = x0.wrapping_shr(BITS - shift);
+                    let hi = x1 << bits_n;
+                    let lo = x0 << bits_n;
+                    let carry = x0 >> inv_n;
                     (lo, hi | carry)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1);
+            } else if bits_n != 0 {
+                // need to shift first our limbs and bits within each limb
+                // for example, a limb shift of 2 zeros out the right 2 limbs,
+                // and then processes the remaining limb.
+                let mut index = limb_n;
+                let mut carry = 0;
+                while index < N {
+                    let xi = ne_index!(x[index - limb_n]);
+                    ne_index!(result[index] = (xi << bits_n) | carry);
+                    carry = xi >> inv_n;
+                    index += 1;
+                }
             } else {
-                todo!();  // TODO: Implement...
+                // no bit shift, just limb shifts
+                let mut index = limb_n;
+                while index < N {
+                    let xi = ne_index!(x[index - limb_n]);
+                    ne_index!(result[index] = xi);
+                    index += 1;
+                }
             }
 
             result
@@ -843,31 +863,51 @@ macro_rules! shift_unsigned_impl {
             assert!(N >= 2, "must have at least 2 limbs");
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < N as u32 * BITS, "attempt to shift right with overflow");
-            let shift = shift % (N as u32 * BITS);
+            let limb_n = shift as usize >> BITS.trailing_zeros();
+            let bits_n = shift & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
             let mut result = [0; N];
             if N == 2 {
                 // Simple case, only have to worry about swapping bits, no digits.
                 let x0 = ne_index!(x[0]);
                 let x1 = ne_index!(x[1]);
-                let (r0, r1) = if shift >= BITS {
-                    (x1.wrapping_shr(shift - BITS), 0)
-                } else if shift == 0 {
+                let (r0, r1) = if limb_n != 0 {
+                    (x1 >> bits_n, 0)
+                } else if bits_n == 0 {
                     (x0, x1)
                 } else {
                     // NOTE: We have `0xABCD_EFGH`, and we want to shift by 1,
                     // so to `0x0ABC_DEFG`, or we need to carry the `D`. So,
                     // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
                     // and then the value needs to be shifted left `<< (4 - 1)`.
-                    let hi = x1.wrapping_shr(shift);
-                    let lo = x0.wrapping_shr(shift);
-                    let carry = x1.wrapping_shl(BITS - shift);
+                    let hi = x1 >> bits_n;
+                    let lo = x0 >> bits_n;
+                    let carry = x1 << inv_n;
                     (lo | carry, hi)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1);
+            } else if bits_n != 0 {
+                // need to shift first our limbs and bits within each limb
+                // for example, a limb shift of 2 zeros out the left 2 limbs,
+                // and then processes the remaining limb.
+                let mut index = N;
+                let mut carry = 0;
+                while index > limb_n {
+                    index -= 1;
+                    let xi = ne_index!(x[index]);
+                    ne_index!(result[index - limb_n] = (xi >> bits_n) | carry);
+                    carry = xi << inv_n;
+                }
             } else {
-                todo!();  // TODO: Implement...
+                // no bit shift, just limb shifts
+                let mut index = N;
+                while index > limb_n {
+                    index -= 1;
+                    let xi = ne_index!(x[index]);
+                    ne_index!(result[index - limb_n] = xi);
+                }
             }
 
             result
@@ -952,28 +992,48 @@ macro_rules! rotate_unsigned_impl {
             //
             // This isn't great but a better than some naive approaches.
             let n = n % (N as u32 * BITS);
-            let upper = n & !(BITS - 1);
-            let n = n & (BITS - 1);
+            let limb_n = (n >> BITS.trailing_zeros()) as usize;
+            let bits_n = n & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
             let mut result = [0; N];
-            if N ==  2 {
-                // Simple case, only have to worry about swapping bits, no digits.
-                let (x0, x1) = if upper != 0 {
+            if N == 2 {
+                // Simple case, only have to worry about swapping bits, at most swap 1 limb.
+                let (x0, x1) = if limb_n != 0 {
                     (ne_index!(x[1]), ne_index!(x[0]))
                 } else {
                     (ne_index!(x[0]), ne_index!(x[1]))
                 };
-                let (r0, r1) = if n == 0 {
+                let (r0, r1) = if bits_n == 0 {
                     (x0, x1)
                 } else {
-                    let hi = (x1.wrapping_shl(n)) | (x0.wrapping_shr(BITS - n));
-                    let lo = (x0.wrapping_shl(n)) | (x1.wrapping_shr(BITS - n));
+                    let hi = (x1 << bits_n) | (x0 >> BITS - bits_n);
+                    let lo = (x0 << bits_n) | (x1 >> BITS - bits_n);
                     (lo, hi)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1);
+            } else if bits_n != 0 {
+                let mut index = 0;
+                let mut carry = 0;
+                while index < N {
+                    let rot_n = (index + limb_n) % N;
+                    let xi = ne_index!(x[index]);
+                    let ri = (xi << bits_n) | carry;
+                    carry = xi >> inv_n;
+                    ne_index!(result[rot_n] = ri);
+                    index += 1;
+                }
+                ne_index!(result[limb_n] = ne_index!(result[limb_n]) | carry);
             } else {
-                todo!();  // TODO: Implement
+                // no bit shift, just limb shifts
+                let mut index = 0;
+                while index < N {
+                    let rot_n = (index + limb_n) % N;
+                    let xi = ne_index!(x[index]);
+                    ne_index!(result[rot_n] = xi);
+                    index += 1;
+                }
             }
 
             result
@@ -998,28 +1058,48 @@ macro_rules! rotate_unsigned_impl {
             // 0bFFFFXY -> 0bXYFFFF
             const BITS: u32 = <$u>::BITS;
             let n = n % (N as u32 * BITS);
-            let upper = n & !(BITS - 1);
-            let n = n & (BITS - 1);
+            let limb_n = (n >> BITS.trailing_zeros()) as usize;
+            let bits_n = n & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
             let mut result = [0; N];
             if N ==  2 {
-                // Simple case, only have to worry about swapping bits, no digits.
-                let (x0, x1) = if upper != 0 {
+                // Simple case, only have to worry about swapping bits, at most swap 1 limb.
+                let (x0, x1) = if limb_n != 0 {
                     (ne_index!(x[1]), ne_index!(x[0]))
                 } else {
                     (ne_index!(x[0]), ne_index!(x[1]))
                 };
-                let (r0, r1) = if n == 0 {
+                let (r0, r1) = if bits_n == 0 {
                     (x0, x1)
                 } else {
-                    let hi = (x1.wrapping_shr(n)) | (x0.wrapping_shl(BITS - n));
-                    let lo = (x0.wrapping_shr(n)) | (x1.wrapping_shl(BITS - n));
+                    let hi = (x1 >> bits_n) | (x0 << BITS - bits_n);
+                    let lo = (x0 >> bits_n) | (x1 << BITS - bits_n);
                     (lo, hi)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1);
+            } else if bits_n != 0 {
+                let mut index = 0;
+                let mut carry = 0;
+                while index < N {
+                    let rot_n = (index + limb_n) % N;
+                    let xi = ne_index!(x[rot_n]);
+                    let ri = (xi >> bits_n) | carry;
+                    carry = xi << inv_n;
+                    ne_index!(result[index] = ri);
+                    index += 1;
+                }
+                ne_index!(result[0] = ne_index!(result[0]) | carry);
             } else {
-                todo!();  // TODO: Implement
+                // no bit shift, just limb shifts
+                let mut index = 0;
+                while index < N {
+                    let rot_n = (index + limb_n) % N;
+                    let xi = ne_index!(x[rot_n]);
+                    ne_index!(result[index] = xi);
+                    index += 1;
+                }
             }
 
             result
@@ -2074,28 +2154,44 @@ macro_rules! shift_signed_impl {
 
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < 2 * BITS, "attempt to shift left with overflow");
-            let shift = shift % (2 * BITS);
+            let limb_n = shift as usize >> BITS.trailing_zeros();
+            let bits_n = shift & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
             let mut result = [0; N];
             if N == 2 {
                 // Simple case, only have to worry about swapping bits, no digits.
                 let x0 = ne_index!(x[0]);
                 let x1 = ne_index!(x[1]) as $s;
-                let (r0, r1) = if shift >= BITS {
-                    let hi = x0.wrapping_shl(shift - BITS);
+                let (r0, r1) = if limb_n != 0 {
+                    let hi = x0 << bits_n;
                     (0, hi as $s)
                 } else if shift == 0 {
                     (x0, x1)
                 } else {
-                    let hi = x1.wrapping_shl(shift);
-                    let lo = x0.wrapping_shl(shift);
-                    let carry = x0.wrapping_shr(BITS - shift);
+                    let hi = x1 << shift;
+                    let lo = x0 << shift;
+                    let carry = x0 >> inv_n;
                     (lo, hi | carry as $s)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1 as $u);
+            } else if bits_n != 0 {
+                let mut index = limb_n;
+                let mut carry = 0;
+                while index < N {
+                    let xi = ne_index!(x[index - limb_n]);
+                    ne_index!(result[index] = (xi << bits_n) | carry);
+                    carry = xi >> inv_n;
+                    index += 1;
+                }
             } else {
-                todo!();  // TODO: Implement...
+                let mut index = limb_n;
+                while index < N {
+                    let xi = ne_index!(x[index - limb_n]);
+                    ne_index!(result[index] = xi);
+                    index += 1;
+                }
             }
 
             result
@@ -2189,9 +2285,16 @@ macro_rules! shift_signed_impl {
 
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < 2 * BITS, "attempt to shift right with overflow");
-            let shift = shift % (2 * BITS);
+            let limb_n = shift as usize >> BITS.trailing_zeros();
+            let bits_n = shift & (BITS - 1);
+            let inv_n = BITS - bits_n;
 
-            let mut result = [0; N];
+            let mut result = if (ne_index!(x[N - 1]) as $s) >= 0 {
+                [0; N]
+            } else {
+                [<$u>::MAX; N]
+            };
+
             if N == 2 {
                 // Simple case, only have to worry about swapping bits, no digits.
                 let x0 = ne_index!(x[0]);
@@ -2199,21 +2302,41 @@ macro_rules! shift_signed_impl {
                 let (r0, r1) = if shift >= BITS {
                     // NOTE: The MSB is 0 if positive and 1 if negative, so this will
                     // always shift to 0 if positive and `-1` if negative.
-                    let hi = x1.wrapping_shr(BITS - 1);
-                    let lo = x1.wrapping_shr(shift - BITS);
+                    let hi = x1 >> BITS - 1;
+                    let lo = x1 >> shift - BITS;
                     (lo as $u, hi)
                 } else if shift == 0 {
                     (x0, x1)
                 } else {
-                    let hi = x1.wrapping_shr(shift);
-                    let lo = x0.wrapping_shr(shift);
-                    let carry = (x1 as $u).wrapping_shl(BITS - shift);
+                    let hi = x1 >> shift;
+                    let lo = x0 >> shift;
+                    let carry = (x1 as $u) << (BITS - shift);
                     (lo | carry, hi)
                 };
                 ne_index!(result[0] = r0);
                 ne_index!(result[1] = r1 as $u);
+            } else if bits_n != 0 {
+                let mut index = N;
+                let mut carry = 0;
+                while index > limb_n {
+                    index -= 1;
+                    let xi = ne_index!(x[index]);
+                    // need to round towards negative infinity
+                    let ri = if index == N - 1 {
+                        ((xi as $s) >> bits_n) as $u
+                    } else {
+                        xi >> bits_n
+                    };
+                    ne_index!(result[index - limb_n] = ri | carry);
+                    carry = xi << inv_n;
+                }
             } else {
-                todo!();  // TODO: Implement...
+                let mut index = N;
+                while index > limb_n {
+                    index -= 1;
+                    let xi = ne_index!(x[index]);
+                    ne_index!(result[index - limb_n] = xi);
+                }
             }
 
             result
@@ -2380,10 +2503,26 @@ mod tests {
         );
     }
 
-    fn from_le_shift<T: Copy>(x: [T; 2], y: u32, cb: impl Fn([T; 2], u32) -> [T; 2]) -> [T; 2] {
+    fn from_le_shift<T: Copy + Default, const N: usize>(
+        x: [T; N],
+        y: u32,
+        cb: impl Fn([T; N], u32) -> [T; N],
+    ) -> [T; N] {
         if cfg!(target_endian = "big") {
-            let result = cb([x[1], x[0]], y);
-            [result[1], result[0]]
+            let mut inv = [T::default(); N];
+            let mut index = 0;
+            while index < N {
+                inv[index] = x[N - index - 1];
+                index += 1;
+            }
+
+            let result = cb(inv, y);
+            let mut index = 0;
+            while index < N {
+                inv[index] = result[N - index - 1];
+                index += 1;
+            }
+            inv
         } else {
             cb(x, y)
         }
@@ -2399,6 +2538,15 @@ mod tests {
         assert_eq!(from_le_shift([2, 0], 31, shl_u32), [0, 1]);
         assert_eq!(from_le_shift([0, 2], 31, shl_u32), [0, 0]);
         assert_eq!(from_le_shift([1, 2], 31, shl_u32), [2147483648, 0]);
+
+        // try some digit shifts as well
+        assert_eq!(from_le_shift([1, 2, 3], 31, shl_u32), [2147483648, 0, 2147483649]);
+        assert_eq!(from_le_shift([1, 2, 0], 31, shl_u32), [2147483648, 0, 1]);
+        assert_eq!(from_le_shift([1, 2, 3], 32, shl_u32), [0, 1, 2]);
+        assert_eq!(from_le_shift([1, 2, 3], 63, shl_u32), [0, 2147483648, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 64, shl_u32), [0, 0, 1]);
+        assert_eq!(from_le_shift([1, 2, 3], 95, shl_u32), [0, 0, 2147483648]);
+        assert_eq!(from_le_shift([1, 2, 3], 0, shl_u32), [1, 2, 3]);
     }
 
     #[test]
@@ -2411,6 +2559,15 @@ mod tests {
         assert_eq!(from_le_shift([2, 0], 31, shr_u32), [0, 0]);
         assert_eq!(from_le_shift([0, 2], 31, shr_u32), [4, 0]);
         assert_eq!(from_le_shift([1, 2], 31, shr_u32), [4, 0]);
+
+        // try some digit shifts as well
+        assert_eq!(from_le_shift([1, 2, 3], 31, shr_u32), [4, 6, 0]);
+        assert_eq!(from_le_shift([1, 2, 0], 31, shr_u32), [4, 0, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 32, shr_u32), [2, 3, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 63, shr_u32), [6, 0, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 64, shr_u32), [3, 0, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 95, shr_u32), [0, 0, 0]);
+        assert_eq!(from_le_shift([1, 2, 3], 0, shr_u32), [1, 2, 3]);
     }
 
     #[test]
