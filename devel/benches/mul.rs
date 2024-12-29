@@ -78,6 +78,32 @@ macro_rules! add_group {
                 ilimb_idata.iter(),
                 bench_op!(wrapping_mul_ilimb, i256::i256, i256::ILimb)
             );
+
+            // overflow handling is especially costly, check this too
+            add_bench!(
+                group,
+                concat!($prefix, "::signed-over-bnum"),
+                bnum_idata.iter(),
+                bench_op!(overflowing_mul, BnumI256)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::signed-over-256"),
+                i256_idata.iter(),
+                bench_op!(overflowing_mul, i256::i256)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::signed-over-256-ulimb"),
+                ulimb_idata.iter(),
+                bench_op!(overflowing_mul_ulimb, i256::i256, i256::ULimb)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::signed-over-256-ilimb"),
+                ilimb_idata.iter(),
+                bench_op!(overflowing_mul_ilimb, i256::i256, i256::ILimb)
+            );
         }
     };
 }

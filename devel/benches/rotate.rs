@@ -80,8 +80,6 @@ macro_rules! add_group {
                 i256_idata.iter(),
                 bench_op!(rotate_right, i256::i256, u32)
             );
-
-            // TODO: Need signed
         }
     };
 }

@@ -242,9 +242,9 @@ macro_rules! uint_ops_define {
         #[inline]
         pub fn div_ceil(self, rhs: Self) -> Self {
             let (d, r) = self.wrapping_div_rem(rhs);
-            if r.gt_const(Self::from_u8(0)) {
+            if !r.eq_const(Self::from_u8(0)) {
                 // NOTE: This can't overflow
-                d.wrapping_add(Self::from_u8(1))
+                d.wrapping_add_ulimb(1)
             } else {
                 d
             }

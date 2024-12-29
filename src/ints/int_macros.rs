@@ -176,7 +176,7 @@ macro_rules! int_ops_define {
         #[inline(always)]
         pub const fn is_positive(self) -> bool {
             // NOTE: This seems to optimize slightly better than the wide-based one.
-            let high = self.get_limb(Self::LIMBS - 1) as $crate::ILimb;
+            let high = self.most_significant_limb();
             if high < 0 {
                 return false;
             } else if high > 0 {
@@ -292,9 +292,9 @@ macro_rules! int_ops_define {
             // which is all-ones iff the signs differ, and 0 otherwise. Then by
             // adding this mask (which corresponds to the signed value -1), we
             // get our correction.
-            let correction = self.bitxor_const(rhs) >> (Self::BITS - 1);
+            let correction = self.is_negative() ^ rhs.is_negative();
             if !r.eq_const(Self::from_u8(0)) {
-                d.wrapping_add(correction)
+                d.wrapping_sub_ulimb(correction as $crate::ULimb)
             } else {
                 d
             }
@@ -649,11 +649,11 @@ macro_rules! int_wrapping_define {
         #[inline]
         pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
             let (mut q, r) = self.wrapping_div_rem(rhs);
-            if r.lt_const(Self::from_u8(0)) {
-                if rhs.gt_const(Self::from_u8(0)) {
-                    q = q.wrapping_sub(Self::from_u8(1));
+            if r.is_negative() {
+                if rhs.is_positive() {
+                    q = q.wrapping_sub_ulimb(1);
                 } else {
-                    q = q.wrapping_add(Self::from_u8(1));
+                    q = q.wrapping_add_ulimb(1);
                 }
             }
             q
@@ -688,7 +688,7 @@ macro_rules! int_wrapping_define {
         #[inline]
         pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
             let r = self.wrapping_rem(rhs);
-            if r.lt_const(Self::from_u8(0)) {
+            if r.is_negative() {
                 // Semantically equivalent to `if rhs < 0 { r - rhs } else { r + rhs }`.
                 // If `rhs` is not `Self::MIN`, then `r + abs(rhs)` will not overflow
                 // and is clearly equivalent, because `r` is negative.
@@ -715,9 +715,10 @@ macro_rules! int_wrapping_define {
         #[inline(always)]
         pub const fn wrapping_neg(self) -> Self {
             // NOTE: This is identical to `add(not(x), 1i256)`
-            let twos_neg = self.not_const().wrapping_add(Self::from_u8(1));
-            debug_assert!(Self::from_u8(0).wrapping_sub(self).eq_const(twos_neg));
-            Self::from_u8(0).wrapping_sub(self)
+            let twos_neg = self.not_const().wrapping_add_ulimb(1);
+            let from_zero = Self::from_u8(0).wrapping_sub(self);
+            debug_assert!(from_zero.eq_const(twos_neg));
+            from_zero
         }
 
         /// Wrapping (modular) absolute value. Computes `self.abs()`, wrapping
@@ -794,7 +795,7 @@ macro_rules! int_overflowing_define {
         pub const fn overflowing_add_unsigned(self, rhs: $u_t) -> (Self, bool) {
             let rhs = rhs.as_signed();
             let (res, overflowed) = self.overflowing_add(rhs);
-            (res, overflowed ^ rhs.lt_const(Self::from_u8(0)))
+            (res, overflowed ^ rhs.is_negative())
         }
 
         /// Calculates `self` - `rhs` with an unsigned `rhs`.
@@ -808,7 +809,7 @@ macro_rules! int_overflowing_define {
         pub const fn overflowing_sub_unsigned(self, rhs: $u_t) -> (Self, bool) {
             let rhs = rhs.as_signed();
             let (res, overflowed) = self.overflowing_sub(rhs);
-            (res, overflowed ^ rhs.lt_const(Self::from_u8(0)))
+            (res, overflowed ^ rhs.is_negative())
         }
 
         /// Calculates the multiplication of `self` and `rhs`.
@@ -1220,7 +1221,7 @@ macro_rules! int_checked_define {
 
             let zero = Self::from_u8(0);
             let r = self.checked_rem(rhs)?;
-            let m = if (r > zero && rhs < zero) || (r < zero && rhs > zero) {
+            let m = if (r.is_positive() & rhs.is_negative()) | (r.is_negative() & rhs.is_positive()) {
                 // r + rhs cannot overflow because they have opposite signs
                 r + rhs
             } else {

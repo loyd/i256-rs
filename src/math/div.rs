@@ -464,7 +464,7 @@ const fn full_shl<const N: usize>(v: &[ULimb; N], shift: u32) -> ArrayPlusOne<N>
     out[0] = v[0] << shift;
     let mut i = 1;
     while i < N {
-        out[i] = v[i - 1] >> (ULimb::BITS - shift) | v[i] << shift;
+        out[i] = (v[i - 1] >> (ULimb::BITS - shift)) | (v[i] << shift);
         i += 1;
     }
     let carry = v[N - 1] >> (ULimb::BITS - shift);
@@ -481,7 +481,7 @@ const fn full_shr<const N: usize>(a: &ArrayPlusOne<N>, shift: u32) -> [ULimb; N]
     let mut out = [0; N];
     let mut i = 0;
     while i < N - 1 {
-        out[i] = a.0[i] >> shift | a.0[i + 1] << (ULimb::BITS - shift);
+        out[i] = (a.0[i] >> shift) | (a.0[i + 1] << (ULimb::BITS - shift));
         i += 1;
     }
     out[N - 1] = a.0[N - 1] >> shift;
