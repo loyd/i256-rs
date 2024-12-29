@@ -13,8 +13,7 @@
 #[macro_export]
 macro_rules! is_negative {
     ($x:ident, $s:ty) => {{
-        let index = $x.len() - 1;
-        let msl = ne_index!($x[index]) as $s;
+        let msl = ne_index!($x[$x.len() - 1]) as $s;
         msl < 0
     }};
 }
@@ -23,21 +22,25 @@ macro_rules! is_negative {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! negate {
-    ($x:ident, $n:expr, $lo:ty, $hi:ty) => {{
-        let mut index = 0;
+    ($x:ident, $n:expr, $t:ty) => {{
         let mut result = [0; $n];
-        let mut v: $lo;
-        let mut c = true;
-        while index < N - 1 {
+        let x0 = !ne_index!($x[0]);
+        let (mut v, mut c) = x0.overflowing_add(1);
+        ne_index!(result[0] = v);
+
+        let mut index = 1;
+        while index < $n - 1 {
             let xi = !ne_index!($x[index]);
-            (v, c) = xi.overflowing_add(c as $lo);
+            (v, c) = xi.overflowing_add(c as $t);
             ne_index!(result[index] = v);
             index += 1;
         }
 
-        let xn = !ne_index!($x[index]) as $hi;
-        let v = xn.wrapping_add(c as $hi);
-        ne_index!(result[index] = v as $lo);
+        if $n > 1 {
+            let xn = !ne_index!($x[index]);
+            v = xn.wrapping_add(c as $t);
+            ne_index!(result[index] = v);
+        }
 
         result
     }};
@@ -188,6 +191,7 @@ macro_rules! add_unsigned_impl {
             let (mut v, mut c) = ne_index!(x[index]).overflowing_add(y);
             ne_index!(result[index] = v);
             index += 1;
+            // NOTE: Do not branch anywhere in here, it decimates performance.
             while index < N - 1 {
                 (v, c) = ne_index!(x[index]).overflowing_add(c as $u);
                 ne_index!(result[index] = v);
@@ -543,8 +547,10 @@ macro_rules! mul_unsigned_impl {
                     let yj = ne_index!(y[j]);
                     if ij < M {
                         // FIXME: Replace with `carrying_mul` when we add it
-                        let full = (xi as $w) * (yj as $w);
-                        let prod = carry as $w + ne_index!(r[ij]) as $w + full;
+                        // NOTE: This is a major miscompilation for performance regression.
+                        // Not having all of these statements on the same line somehow
+                        // causes a performance regression, a serious one.
+                        let prod = carry as $w + ne_index!(r[ij]) as $w + (xi as $w) * (yj as $w);
                         ne_index!(r[ij] = prod as $t);
                         carry = (prod >> SHIFT) as $t;
                     } else if xi != 0 && yj != 0 {
@@ -614,8 +620,10 @@ macro_rules! mul_unsigned_impl {
                     let yj = ne_index!(y[j]);
                     if ij < M {
                         // FIXME: Replace with `carrying_mul` when we add it
-                        let full = (xi as $w) * (yj as $w);
-                        let prod = carry as $w + ne_index!(r[ij]) as $w + full;
+                        // NOTE: This is a major miscompilation for performance regression.
+                        // Not having all of these statements on the same line somehow
+                        // causes a performance regression, a serious one.
+                        let prod = carry as $w + ne_index!(r[ij]) as $w + (xi as $w) * (yj as $w);
                         ne_index!(r[ij] = prod as $t);
                         carry = (prod >> SHIFT) as $t;
                     } else if xi != 0 && yj != 0 {
@@ -1696,26 +1704,9 @@ macro_rules! mul_signed_impl {
             x: &[$u; M],
             y: &[$u; N],
         ) -> [$u; M] {
-            // general approach is unsigned multiplication, then convert
-            // back to the signed variants by checking if both should be negative
-            let mut x = *x;
-            let mut y = *y;
-            let x_is_negative = is_negative!(x, $s);
-            let y_is_negative = is_negative!(y, $s);
-            let should_be_negative = x_is_negative ^ y_is_negative;
-            if x_is_negative {
-                x = negate!(x, M, $u, $s);
-            }
-            if y_is_negative {
-                y = negate!(y, N, $u, $s);
-            }
-
-            let mut r = $wrapping_unsigned(&x, &y);
-            if should_be_negative {
-                r = negate!(r, M, $u, $s);
-            }
-
-            r
+            // NOTE: I know this sounds incredible but it's really just this.
+            // All the actual overflow, everything handling is done, internally.
+            $wrapping_unsigned(x, y)
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -1746,9 +1737,7 @@ macro_rules! mul_signed_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
-            let mut rhs = [0; N];
-            ne_index!(rhs[0] = y);
-            $wrapping_full(&x, &rhs)
+            $wrapping_unsigned(&x, &[y])
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -1779,10 +1768,12 @@ macro_rules! mul_signed_impl {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
+            // NOTE: This does not work like above, but there is a trick.
+            // Widen the type and we can do the exact same approach.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
             ne_index!(rhs[0] = y as $u);
-            $wrapping_full(&x, &rhs)
+            $wrapping_unsigned(&x, &rhs)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -1811,17 +1802,22 @@ macro_rules! mul_signed_impl {
         ) -> ([$u; M], bool) {
             // general approach is unsigned multiplication, then convert
             // back to the signed variants by checking if both should be negative
-            let mut x = *x;
-            let mut y = *y;
+            // this is **WAY** slower than our warpping variant, since we
+            // need to handle wrapping, sign checks, etc., all which cause massive
+            // performance overhead
             let x_is_negative = is_negative!(x, $s);
             let y_is_negative = is_negative!(y, $s);
             let should_be_negative = x_is_negative ^ y_is_negative;
-            if x_is_negative {
-                x = negate!(x, M, $u, $s);
-            }
-            if y_is_negative {
-                y = negate!(y, N, $u, $s);
-            }
+            let x = if x_is_negative {
+                negate!(x, M, $u)
+            } else {
+                *x
+            };
+            let y = if y_is_negative {
+                negate!(y, N, $u)
+            } else {
+                *y
+            };
 
             let (mut r, overflowed) = $overflowing_unsigned(&x, &y);
             let msl = ne_index!(r[M - 1]) as $s;
@@ -1835,7 +1831,7 @@ macro_rules! mul_signed_impl {
                 // NOTE: We want to negate this, which will always work since
                 // `::MAX + 1` will wrap to min as expected.
                 let is_min = msl == <$s>::MIN;
-                r = negate!(r, M, $u, $s);
+                r = negate!(r, M, $u);
                 (r, overflowed | (r_is_negative ^ is_min))
             }
         }

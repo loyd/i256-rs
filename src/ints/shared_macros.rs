@@ -1499,7 +1499,7 @@ macro_rules! bigint_define {
         #[must_use]
         pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (a, b) = self.overflowing_add(rhs);
-            let (c, d) = a.overflowing_add(Self::from_u8(carry as u8));
+            let (c, d) = a.overflowing_add_ulimb(carry as $crate::ULimb);
             (c, b | d)
         }
 
@@ -1522,7 +1522,7 @@ macro_rules! bigint_define {
         #[must_use]
         pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (a, b) = self.overflowing_sub(rhs);
-            let (c, d) = a.overflowing_sub(Self::from_u8(borrow as u8));
+            let (c, d) = a.overflowing_sub_ulimb(borrow as $crate::ULimb);
             (c, b | d)
         }
     };

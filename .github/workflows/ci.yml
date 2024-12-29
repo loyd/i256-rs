@@ -32,8 +32,7 @@ jobs:
       if: ${{ matrix.rust == 'nightly' && matrix.os != 'windows-latest' }}
       run: |
         cargo +nightly fmt -- --check
-        # TODO: re-enable once we complete our API.
-        #cargo +nightly clippy --all-features -- --deny warnings
+        cargo +nightly clippy --all-features -- --deny warnings
 
     - name: Run Quickcheck Tests
       if: ${{ matrix.rust == 'nightly' }}
