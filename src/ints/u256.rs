@@ -76,7 +76,7 @@ impl u256 {
     /// See [`u128::wrapping_shl`].
     #[inline(always)]
     pub const fn wrapping_shl(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shl_u128(self.low(), self.high(), rhs % 256);
+        let (lo, hi) = math::shl_u128(self.low(), self.high(), rhs % Self::BITS);
         Self::new(lo, hi)
     }
 
@@ -94,12 +94,9 @@ impl u256 {
     /// See [`u128::wrapping_shr`].
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shr_u128(self.low(), self.high(), rhs % 256);
+        let (lo, hi) = math::shr_u128(self.low(), self.high(), rhs % Self::BITS);
         Self::new(lo, hi)
     }
-
-    from_str_radix_define!(false);
-    to_str_radix_define!(false);
 }
 
 uint_traits_define!(type => u256, signed_type => i256);
@@ -113,7 +110,10 @@ mod tests {
     fn add_test() {
         // NOTE: This is mostly covered elsewhere
         assert_eq!(u256::from_u8(1).wrapping_add(u256::from_u8(1)), u256::from_u8(2));
-        assert_eq!(u256::MAX.wrapping_add(u256::MAX), u256::new(u128::MAX - 1, u128::MAX));
+        assert_eq!(
+            u256::MAX.wrapping_add(u256::MAX),
+            u256::from_le_u64([u64::MAX - 1, u64::MAX, u64::MAX, u64::MAX])
+        );
 
         assert_eq!(
             u256::from_u8(1).overflowing_add(u256::from_u8(1)).0,
@@ -156,7 +156,7 @@ mod tests {
             result
         );
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = value.to_string();
         assert_eq!("340282366920938463463374607431768211456", result);
     }
@@ -170,7 +170,7 @@ mod tests {
             result
         );
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:e}", value);
         assert_eq!("3.40282366920938463463374607431768211456e38", result);
     }
@@ -184,7 +184,7 @@ mod tests {
             result
         );
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:E}", value);
         assert_eq!("3.40282366920938463463374607431768211456E38", result);
     }
@@ -204,7 +204,7 @@ mod tests {
             result
         );
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:o}", value);
         assert_eq!("4000000000000000000000000000000000000000000", result);
     }
@@ -224,7 +224,7 @@ mod tests {
             result
         );
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:b}", value);
         assert_eq!(
             "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
@@ -241,7 +241,7 @@ mod tests {
         let result = format!("{:#x}", max);
         assert_eq!("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", result);
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:x}", value);
         assert_eq!("100000000000000000000000000000000", result);
     }
@@ -255,7 +255,7 @@ mod tests {
         let result = format!("{:#X}", max);
         assert_eq!("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", result);
 
-        let value = u256::new(0, 1);
+        let value = u256::from_le_u64([0, 0, 1, 0]);
         let result = format!("{:X}", value);
         assert_eq!("100000000000000000000000000000000", result);
     }
