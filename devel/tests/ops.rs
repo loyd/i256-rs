@@ -724,8 +724,8 @@ fn overflowing_sub_tests() {
     // back to the correct value: the end value is what it should be.
     let (z, o) = x.overflowing_sub(y);
     assert!(!o, "should not have overflowed");
-    assert_eq!(z.high(), i128::MAX);
-    assert_eq!(z.low(), u128::MAX);
+    assert_eq!(z.get_wide(1), i128::MAX as u128);
+    assert_eq!(z.get_wide(0), u128::MAX);
 
     assert!(x.checked_sub(y).is_some());
 }
@@ -734,54 +734,54 @@ fn overflowing_sub_tests() {
 fn wrapping_neg_tests() {
     let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let neg = x.wrapping_neg();
-    assert_eq!(neg.low(), 0);
-    assert_eq!(neg.high(), 0);
+    assert_eq!(neg.get_wide(0), 0);
+    assert_eq!(neg.get_wide(1), 0);
 }
 
 #[test]
 fn saturating_neg_tests() {
     let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let neg = x.saturating_neg();
-    assert_eq!(neg.low(), 0);
-    assert_eq!(neg.high(), 0);
+    assert_eq!(neg.get_wide(0), 0);
+    assert_eq!(neg.get_wide(1), 0);
 
     // 0, -1
     let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let neg = x.saturating_neg();
-    assert_eq!(neg.low(), 0);
-    assert_eq!(neg.high(), 1);
+    assert_eq!(neg.get_wide(0), 0);
+    assert_eq!(neg.get_wide(1), 1);
 
     let neg = x.checked_neg();
     assert!(neg.is_some());
     let neg = neg.unwrap();
-    assert_eq!(neg.low(), 0);
-    assert_eq!(neg.high(), 1);
+    assert_eq!(neg.get_wide(0), 0);
+    assert_eq!(neg.get_wide(1), 1);
 }
 
 #[test]
 fn saturating_abs_tests() {
     let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let abs = x.saturating_abs();
-    assert_eq!(abs.low(), 0);
-    assert_eq!(abs.high(), 0);
+    assert_eq!(abs.get_wide(0), 0);
+    assert_eq!(abs.get_wide(1), 0);
 
     let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let abs = x.saturating_abs();
-    assert_eq!(abs.low(), 0);
-    assert_eq!(abs.high(), 1);
+    assert_eq!(abs.get_wide(0), 0);
+    assert_eq!(abs.get_wide(1), 1);
 
     let x = util::to_i256(u128::MAX, u128::MAX as i128);
     let abs = x.saturating_abs();
-    assert_eq!(abs.low(), 1);
-    assert_eq!(abs.high(), 0);
+    assert_eq!(abs.get_wide(0), 1);
+    assert_eq!(abs.get_wide(1), 0);
 }
 
 #[test]
 fn abs_tests() {
     let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let abs = x.abs();
-    assert_eq!(abs.low(), 0);
-    assert_eq!(abs.high(), 0);
+    assert_eq!(abs.get_wide(0), 0);
+    assert_eq!(abs.get_wide(1), 0);
 
     let x = util::to_i256(0, i128::MIN);
     assert!(x.checked_abs().is_none());
@@ -789,8 +789,8 @@ fn abs_tests() {
     let x = util::to_i256(u128::MAX, u128::MAX as i128);
     assert!(x.checked_abs().is_some());
     let abs = x.checked_abs().unwrap();
-    assert_eq!(abs.low(), 1);
-    assert_eq!(abs.high(), 0);
+    assert_eq!(abs.get_wide(0), 1);
+    assert_eq!(abs.get_wide(1), 0);
 }
 
 #[test]

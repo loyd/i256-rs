@@ -1,8 +1,6 @@
 use i256::math::*;
 use quickcheck::quickcheck;
 
-const LO32: u64 = u32::MAX as u64;
-
 const fn split(x: u64) -> (u32, u32) {
     (x as u32, (x >> 32) as u32)
 }
@@ -12,8 +10,6 @@ const fn unsplit(x0: u32, x1: u32) -> u64 {
 }
 
 quickcheck! {
-    // FIXME: Add all our wrapping, checked, etc. variants here too...
-
     fn wrapping_add_u32_quickcheck(x: u64, y: u64) -> bool {
         let (x0, x1) = split(x);
         let (y0, y1) = split(y);
@@ -95,8 +91,8 @@ quickcheck! {
         let (x0, x1) = split(x);
         let n = (n % 64) as u32;
         let expected = x << n;
-        let (lo, hi) = shl_u32(x0, x1, n);
-        let actual = unsplit(lo, hi);
+        let result = shl_u32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual
     }
 
@@ -104,24 +100,24 @@ quickcheck! {
         let (x0, x1) = split(x);
         let n = (n % 64) as u32;
         let expected = x >> n;
-        let (lo, hi) = shr_u32(x0, x1, n);
-        let actual = unsplit(lo, hi);
+        let result = shr_u32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual
     }
 
     fn rotate_left_u32_quickcheck(x: u64, n: u32) -> bool {
         let (x0, x1) = split(x);
         let expected = x.rotate_left(n);
-        let (lo, hi) = rotate_left_u32(x0, x1, n);
-        let actual = unsplit(lo, hi);
+        let result = rotate_left_u32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual
     }
 
     fn rotate_right_u32_quickcheck(x: u64, n: u32) -> bool {
         let (x0, x1) = split(x);
         let expected = x.rotate_right(n);
-        let (lo, hi) = rotate_right_u32(x0, x1, n);
-        let actual = unsplit(lo, hi);
+        let result = rotate_right_u32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual
     }
 
@@ -276,40 +272,20 @@ quickcheck! {
     }
 
     fn shl_i32_quickcheck(x: i64, n: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
+        let (x0, x1) = split(x as u64);
         let n = (n % 64) as u32;
         let expected = x << n;
-        let (lo, hi) = shl_i32(x0, x1, n);
-        let actual = lo as i64 + ((hi as u64) << 32) as i64;
-        expected == actual
-    }
-
-    fn shr_i32_quickcheck(x: i64, n: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let n = (n % 64) as u32;
-        let expected = x >> n;
-        let (lo, hi) = shr_i32(x0, x1, n);
-        let actual = lo as i64 + ((hi as u64) << 32) as i64;
-        expected == actual
-    }
-
-    fn rotate_left_i32_quickcheck(x: i64, n: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let expected = x.rotate_left(n);
-        let (lo, hi) = rotate_left_i32(x0, x1, n);
-        let actual = unsplit(lo, hi as u32);
+        let result = shl_i32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
 
-    fn rotate_right_i32_quickcheck(x: i64, n: u32) -> bool {
-        let x0 = ((x as u64) & LO32) as u32;
-        let x1 = ((x as u64) >> 32) as i32;
-        let expected = x.rotate_right(n);
-        let (lo, hi) = rotate_right_i32(x0, x1, n);
-        let actual = unsplit(lo, hi as u32);
+    fn shr_i32_quickcheck(x: i64, n: u32) -> bool {
+        let (x0, x1) = split(x as u64);
+        let n = (n % 64) as u32;
+        let expected = x >> n;
+        let result = shr_i32([x0, x1], n);
+        let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
 }
