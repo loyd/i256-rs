@@ -18,12 +18,21 @@ pub fn to_ibnum(x: u128, y: i128) -> Bi256 {
     Bi256::from_le_slice(&slc).unwrap()
 }
 
+pub fn to_u256(x: u128, y: u128) -> i256::u256 {
+    i256::u256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
+}
+
+pub fn to_i256(x: u128, y: i128) -> i256::i256 {
+    let y = y as u128;
+    i256::i256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
+}
+
 macro_rules! unsigned_op_equal {
     ($x0:ident, $x1:ident, $op:ident, $cmp:expr) => {{
         let bx = util::to_ubnum($x0, $x1);
         let bres = bx.$op();
 
-        let ux = i256::u256::new($x0, $x1);
+        let ux = util::to_u256($x0, $x1);
         let ures = ux.$op();
 
         $cmp(bres, ures)
@@ -33,7 +42,7 @@ macro_rules! unsigned_op_equal {
         let bx = util::to_ubnum($x0, $x1);
         let bres = bx.$op($y);
 
-        let ux = i256::u256::new($x0, $x1);
+        let ux = util::to_u256($x0, $x1);
         let ures = ux.$op($y);
 
         $cmp(bres, ures)
@@ -44,8 +53,8 @@ macro_rules! unsigned_op_equal {
         let by = util::to_ubnum($y0, $y1);
         let bres = bx.$op(by);
 
-        let ux = i256::u256::new($x0, $x1);
-        let uy = i256::u256::new($y0, $y1);
+        let ux = util::to_u256($x0, $x1);
+        let uy = util::to_u256($y0, $y1);
         let ures = ux.$op(uy);
 
         $cmp(bres, ures)
@@ -137,7 +146,7 @@ macro_rules! signed_op_equal {
         let bx = util::to_ibnum($x0, $x1);
         let bres = bx.$op();
 
-        let ux = i256::i256::new($x0, $x1);
+        let ux = util::to_i256($x0, $x1);
         let ures = ux.$op();
 
         $cmp(bres, ures)
@@ -147,7 +156,7 @@ macro_rules! signed_op_equal {
         let bx = util::to_ibnum($x0, $x1);
         let bres = bx.$op($y);
 
-        let ux = i256::i256::new($x0, $x1);
+        let ux = util::to_i256($x0, $x1);
         let ures = ux.$op($y);
 
         $cmp(bres, ures)
@@ -158,8 +167,8 @@ macro_rules! signed_op_equal {
         let by = util::to_ibnum($y0, $y1);
         let bres = bx.$op(by);
 
-        let ux = i256::i256::new($x0, $x1);
-        let uy = i256::i256::new($y0, $y1);
+        let ux = util::to_i256($x0, $x1);
+        let uy = util::to_i256($y0, $y1);
         let ures = ux.$op(uy);
 
         $cmp(bres, ures)
@@ -248,7 +257,7 @@ macro_rules! signed_op_equal {
 
 macro_rules! unsigned_limb_op_equal {
     ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
-        let x = i256::u256::new($x0, $x1);
+        let x = util::to_u256($x0, $x1);
         let fres = x.$full(i256::u256::from_ulimb($y));
         let lres = x.$limb($y);
 
@@ -290,7 +299,7 @@ macro_rules! unsigned_limb_op_equal {
 
 macro_rules! signed_limb_op_equal {
     ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
-        let x = i256::i256::new($x0, $x1);
+        let x = util::to_i256($x0, $x1);
         let fres = x.$full($y.into());
         let lres = x.$limb($y);
 

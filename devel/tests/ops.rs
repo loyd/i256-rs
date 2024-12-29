@@ -717,8 +717,8 @@ fn overflowing_sub_tests() {
     assert!(signed_op_equal!(over x0, x1, y0, y1, overflowing_sub));
     assert!(signed_op_equal!(check x0, x1, y0, y1, checked_sub));
 
-    let x = i256::i256::new(x0, x1);
-    let y = i256::i256::new(1, y1);
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
+    let y = i256::i256::from_le_u64([1, 0, 0, i64::MIN as u64]);
 
     // NOTE: This is a specific edge-case where it wraps but then wraps
     // back to the correct value: the end value is what it should be.
@@ -732,7 +732,7 @@ fn overflowing_sub_tests() {
 
 #[test]
 fn wrapping_neg_tests() {
-    let x = i256::i256::new(0, 0);
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let neg = x.wrapping_neg();
     assert_eq!(neg.low(), 0);
     assert_eq!(neg.high(), 0);
@@ -740,12 +740,13 @@ fn wrapping_neg_tests() {
 
 #[test]
 fn saturating_neg_tests() {
-    let x = i256::i256::new(0, 0);
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let neg = x.saturating_neg();
     assert_eq!(neg.low(), 0);
     assert_eq!(neg.high(), 0);
 
-    let x = i256::i256::new(0, -1);
+    // 0, -1
+    let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let neg = x.saturating_neg();
     assert_eq!(neg.low(), 0);
     assert_eq!(neg.high(), 1);
@@ -759,17 +760,17 @@ fn saturating_neg_tests() {
 
 #[test]
 fn saturating_abs_tests() {
-    let x = i256::i256::new(0, 0);
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let abs = x.saturating_abs();
     assert_eq!(abs.low(), 0);
     assert_eq!(abs.high(), 0);
 
-    let x = i256::i256::new(0, -1);
+    let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let abs = x.saturating_abs();
     assert_eq!(abs.low(), 0);
     assert_eq!(abs.high(), 1);
 
-    let x = i256::i256::new(u128::MAX, u128::MAX as i128);
+    let x = util::to_i256(u128::MAX, u128::MAX as i128);
     let abs = x.saturating_abs();
     assert_eq!(abs.low(), 1);
     assert_eq!(abs.high(), 0);
@@ -777,15 +778,15 @@ fn saturating_abs_tests() {
 
 #[test]
 fn abs_tests() {
-    let x = i256::i256::new(0, 0);
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
     let abs = x.abs();
     assert_eq!(abs.low(), 0);
     assert_eq!(abs.high(), 0);
 
-    let x = i256::i256::new(0, i128::MIN);
+    let x = util::to_i256(0, i128::MIN);
     assert!(x.checked_abs().is_none());
 
-    let x = i256::i256::new(u128::MAX, u128::MAX as i128);
+    let x = util::to_i256(u128::MAX, u128::MAX as i128);
     assert!(x.checked_abs().is_some());
     let abs = x.checked_abs().unwrap();
     assert_eq!(abs.low(), 1);
@@ -794,8 +795,8 @@ fn abs_tests() {
 
 #[test]
 fn midpoint_tests() {
-    let x = i256::i256::new(3, 0);
-    let y = i256::i256::new(0, -1);
+    let x = util::to_i256(3, 0);
+    let y = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let midpoint = x.midpoint(y);
     // NOTE: Rust recently changed this behavior from `-Inf` to `0` for rounding.
     // bnum still uses the old behavior.
@@ -805,44 +806,44 @@ fn midpoint_tests() {
 
 #[test]
 fn next_power_of_two_tests() {
-    let x = i256::u256::new(0, 0).wrapping_next_power_of_two();
-    assert_eq!(x, i256::u256::new(1, 0));
+    let x = i256::u256::from_le_u64([0, 0, 0, 0]).wrapping_next_power_of_two();
+    assert_eq!(x, util::to_u256(1, 0));
 
-    let x = i256::u256::new(1, 0).wrapping_next_power_of_two();
-    assert_eq!(x, i256::u256::new(1, 0));
+    let x = util::to_u256(1, 0).wrapping_next_power_of_two();
+    assert_eq!(x, util::to_u256(1, 0));
 
-    let x = i256::u256::new(2, 0).wrapping_next_power_of_two();
-    assert_eq!(x, i256::u256::new(2, 0));
+    let x = util::to_u256(2, 0).wrapping_next_power_of_two();
+    assert_eq!(x, util::to_u256(2, 0));
 
-    let x = i256::u256::new(3, 0).wrapping_next_power_of_two();
-    assert_eq!(x, i256::u256::new(4, 0));
+    let x = util::to_u256(3, 0).wrapping_next_power_of_two();
+    assert_eq!(x, util::to_u256(4, 0));
 }
 
 #[test]
 fn wrapping_add_ilimb_tests() {
-    let x = i256::i256::new(0, 0).wrapping_add_ilimb(-1);
-    assert_eq!(x, i256::i256::new(u128::MAX, u128::MAX as i128));
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]).wrapping_add_ilimb(-1);
+    assert_eq!(x, util::to_i256(u128::MAX, u128::MAX as i128));
 }
 
 #[test]
 #[cfg(not(feature = "limb32"))]
 fn wrapping_mul_ulimb_tests() {
-    let x = i256::i256::new(2, 0).wrapping_mul_ulimb(9223372036854775808);
-    assert_eq!(x, i256::i256::new(18446744073709551616, 0));
+    let x = util::to_i256(2, 0).wrapping_mul_ulimb(9223372036854775808);
+    assert_eq!(x, util::to_i256(18446744073709551616, 0));
 }
 
 #[test]
 fn wrapping_mul_ilimb_tests() {
-    let x = i256::i256::new(0, 1).wrapping_mul_ilimb(-1);
-    assert_eq!(x, i256::i256::new(0, -1));
+    let x = util::to_i256(0, 1).wrapping_mul_ilimb(-1);
+    assert_eq!(x, i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]));
 }
 
 #[test]
 fn checked_rem_tests() {
-    let num = i256::i256::new(0, -1);
-    let den = i256::i256::new(1, 1);
+    let num = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
+    let den = util::to_i256(1, 1);
     let (quo, rem) = num.wrapping_div_rem(den);
-    assert_eq!(rem, i256::i256::new(0, -1));
+    assert_eq!(rem, i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]));
     assert_eq!(quo, i256::i256::from_i8(0));
 }
 
@@ -851,7 +852,7 @@ fn checked_rem_tests() {
 fn checked_rem_ulimb_tests() {
     // NOTE: With `ulimb` we have to have Python-like handling of the values,
     // rather than how Rust handles remainders.
-    let num = i256::i256::new(0, -1);
+    let num = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let den = u64::MAX;
     let (quo, rem) = num.wrapping_div_rem_ulimb(den);
     assert_eq!(rem, 18446744073709551614);

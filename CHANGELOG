@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `shr_const_*` and `shl_const_*` methods, since `wrapping_shr` should cover every use-case.
 - Our entire wide API, and replaced only with limb.
 - The casts `as_i256`, `as_u256`, `from_i256`, and `from_u256`, since these don't generalize to higher order types.
+- The `new()`, `high()`, and `low()` methods, since these generalize poorer to larger type sizes and the `from_*e_u64` and similar methods provide a complete replacement.
 
 ## [0.1.1] 2024-12-24
 
