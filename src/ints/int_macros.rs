@@ -2176,5 +2176,8 @@ macro_rules! int_impl_define {
         int_unchecked_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_unbounded_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_limb_ops_define!(@all);
+
+        from_str_radix_define!(true);
+        to_str_radix_define!(true);
     };
 }

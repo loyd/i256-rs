@@ -231,9 +231,11 @@ pub fn to_cryptobu(lo: u128, hi: u128) -> CryptoU256 {
 }
 
 pub fn to_u256(x: u128, y: u128) -> i256::u256 {
-    i256::u256::new(x, y)
+    i256::u256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
 }
 
 pub fn to_i256(x: i128, y: i128) -> i256::i256 {
-    i256::i256::new(x as u128, y)
+    let x = x as u128;
+    let y = y as u128;
+    i256::i256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
 }

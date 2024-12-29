@@ -125,43 +125,6 @@ quickcheck! {
         expected == actual
     }
 
-    fn as_uwide_u32_quickcheck(x: u32) -> bool {
-        let expected = x as u64;
-        let (lo, hi) = as_uwide_u32(x);
-        let hi = hi as u64;
-        let actual = (hi << 32) + lo as u64;
-        expected == actual
-    }
-
-    fn as_iwide_u32_quickcheck(x: i32) -> bool {
-        let expected = x as u64;
-        let (lo, hi) = as_iwide_u32(x);
-        let hi = hi as u64;
-        let actual = (hi << 32) + lo as u64;
-        expected == actual
-    }
-
-    fn as_unarrow_u32_quickcheck(x: u64) -> bool {
-        let (lo, hi) = split(x);
-        let expected = x as u32;
-        let actual = as_unarrow_u32(lo, hi);
-        expected == actual && x as u16 == actual as u16
-    }
-
-    fn as_inarrow_u32_quickcheck(x: u64) -> bool {
-        let (lo, hi) = split(x);
-        let expected = x as i32;
-        let actual = as_inarrow_u32(lo, hi);
-        expected == actual && x as i16 == actual as i16
-    }
-
-    fn wide_cast_u32_quickcheck(x: u64) -> bool {
-        let (lo, hi) = split(x);
-        let expected = (x as u32, hi as i32);
-        let actual = wide_cast_u32(lo, hi);
-        expected == actual
-    }
-
     fn wrapping_add_i32_quickcheck(x: i64, y: i64) -> bool {
         let (x0, x1) = split(x as u64);
         let (y0, y1) = split(y as u64);
@@ -348,47 +311,5 @@ quickcheck! {
         let (lo, hi) = rotate_right_i32(x0, x1, n);
         let actual = unsplit(lo, hi as u32);
         expected == actual as i64
-    }
-
-    fn as_uwide_i32_quickcheck(x: u32) -> bool {
-        let expected = x as i64;
-        let (lo, hi) = as_uwide_i32(x);
-        let hi = (hi as u32) as u64;
-        let unsigned = (hi << 32) + lo as u64;
-        let actual = unsigned as i64;
-        expected == actual
-    }
-
-    fn as_iwide_i32_quickcheck(x: i32) -> bool {
-        let expected = x as i64;
-        let (lo, hi) = as_iwide_i32(x);
-        let hi = (hi as u32) as u64;
-        let unsigned = (hi << 32) + lo as u64;
-        let actual = unsigned as i64;
-        expected == actual
-    }
-
-    fn as_unarrow_i32_quickcheck(x: u64) -> bool {
-        let lo = x as u32;
-        let hi = (x >> 32) as i32;
-        let expected = x as u32;
-        let actual = as_unarrow_i32(lo, hi);
-        expected == actual && x as u16 == actual as u16
-    }
-
-    fn as_inarrow_i32_quickcheck(x: i64) -> bool {
-        let lo = x as u32;
-        let hi = (x >> 32) as i32;
-        let expected = x as i32;
-        let actual = as_inarrow_i32(lo, hi);
-        expected == actual && x as i16 == actual as i16
-    }
-
-    fn wide_cast_i32_quickcheck(x: i64) -> bool {
-        let lo = x as u32;
-        let hi = (x >> 32) as i32;
-        let expected = (x as u32, hi as u32);
-        let actual = wide_cast_i32(lo, hi);
-        expected == actual
     }
 }

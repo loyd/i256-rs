@@ -99,12 +99,9 @@ impl i256 {
     /// See [`i128::wrapping_shr`].
     #[inline(always)]
     pub const fn wrapping_shr(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % 256);
+        let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % Self::BITS);
         Self::new(lo, hi)
     }
-
-    from_str_radix_define!(true);
-    to_str_radix_define!(true);
 }
 
 int_traits_define!(type => i256, unsigned_type => u256);
