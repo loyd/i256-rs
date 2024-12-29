@@ -734,6 +734,8 @@ macro_rules! byte_order_define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// The number of bytes in the type.
         pub(crate) const BYTES: usize = Self::BITS as usize / 8;
+        pub(crate) const U32_LEN: usize = Self::BYTES / 4;
+        pub(crate) const U64_LEN: usize = Self::BYTES / 8;
 
         /// The number of limbs in the type.
         pub(crate) const LIMBS: usize = Self::BYTES / core::mem::size_of::<$crate::ULimb>();
@@ -792,7 +794,7 @@ macro_rules! byte_order_define {
                 limbs: [0; Self::LIMBS],
             };
             let mut i = 0;
-            while i < 4 {
+            while i < Self::LIMBS {
                 r.limbs[i] = self.limbs[Self::LIMBS - 1 - i].swap_bytes();
                 i += 1;
             }
@@ -877,45 +879,13 @@ macro_rules! byte_order_define {
             }
         }
 
-        /// Convert an array of limbs to the flat bytes.
-        ///
-        /// We keep this as a standalone function since Rust can sometimes
-        /// vectorize this in a way using purely safe Rust cannot, which
-        /// improves performance while ensuring we are very careful.
-        /// These are guaranteed to be plain old [`data`] with a fixed size
-        /// alignment, and padding.
-        ///
-        /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-        #[inline(always)]
-        const fn from_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> [u8; Self::BYTES] {
-            // SAFETY: This is plain old data
-            unsafe {
-                core::mem::transmute::<[$crate::ULimb; Self::LIMBS], [u8; Self::BYTES]>(limbs)
-            }
-        }
-
-        /// Convert flat bytes to an array of limbs.
-        ///
-        /// We keep this as a standalone function since Rust can sometimes
-        /// vectorize this in a way using purely safe Rust cannot, which
-        /// improves performance while ensuring we are very careful.
-        /// These are guaranteed to be plain old [`data`] with a fixed size
-        /// alignment, and padding.
-        ///
-        /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-        #[inline(always)]
-        const fn to_limbs(bytes: [u8; Self::BYTES]) -> [$crate::ULimb; Self::LIMBS] {
-            // SAFETY: This is plain old data
-            unsafe { core::mem::transmute(bytes) }
-        }
-
         /// Returns the memory representation of this integer as a byte array in
         /// big-endian (network) byte order.
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::to_be_bytes`].")]
         #[inline(always)]
         pub const fn to_be_bytes(self) -> [u8; Self::BYTES] {
-            Self::from_limbs(self.to_be_limbs())
+            self.to_be().to_ne_bytes()
         }
 
         /// Returns the memory representation of this integer as a byte array in
@@ -924,67 +894,7 @@ macro_rules! byte_order_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::to_le_bytes`].")]
         #[inline(always)]
         pub const fn to_le_bytes(self) -> [u8; Self::BYTES] {
-            Self::from_limbs(self.to_le_limbs())
-        }
-
-        /// Returns the memory representation of this as a series of limbs in
-        /// big-endian (network) byte order.
-        #[inline(always)]
-        pub const fn to_be_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
-            self.to_be().limbs
-        }
-
-        /// Returns the memory representation of this as a series of limbs in
-        /// little-endian byte order.
-        #[inline(always)]
-        pub const fn to_le_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
-            self.to_le().limbs
-        }
-
-        /// Returns the memory representation of this as a series of limbs.
-        ///
-        /// As the target platform's native endianness is used, portable code
-        /// should use [`to_be_limbs`] or [`to_le_limbs`], as appropriate,
-        /// instead.
-        ///
-        /// [`to_be_limbs`]: Self::to_be_limbs
-        /// [`to_le_limbs`]: Self::to_le_limbs
-        #[inline(always)]
-        pub const fn to_ne_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
-            self.limbs
-        }
-
-        /// Returns the memory representation of this as a series of wide in
-        /// big-endian (network) byte order.
-        #[inline(always)]
-        pub const fn to_be_wide(self) -> [$crate::UWide; Self::WIDE] {
-            self.to_be().to_ne_wide()
-        }
-
-        /// Returns the memory representation of this as a series of wide in
-        /// little-endian byte order.
-        #[inline(always)]
-        pub const fn to_le_wide(self) -> [$crate::UWide; Self::WIDE] {
-            self.to_le().to_ne_wide()
-        }
-
-        /// Returns the memory representation of this as a series of wide.
-        ///
-        /// As the target platform's native endianness is used, portable code
-        /// should use [`to_be_wide`] or [`to_le_wide`], as appropriate,
-        /// instead.
-        ///
-        /// [`to_be_wide`]: Self::to_be_wide
-        /// [`to_le_wide`]: Self::to_le_wide
-        #[inline(always)]
-        pub const fn to_ne_wide(self) -> [$crate::UWide; Self::WIDE] {
-            let limbs = self.to_ne_limbs();
-            // SAFETY: plain old data
-            unsafe {
-                core::mem::transmute::<[$crate::ULimb; Self::LIMBS], [$crate::UWide; Self::WIDE]>(
-                    limbs,
-                )
-            }
+            self.to_le().to_ne_bytes()
         }
 
         /// Returns the memory representation of this integer as a byte array in
@@ -1000,7 +910,10 @@ macro_rules! byte_order_define {
         /// [`to_le_bytes`]: Self::to_le_bytes
         #[inline(always)]
         pub const fn to_ne_bytes(self) -> [u8; Self::BYTES] {
-            Self::from_limbs(self.to_ne_limbs())
+            // SAFETY: plain old data
+            unsafe {
+                core::mem::transmute::<[$crate::ULimb; Self::LIMBS], [u8; Self::BYTES]>(self.limbs)
+            }
         }
 
         /// Creates a native endian integer value from its representation
@@ -1009,7 +922,7 @@ macro_rules! byte_order_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::from_be_bytes`].")]
         #[inline(always)]
         pub const fn from_be_bytes(bytes: [u8; Self::BYTES]) -> Self {
-            Self::from_be_limbs(Self::to_limbs(bytes))
+            Self::from_ne_bytes(bytes).to_be()
         }
 
         /// Creates a native endian integer value from its representation
@@ -1018,7 +931,7 @@ macro_rules! byte_order_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::from_le_bytes`].")]
         #[inline(always)]
         pub const fn from_le_bytes(bytes: [u8; Self::BYTES]) -> Self {
-            Self::from_le_limbs(Self::to_limbs(bytes))
+            Self::from_ne_bytes(bytes).to_le()
         }
 
         /// Creates a native endian integer value from its memory representation
@@ -1034,38 +947,77 @@ macro_rules! byte_order_define {
         /// [`from_le_bytes`]: Self::from_le_bytes
         #[inline(always)]
         pub const fn from_ne_bytes(bytes: [u8; Self::BYTES]) -> Self {
-            Self::from_ne_limbs(Self::to_limbs(bytes))
+            // SAFETY: plain old data
+            let limbs = unsafe {
+                core::mem::transmute::<[u8; Self::BYTES], [$crate::ULimb; Self::LIMBS]>(bytes)
+            };
+            Self::from_ne_limbs(limbs)
         }
 
-        /// Swap the order of limbs, useful for re-arranging for BE/LE order.
+        /// Returns the memory representation of this as a series of limbs in
+        /// big-endian (network) byte order.
+        ///
+        /// The value of each limb stays the same, however, the order that each
+        /// is stored within the buffer is in big-endian order.
         #[inline(always)]
-        const fn swap_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> [$crate::ULimb; Self::LIMBS] {
-            let mut res = [0; Self::LIMBS];
-            let mut i = 0;
-            while i < Self::LIMBS {
-                res[i] = limbs[Self::LIMBS - i - 1];
-                i += 1;
+        pub const fn to_be_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
+            if cfg!(target_endian = "little") {
+                swap_array!(self.to_ne_limbs())
+            } else {
+                self.to_ne_limbs()
             }
-            res
+        }
+
+        /// Returns the memory representation of this as a series of limbs in
+        /// little-endian byte order.
+        ///
+        /// The value of each limb stays the same, however, the order that each
+        /// is stored within the buffer is in little-endian order.
+        #[inline(always)]
+        pub const fn to_le_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
+            if cfg!(target_endian = "little") {
+                self.to_ne_limbs()
+            } else {
+                swap_array!(self.to_ne_limbs())
+            }
+        }
+
+        /// Returns the memory representation of this as a series of limbs.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_limbs`] or [`to_le_limbs`], as appropriate,
+        /// instead.
+        ///
+        /// [`to_be_limbs`]: Self::to_be_limbs
+        /// [`to_le_limbs`]: Self::to_le_limbs
+        #[inline(always)]
+        pub const fn to_ne_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
+            self.limbs
         }
 
         /// Creates a native endian integer value from its representation
         /// as limbs in big endian.
+        ///
+        /// The value of each limb stays the same, however, the order that each
+        /// is stored within the buffer as if it was from big-endian order.
         #[inline(always)]
         pub const fn from_be_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_limbs(limbs)
             } else {
-                Self::from_ne_limbs(Self::swap_limbs(limbs))
+                Self::from_ne_limbs(swap_array!(limbs))
             }
         }
 
         /// Creates a native endian integer value from its representation
         /// as limbs in little endian.
+        ///
+        /// The value of each limb stays the same, however, the order that each
+        /// is stored within the buffer as if it was from little-endian order.
         #[inline(always)]
         pub const fn from_le_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
-                Self::from_ne_limbs(Self::swap_limbs(limbs))
+                Self::from_ne_limbs(swap_array!(limbs))
             } else {
                 Self::from_ne_limbs(limbs)
             }
@@ -1087,16 +1039,43 @@ macro_rules! byte_order_define {
             }
         }
 
-        /// Swap the order of the wide type, useful for re-arranging for BE/LE order.
+        /// Returns the memory representation of this as a series of wide in
+        /// big-endian (network) byte order.
         #[inline(always)]
-        const fn swap_wide(wide: [$crate::UWide; Self::WIDE]) -> [$crate::UWide; Self::WIDE] {
-            let mut res = [0; Self::WIDE];
-            let mut i = 0;
-            while i < Self::WIDE {
-                res[i] = wide[Self::WIDE - i - 1];
-                i += 1;
+        pub const fn to_be_wide(self) -> [$crate::UWide; Self::WIDE] {
+            if cfg!(target_endian = "little") {
+                swap_array!(self.to_ne_wide())
+            } else {
+                self.to_ne_wide()
             }
-            res
+        }
+
+        /// Returns the memory representation of this as a series of wide in
+        /// little-endian byte order.
+        #[inline(always)]
+        pub const fn to_le_wide(self) -> [$crate::UWide; Self::WIDE] {
+            if cfg!(target_endian = "little") {
+                self.to_ne_wide()
+            } else {
+                swap_array!(self.to_ne_wide())
+            }
+        }
+
+        /// Returns the memory representation of this as a series of wide types.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_wide`] or [`to_le_wide`], as appropriate,
+        /// instead.
+        ///
+        /// [`to_be_wide`]: Self::to_be_wide
+        /// [`to_le_wide`]: Self::to_le_wide
+        #[inline(always)]
+        pub const fn to_ne_wide(self) -> [$crate::UWide; Self::WIDE] {
+            let bytes = self.to_ne_bytes();
+            // SAFETY: plain old data
+            unsafe {
+                core::mem::transmute::<[u8; Self::BYTES], [$crate::UWide; Self::WIDE]>(bytes)
+            }
         }
 
         /// Creates a native endian integer value from its representation
@@ -1106,7 +1085,7 @@ macro_rules! byte_order_define {
             if cfg!(target_endian = "big") {
                 Self::from_ne_wide(wide)
             } else {
-                Self::from_ne_wide(Self::swap_wide(wide))
+                Self::from_ne_wide(swap_array!(wide))
             }
         }
 
@@ -1115,7 +1094,7 @@ macro_rules! byte_order_define {
         #[inline(always)]
         pub const fn from_le_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
             if cfg!(target_endian = "big") {
-                Self::from_ne_wide(Self::swap_wide(wide))
+                Self::from_ne_wide(swap_array!(wide))
             } else {
                 Self::from_ne_wide(wide)
             }
@@ -1133,12 +1112,168 @@ macro_rules! byte_order_define {
         #[inline(always)]
         pub const fn from_ne_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
             // SAFETY: plain old data
-            let limbs = unsafe {
-                core::mem::transmute::<[$crate::UWide; Self::WIDE], [$crate::ULimb; Self::LIMBS]>(
-                    wide,
-                )
+            let bytes = unsafe {
+                core::mem::transmute::<[$crate::UWide; Self::WIDE], [u8; Self::BYTES]>(wide)
             };
-            Self::from_ne_limbs(limbs)
+            Self::from_ne_bytes(bytes)
+        }
+
+        /// Returns the memory representation of this as a series of `u32` digits
+        /// in big-endian order.
+        #[inline(always)]
+        pub const fn to_be_u32(self) -> [u32; Self::U32_LEN] {
+            if cfg!(target_endian = "little") {
+                swap_array!(self.to_ne_u32())
+            } else {
+                self.to_ne_u32()
+            }
+        }
+
+        /// Returns the memory representation of this as a series of `u32` digits
+        /// in litte-endian order.
+        #[inline(always)]
+        pub const fn to_le_u32(self) -> [u32; Self::U32_LEN] {
+            if cfg!(target_endian = "little") {
+                self.to_ne_u32()
+            } else {
+                swap_array!(self.to_ne_u32())
+            }
+        }
+
+        /// Returns the memory representation of this as a series of `u32`.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_u32`] or [`to_le_u32`], as appropriate,
+        /// instead.
+        ///
+        /// [`to_be_u32`]: Self::to_be_u32
+        /// [`to_le_u32`]: Self::to_le_u32
+        #[inline(always)]
+        pub const fn to_ne_u32(self) -> [u32; Self::U32_LEN] {
+            let bytes = self.to_ne_bytes();
+            // SAFETY: plain old data
+            unsafe {
+                core::mem::transmute::<[u8; Self::BYTES], [u32; Self::U32_LEN]>(bytes)
+            }
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as `u32` elements in big-endian.
+        #[inline(always)]
+        pub const fn from_be_u32(value: [u32; Self::U32_LEN]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_u32(value)
+            } else {
+                Self::from_ne_u32(swap_array!(value))
+            }
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as `u32` elements in little-endian.
+        #[inline(always)]
+        pub const fn from_le_u32(value: [u32; Self::U32_LEN]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_u32(swap_array!(value))
+            } else {
+                Self::from_ne_u32(value)
+            }
+        }
+
+        /// Creates a native endian integer value from its memory representation
+        /// as `u32` in native endianness.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// likely wants to use [`from_be_u32`] or [`from_le_u32`], as
+        /// appropriate instead.
+        ///
+        /// [`from_be_u32`]: Self::from_be_u32
+        /// [`from_le_u32`]: Self::from_le_u32
+        #[inline(always)]
+        pub const fn from_ne_u32(value: [u32; Self::U32_LEN]) -> Self {
+            // SAFETY: plain old data
+            let bytes = unsafe {
+                core::mem::transmute::<[u32; Self::U32_LEN], [u8; Self::BYTES]>(value)
+            };
+            Self::from_ne_bytes(bytes)
+        }
+
+        /// Returns the memory representation of this as a series of `u64` digits
+        /// in big-endian order.
+        #[inline(always)]
+        pub const fn to_be_u64(self) -> [u64; Self::U64_LEN] {
+            if cfg!(target_endian = "little") {
+                swap_array!(self.to_ne_u64())
+            } else {
+                self.to_ne_u64()
+            }
+        }
+
+        /// Returns the memory representation of this as a series of `u64` digits
+        /// in litte-endian order.
+        #[inline(always)]
+        pub const fn to_le_u64(self) -> [u64; Self::U64_LEN] {
+            if cfg!(target_endian = "little") {
+                self.to_ne_u64()
+            } else {
+                swap_array!(self.to_ne_u64())
+            }
+        }
+
+        /// Returns the memory representation of this as a series of `u64`.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_u64`] or [`to_le_u64`], as appropriate,
+        /// instead.
+        ///
+        /// [`to_be_u64`]: Self::to_be_u64
+        /// [`to_le_u64`]: Self::to_le_u64
+        #[inline(always)]
+        pub const fn to_ne_u64(self) -> [u64; Self::U64_LEN] {
+            let bytes = self.to_ne_bytes();
+            // SAFETY: plain old data
+            unsafe {
+                core::mem::transmute::<[u8; Self::BYTES], [u64; Self::U64_LEN]>(bytes)
+            }
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as `u64` elements in big-endian.
+        #[inline(always)]
+        pub const fn from_be_u64(value: [u64; Self::U64_LEN]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_u64(value)
+            } else {
+                Self::from_ne_u64(swap_array!(value))
+            }
+        }
+
+        /// Creates a native endian integer value from its representation
+        /// as `u64` elements in little-endian.
+        #[inline(always)]
+        pub const fn from_le_u64(value: [u64; Self::U64_LEN]) -> Self {
+            if cfg!(target_endian = "big") {
+                Self::from_ne_u64(swap_array!(value))
+            } else {
+                Self::from_ne_u64(value)
+            }
+        }
+
+        /// Creates a native endian integer value from its memory representation
+        /// as `u64` in native endianness.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// likely wants to use [`from_be_u64`] or [`from_le_u64`], as
+        /// appropriate instead.
+        ///
+        /// [`from_be_u64`]: Self::from_be_u64
+        /// [`from_le_u64`]: Self::from_le_u64
+        #[inline(always)]
+        pub const fn from_ne_u64(value: [u64; Self::U64_LEN]) -> Self {
+            // SAFETY: plain old data
+            let bytes = unsafe {
+                core::mem::transmute::<[u64; Self::U64_LEN], [u8; Self::BYTES]>(value)
+            };
+            Self::from_ne_bytes(bytes)
         }
     };
 }
