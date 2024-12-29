@@ -1,0 +1,85 @@
+//! Associated constants for our types.
+
+#[rustfmt::skip]
+macro_rules! define {
+    (
+        bits =>
+        $bits:expr,max_digits =>
+        $max_digits:expr,wide_type =>
+        $wide_t:ty,low_type =>
+        $lo_t:ty,high_type =>
+        $hi_t:ty $(,)?
+    ) => {
+        /// The smallest value that can be represented by this integer type.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::MIN`].")]
+        #[allow(deprecated)]
+        pub const MIN: Self = Self::min_value();
+
+        /// The largest value that can be represented by this integer type
+        /// (2<sup>256</sup> - 1).
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::MAX`].")]
+        #[allow(deprecated)]
+        pub const MAX: Self = Self::max_value();
+
+        /// The size of this integer type in bits.
+        ///
+        /// # Examples
+        ///
+        /// ```rust
+        /// # use i256::u256;
+        /// assert_eq!(u256::BITS, 256);
+        /// ```
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::BITS`].")]
+        pub const BITS: u32 = $bits;
+
+        /// The number of decimal digits for the largest magnitude value.
+        pub const MAX_DIGITS: usize = $max_digits;
+
+        // Internal use only
+
+        /// The number of limbs in the type.
+        pub(crate) const LIMBS: usize = Self::BITS as usize / 8 / core::mem::size_of::<$crate::ULimb>();
+
+        /// The number of wide values in the type.
+        pub(crate) const WIDE: usize = Self::BITS as usize / 8 / core::mem::size_of::<$crate::UWide>();
+    };
+}
+
+pub(crate) use define;
+
+#[rustfmt::skip]
+macro_rules! min_value_doc {
+    ($wide_t:ty) => {
+        concat!(
+"
+New code should prefer to use  [`", stringify!($wide_t), "::MIN`] instead.
+
+Returns the smallest value that can be represented by this integer type.
+
+See [`", stringify!($wide_t), "::min_value`].
+"
+        )
+    };
+}
+
+pub(crate) use min_value_doc;
+
+#[rustfmt::skip]
+macro_rules! max_value_doc {
+    ($wide_t:ty) => {
+        concat!(
+"
+New code should prefer to use  [`", stringify!($wide_t), "::MAX`] instead.
+
+Returns the largest value that can be represented by this integer type.
+
+See [`", stringify!($wide_t), "::max_value`].
+"
+        )
+    };
+}
+
+pub(crate) use max_value_doc;

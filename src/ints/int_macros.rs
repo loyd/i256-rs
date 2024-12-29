@@ -11,7 +11,7 @@ macro_rules! int_associated_consts_define {
         max_digits => $max_digits:expr,
         wide_type => $wide_t:ty $(,)?
     ) => {
-        associated_consts_define!(
+        $crate::shared::constants::define!(
             bits => $bits,
             max_digits => $max_digits,
             wide_type => $wide_t,
@@ -19,26 +19,18 @@ macro_rules! int_associated_consts_define {
             high_type => $crate::ILimb,
         );
 
-        #[doc = concat!("New code should prefer to use  [`", stringify!($wide_t), "::MIN`] instead.")]
-        ///
-        /// Returns the smallest value that can be represented by this integer type.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::min_value`].")]
-        #[inline(always)]
         #[deprecated]
+        #[inline(always)]
+        #[doc = $crate::shared::constants::min_value_doc!($wide_t)]
         pub const fn min_value() -> Self {
             let mut limbs = [0; Self::LIMBS];
             ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MIN as $crate::ULimb);
             Self::from_ne_limbs(limbs)
         }
 
-        #[doc = concat!("New code should prefer to use  [`", stringify!($wide_t), "::MAX`] instead.")]
-        ///
-        /// Returns the largest value that can be represented by this integer type.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::max_value`].")]
-        #[inline(always)]
         #[deprecated]
+        #[inline(always)]
+        #[doc = $crate::shared::constants::max_value_doc!($wide_t)]
         pub const fn max_value() -> Self {
             let mut limbs = [$crate::ULimb::MAX; Self::LIMBS];
             ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MAX as $crate::ULimb);
@@ -47,98 +39,23 @@ macro_rules! int_associated_consts_define {
     };
 }
 
-macro_rules! int_cmp_define {
-    (
-        low_type => $lo_t:ty,
-        high_type => $hi_t:ty,
-        short_circuit => $short_circuit:tt $(,)?
-    ) => {
-        cmp_define!(
-            low_type => $lo_t,
-            high_type => $hi_t,
-            short_circuit => $short_circuit,
-        );
-    };
-}
-
 macro_rules! int_bitops_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        bitops_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::bitops::define!(type => $u_t, wide_type => $wide_t);
 
-        /// Shifts the bits to the left by a specified amount, `n`,
-        /// wrapping the truncated bits to the end of the resulting integer.
-        ///
-        /// Please note this isn't the same operation as the `<<` shifting operator!
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_left`].")]
         #[inline(always)]
-        pub const fn rotate_left(self, n: u32) -> Self {
-            self.as_unsigned().rotate_left(n).as_signed()
-        }
-
-        /// Shifts the bits to the right by a specified amount, `n`,
-        /// wrapping the truncated bits to the beginning of the resulting
-        /// integer.
-        ///
-        /// Please note this isn't the same operation as the `>>` shifting operator!
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_right`].")]
-        #[inline(always)]
-        pub const fn rotate_right(self, n: u32) -> Self {
-            self.as_unsigned().rotate_right(n).as_signed()
-        }
-
-        /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
-        /// removes any high-order bits of `rhs` that would cause the shift to
-        /// exceed the bitwidth of the type.
-        ///
-        /// Note that this is *not* the same as a rotate-left; the RHS of a wrapping
-        /// shift-left is restricted to the range of the type, rather than the
-        /// bits shifted out of the LHS being returned to the other end.
-        /// The primitive integer types all implement a
-        /// [`rotate_left`](Self::rotate_left) function, which may be what you
-        /// want instead.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_shl`].")]
-        #[inline(always)]
+        #[doc = $crate::shared::bitops::wrapping_shl_doc!($wide_t)]
         pub const fn wrapping_shl(self, rhs: u32) -> Self {
-            #[cfg(not(feature = "limb32"))]
-            let result = math::shl_i128(self.to_ne_wide(), rhs % Self::BITS);
-
-            #[cfg(feature = "limb32")]
-            let result = math::shl_i64(self.to_ne_wide(), rhs % Self::BITS);
-
+            let result = $crate::math::shift::left_iwide(self.to_ne_wide(), rhs % Self::BITS);
             Self::from_ne_wide(result)
         }
 
-        /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where `mask`
-        /// removes any high-order bits of `rhs` that would cause the shift to
-        /// exceed the bitwidth of the type.
-        ///
-        /// Note that this is *not* the same as a rotate-right; the RHS of a
-        /// wrapping shift-right is restricted to the range of the type, rather
-        /// than the bits shifted out of the LHS being returned to the other
-        /// end. The primitive integer types all implement a
-        /// [`rotate_right`](Self::rotate_right) function, which may be what you
-        /// want instead.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_shr`].")]
         #[inline(always)]
+        #[doc = $crate::shared::bitops::wrapping_shr_doc!($wide_t)]
         pub const fn wrapping_shr(self, rhs: u32) -> Self {
-            #[cfg(not(feature = "limb32"))]
-            let result = math::shr_i128(self.to_ne_wide(), rhs % Self::BITS);
-
-            #[cfg(feature = "limb32")]
-            let result = math::shr_i64(self.to_ne_wide(), rhs % Self::BITS);
-
+            let result = $crate::math::shift::right_iwide(self.to_ne_wide(), rhs % Self::BITS);
             Self::from_ne_wide(result)
         }
-    };
-}
-
-macro_rules! int_byte_order_define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        byte_order_define!(type => $u_t, wide_type => $wide_t);
     };
 }
 
@@ -150,34 +67,12 @@ macro_rules! int_casts_define {
         wide_type => $wide_t:ty,
         kind => $kind:ident $(,)?
     ) => {
-        casts_define!(
+        $crate::shared::casts::define!(
+            unsigned_type => $u_t,
+            signed_type => Self,
             bits => $bits,
             kind => $kind,
         );
-
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned integer, as if by an `as` cast.")]
-        #[inline(always)]
-        pub const fn from_unsigned(value: $u_t) -> Self {
-            Self::from_ne_limbs(value.to_ne_limbs())
-        }
-
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed integer, as if by an `as` cast.")]
-        #[inline(always)]
-        pub const fn from_signed(value: Self) -> Self {
-            value
-        }
-
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the unsigned type, as if by an `as` cast.")]
-        #[inline(always)]
-        pub const fn as_unsigned(&self) -> $u_t {
-            <$u_t>::from_ne_limbs(self.to_ne_limbs())
-        }
-
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the signed type, as if by an `as` cast.")]
-        #[inline(always)]
-        pub const fn as_signed(&self) -> Self {
-            *self
-        }
 
         /// Returns the bit pattern of `self` reinterpreted as an unsigned integer
         /// of the same size.
@@ -189,18 +84,6 @@ macro_rules! int_casts_define {
         #[inline(always)]
         pub const fn cast_unsigned(self) -> $u_t {
             self.as_unsigned()
-        }
-    };
-}
-
-macro_rules! int_extensions_define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        extensions_define!(type => $u_t, wide_type => $wide_t);
-
-        /// Get the most significant limb in the buiffer.
-        #[inline(always)]
-        pub const fn most_significant_limb(&self) -> $crate::ILimb {
-            self.get_limb(Self::LIMBS - 1) as $crate::ILimb
         }
     };
 }
@@ -254,7 +137,7 @@ macro_rules! int_ops_define {
             high < 0
         }
 
-        ops_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::ops::define!(type => $u_t, wide_type => $wide_t);
 
         /// Computes the absolute value of `self` without any wrapping
         /// or panicking.
@@ -547,16 +430,10 @@ macro_rules! int_ops_define {
     };
 }
 
-macro_rules! int_bigint_define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        bigint_define!(type => $u_t, wide_type => $wide_t);
-    };
-}
-
 #[rustfmt::skip]
 macro_rules! int_wrapping_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        wrapping_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::wrapping::define!(type => $u_t, wide_type => $wide_t);
 
         /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at
         /// the boundary of the type.
@@ -564,15 +441,7 @@ macro_rules! int_wrapping_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add`].")]
         #[inline(always)]
         pub const fn wrapping_add(self, rhs: Self) -> Self {
-            let lhs = self.to_ne_limbs();
-            let rhs = rhs.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let result = math::wrapping_add_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let result = math::wrapping_add_i32(&lhs, &rhs);
-
+            let result = math::add::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(result)
         }
 
@@ -582,15 +451,7 @@ macro_rules! int_wrapping_define {
         #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_sub`].")]
         #[inline(always)]
         pub const fn wrapping_sub(self, rhs: Self) -> Self {
-            let lhs = self.to_ne_limbs();
-            let rhs = rhs.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let result = math::wrapping_sub_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let result = math::wrapping_sub_i32(&lhs, &rhs);
-
+            let result = math::sub::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(result)
         }
 
@@ -616,15 +477,7 @@ macro_rules! int_wrapping_define {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
         pub const fn wrapping_mul(self, rhs: Self) -> Self {
-            let lhs = self.to_ne_limbs();
-            let rhs = rhs.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_mul_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_mul_i32(&lhs, &rhs);
-
+            let limbs = math::mul::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(limbs)
         }
 
@@ -646,7 +499,7 @@ macro_rules! int_wrapping_define {
             let y = n.unsigned_abs().to_le_limbs();
 
             // get our unsigned division product
-            let (div, rem) = math::div_rem_full(&x, &y);
+            let (div, rem) = math::div::full(&x, &y);
             let mut div = u256::from_le_limbs(div).as_signed();
             let mut rem = u256::from_le_limbs(rem).as_signed();
 
@@ -790,7 +643,7 @@ macro_rules! int_wrapping_define {
 #[rustfmt::skip]
 macro_rules! int_overflowing_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        overflowing_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::overflowing::define!(type => $u_t, wide_type => $wide_t);
 
         /// Calculates `self` + `rhs`.
         ///
@@ -803,13 +656,7 @@ macro_rules! int_overflowing_define {
         pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
-
-            #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_add_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_add_i32(&lhs, &rhs);
-
+            let (limbs, overflowed) = math::add::overflowing_signed(&lhs, &rhs);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -824,13 +671,7 @@ macro_rules! int_overflowing_define {
         pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
-
-            #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_sub_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_sub_i32(&lhs, &rhs);
-
+            let (limbs, overflowed) = math::sub::overflowing_signed(&lhs, &rhs);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -876,13 +717,7 @@ macro_rules! int_overflowing_define {
         pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
-
-            #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_mul_i64(&lhs, &rhs);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_mul_i32(&lhs, &rhs);
-
+            let (limbs, overflowed) = math::mul::overflowing_signed(&lhs, &rhs);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1031,7 +866,7 @@ macro_rules! int_overflowing_define {
 #[rustfmt::skip]
 macro_rules! int_saturating_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        saturating_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::saturating::define!(type => $u_t, wide_type => $wide_t);
 
         /// Saturating integer addition. Computes `self + rhs`, saturating at the
         /// numeric bounds instead of overflowing.
@@ -1160,7 +995,7 @@ macro_rules! int_saturating_define {
 #[rustfmt::skip]
 macro_rules! int_checked_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        checked_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::checked::define!(type => $u_t, wide_type => $wide_t);
 
         /// Checked addition with an unsigned integer. Computes `self + rhs`,
         /// returning `None` if overflow occurred.
@@ -1291,7 +1126,7 @@ macro_rules! int_checked_define {
 #[rustfmt::skip]
 macro_rules! int_strict_define {
     (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        strict_define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::strict::define!(type => $u_t, wide_type => $wide_t);
 
         /// Strict addition with an unsigned integer. Computes `self + rhs`,
         /// panicking if overflow occurred.
@@ -1541,21 +1376,9 @@ macro_rules! int_strict_define {
     };
 }
 
-macro_rules! int_unchecked_define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        unchecked_define!(type => $u_t, wide_type => $wide_t);
-    };
-}
-
-macro_rules! int_unbounded_define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        unbounded_define!(type => $u_t, wide_type => $wide_t);
-    };
-}
-
 macro_rules! int_limb_ops_define {
     () => {
-        limb_ops_define!();
+        $crate::shared::limb::define!();
 
         /// Add a signed limb to the big integer.
         ///
@@ -1636,21 +1459,14 @@ macro_rules! int_limb_ops_define {
     };
 
     (@wrapping) => {
-        limb_ops_define!(@wrapping);
+        $crate::shared::limb::define!(@wrapping);
 
         /// Add an unsigned limb to the big integer, wrapping on overflow.
         ///
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
         pub const fn wrapping_add_ulimb(self, n: ULimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_add_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_add_ulimb_i32(&lhs, n);
-
+            let limbs = math::add::wrapping_ulimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1659,14 +1475,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
         pub const fn wrapping_add_ilimb(self, n: ILimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_add_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_add_ilimb_i32(&lhs, n);
-
+            let limbs = math::add::wrapping_ilimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1676,14 +1485,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
         pub const fn wrapping_sub_ulimb(self, n: ULimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_sub_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_sub_ulimb_i32(&lhs, n);
-
+            let limbs = math::sub::wrapping_ulimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1693,14 +1495,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
         pub const fn wrapping_sub_ilimb(self, n: ILimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_sub_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_sub_ilimb_i32(&lhs, n);
-
+            let limbs = math::sub::wrapping_ilimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1714,14 +1509,7 @@ macro_rules! int_limb_ops_define {
         /// which is identical.
         #[inline(always)]
         pub const fn wrapping_mul_ulimb(self, n: ULimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_mul_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_mul_ulimb_i32(&lhs, n);
-
+            let limbs = math::mul::wrapping_ulimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1733,14 +1521,7 @@ macro_rules! int_limb_ops_define {
         /// performance and optimizes nicely for small multiplications.
         #[inline(always)]
         pub const fn wrapping_mul_ilimb(self, n: ILimb) -> Self {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let limbs = math::wrapping_mul_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let limbs = math::wrapping_mul_ilimb_i32(&lhs, n);
-
+            let limbs = math::mul::wrapping_ilimb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
         }
 
@@ -1753,7 +1534,7 @@ macro_rules! int_limb_ops_define {
         #[inline]
         pub fn wrapping_div_rem_ulimb(self, n: ULimb) -> (Self, ULimb) {
             let x = self.unsigned_abs().to_le_limbs();
-            let (div, mut rem) = math::div_rem_limb(&x, n);
+            let (div, mut rem) = math::div::limb(&x, n);
             let mut div = Self::from_le_limbs(div);
             if self.is_negative() {
                 div = div.wrapping_neg();
@@ -1777,7 +1558,7 @@ macro_rules! int_limb_ops_define {
         #[inline]
         pub fn wrapping_div_rem_ilimb(self, n: ILimb) -> (Self, ILimb) {
             let x = self.unsigned_abs().to_le_limbs();
-            let (div, rem) = math::div_rem_limb(&x, n.unsigned_abs());
+            let (div, rem) = math::div::limb(&x, n.unsigned_abs());
             let mut div = Self::from_le_limbs(div);
             let mut rem = rem as ILimb;
 
@@ -1815,7 +1596,7 @@ macro_rules! int_limb_ops_define {
     };
 
     (@overflowing) => {
-        limb_ops_define!(@overflowing);
+        $crate::shared::limb::define!(@overflowing);
 
         /// Add an unsigned limb to the big integer, returning the value
         /// and if overflow occurred.
@@ -1823,14 +1604,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
         pub const fn overflowing_add_ulimb(self, n: ULimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_add_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_add_ulimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::add::overflowing_ulimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1840,14 +1614,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full addition cannot do.
         #[inline(always)]
         pub const fn overflowing_add_ilimb(self, n: ILimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_add_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_add_ilimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::add::overflowing_ilimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1857,14 +1624,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
         pub const fn overflowing_sub_ulimb(self, n: ULimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_sub_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_sub_ulimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::sub::overflowing_ulimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1874,14 +1634,7 @@ macro_rules! int_limb_ops_define {
         /// This allows optimizations a full subtraction cannot do.
         #[inline(always)]
         pub const fn overflowing_sub_ilimb(self, n: ILimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_sub_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_sub_ilimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::sub::overflowing_ilimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1893,14 +1646,7 @@ macro_rules! int_limb_ops_define {
         /// significantly slower than the wrapping variant.
         #[inline(always)]
         pub const fn overflowing_mul_ulimb(self, n: ULimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_mul_ulimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_mul_ulimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::mul::overflowing_ulimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1912,14 +1658,7 @@ macro_rules! int_limb_ops_define {
         /// significantly slower than the wrapping variant.
         #[inline(always)]
         pub const fn overflowing_mul_ilimb(self, n: ILimb) -> (Self, bool) {
-            let lhs = self.to_ne_limbs();
-
-             #[cfg(not(feature = "limb32"))]
-            let (limbs, overflowed) = math::overflowing_mul_ilimb_i64(&lhs, n);
-
-            #[cfg(feature = "limb32")]
-            let (limbs, overflowed) = math::overflowing_mul_ilimb_i32(&lhs, n);
-
+            let (limbs, overflowed) = math::mul::overflowing_ilimb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
 
@@ -1961,7 +1700,7 @@ macro_rules! int_limb_ops_define {
     };
 
     (@checked) => {
-        limb_ops_define!(@checked);
+        $crate::shared::limb::define!(@checked);
 
         /// Add a signed limb to the big integer, returning None on overflow.
         ///
@@ -2043,10 +1782,10 @@ macro_rules! int_limb_ops_define {
 }
 
 macro_rules! int_traits_define {
-    (type => $t:ty,unsigned_type => $u_t:ty) => {
-        traits_define!($t);
-        shift_define! { @256 base => $t, impl => $u_t }
-        shift_define! { base => $t, impl => $u_t }
+    (type => $t:ident,unsigned_type => $u_t:ty) => {
+        $crate::shared::traits::define!(impl => $t);
+        $crate::shared::shift::define! { big => $t, impl => $u_t }
+        $crate::shared::shift::define! { reference => $t, impl => $u_t }
 
         impl Neg for $t {
             type Output = Self;
@@ -2064,7 +1803,7 @@ macro_rules! int_traits_define {
             }
         }
 
-        ref_trait_define!($t, Neg, neg);
+        $crate::shared::traits::define!(ref => $t, impl => Neg, op => neg,);
 
         impl core::str::FromStr for $t {
             type Err = $crate::ParseIntError;
@@ -2158,11 +1897,13 @@ macro_rules! int_traits_define {
             }
         }
 
-        from_trait_define!($t, i8, from_i8);
-        from_trait_define!($t, i16, from_i16);
-        from_trait_define!($t, i32, from_i32);
-        from_trait_define!($t, i64, from_i64);
-        from_trait_define!($t, i128, from_i128);
+        $crate::shared::traits::define! {
+            to => $t, from => i8, op => from_i8,
+            to => $t, from => i16, op => from_i16,
+            to => $t, from => i32, op => from_i32,
+            to => $t, from => i64, op => from_i64,
+            to => $t, from => i128, op => from_i128,
+        }
 
         impl TryFrom<$u_t> for $t {
             type Error = TryFromIntError;
@@ -2179,18 +1920,13 @@ macro_rules! int_traits_define {
     };
 }
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! int_impl_define {
     (
-        self => $self:ty,
         unsigned_t => $u_t:ty,
         unsigned_wide_t => $wide_u_t:ty,
         signed_wide_t => $wide_s_t:ty,
         bits => $bits:expr,
         max_digits => $max_digits:expr,
-        kind => $kind:ident,
-        short_circuit => $short_circuit:tt,
     ) => {
         int_associated_consts_define!(
             bits => $bits,
@@ -2198,31 +1934,61 @@ macro_rules! int_impl_define {
             wide_type => $wide_s_t,
         );
         int_bitops_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-        int_byte_order_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-        int_cmp_define!(
+        $crate::shared::endian::define!(type => $u_t, wide_type => $wide_s_t);
+        $crate::shared::ord::define!(
             low_type => $wide_u_t,
             high_type => $wide_s_t,
-            short_circuit => $short_circuit,
         );
         int_casts_define!(
             unsigned_type => $u_t,
             bits => $bits,
             wide_type => $wide_s_t,
-            kind => $kind,
+            kind => signed,
         );
-        int_extensions_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
+        $crate::shared::extensions::define!(high_type => $crate::ILimb);
         int_ops_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-        int_bigint_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
+        $crate::shared::bigint::define!(wide_type => $wide_s_t);
         int_wrapping_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_overflowing_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_saturating_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_checked_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
         int_strict_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-        int_unchecked_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-        int_unbounded_define!(unsigned_type => $u_t, wide_type => $wide_s_t);
+        $crate::shared::unchecked::define!(type => $u_t, wide_type => $wide_s_t);
+        $crate::shared::unbounded::define!(type => $u_t, wide_type => $wide_s_t);
         int_limb_ops_define!(@all);
 
-        from_str_radix_define!(true);
-        to_str_radix_define!(true);
+        $crate::parse::define!(true);
+        $crate::write::define!(true);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! int_define {
+    (
+        name => $name:ident,
+        unsigned_t => $u_t:ty,
+        unsigned_wide_t => $wide_u_t:ty,
+        signed_wide_t => $wide_s_t:ty,
+        bits => $bits:expr,
+        max_digits => $max_digits:expr  $(,)?
+    ) => {
+        $crate::shared::int_struct_define!(
+            name => $name,
+            bits => $bits,
+            kind => signed,
+        );
+
+        impl $name {
+            int_impl_define!(
+                unsigned_t => $u_t,
+                unsigned_wide_t => $wide_u_t,
+                signed_wide_t => $wide_s_t,
+                bits => $bits,
+                max_digits => $max_digits,
+            );
+        }
+
+        int_traits_define!(type => $name, unsigned_type => $u_t);
     };
 }

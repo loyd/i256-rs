@@ -11,9 +11,7 @@ pub(crate) const fn digit_to_char(digit: u32, radix: u32) -> u8 {
     }
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! to_str_radix_define {
+macro_rules! define {
     ($is_signed:expr) => {
         /// Write the integer to bytes for the given integer.
         ///
@@ -72,3 +70,5 @@ macro_rules! to_str_radix_define {
         }
     };
 }
+
+pub(crate) use define;

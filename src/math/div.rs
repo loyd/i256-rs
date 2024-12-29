@@ -22,7 +22,7 @@
 //! enhancements.
 //!
 //! [`uint`]: https://github.com/paritytech/parity-common/blob/d3a9327124a66e52ca1114bb8640c02c18c134b8/uint/src/uint.rs#L844
-//! [`arrow]: https://github.com/apache/arrow-rs/blob/fcf4aa4c/arrow-buffer/src/bigint/div.rs
+//! [`arrow`]: https://github.com/apache/arrow-rs/blob/fcf4aa4c/arrow-buffer/src/bigint/div.rs
 
 use core::cmp::Ordering;
 
@@ -41,12 +41,12 @@ use crate::types::{ULimb, UWide};
 ///
 /// Panics if divisor is zero.
 #[inline]
-pub fn div_rem_full<const M: usize, const N: usize>(
+pub fn full<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
     if N == 1 {
-        return div_rem_limb_padded(numerator, divisor[0]);
+        return limb_padded(numerator, divisor[0]);
     }
 
     match cmp(numerator, divisor) {
@@ -56,7 +56,7 @@ pub fn div_rem_full<const M: usize, const N: usize>(
             if is_zero(numerator, 0) {
                 (scalar1(0), scalar1(0))
             } else {
-                div_rem_full_gt(numerator, divisor)
+                full_gt(numerator, divisor)
             }
         },
     }
@@ -69,7 +69,7 @@ pub fn div_rem_full<const M: usize, const N: usize>(
 /// due to the creation of the temporary divisor it
 /// can be significantly slower.
 #[inline]
-pub fn div_rem_wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; M], UWide) {
+pub fn wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; M], UWide) {
     // NOTE: It's way better to keep this optimization outside the comparison.
     if M >= 2 && is_zero(numerator, 2) {
         // Can do as a scalar operation, simple.
@@ -88,7 +88,7 @@ pub fn div_rem_wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> (
     let (quo, rem) = match cmp(numerator, &y) {
         Ordering::Less => ([0; M], truncate(*numerator)),
         Ordering::Equal => return (scalar1(1), 0),
-        Ordering::Greater => div_rem_full_gt(numerator, &y),
+        Ordering::Greater => full_gt(numerator, &y),
     };
     let rem = (rem[0] as UWide) | ((rem[1] as UWide) << ULimb::BITS);
 
@@ -97,7 +97,7 @@ pub fn div_rem_wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> (
 
 /// Division of numerator by a u64 divisor
 #[inline]
-pub fn div_rem_limb<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
+pub fn limb<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
     // quick path optinmization for small values
     if M >= 2 && is_zero(numerator, 2) {
         let lo = numerator[0] as UWide;
@@ -125,13 +125,13 @@ pub fn div_rem_limb<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> (
 /// Internal variant that assumes our numerator >= divisor,
 /// and therefore removes all validation checks.
 #[inline]
-fn div_rem_full_gt<const M: usize, const N: usize>(
+fn full_gt<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
 ) -> ([ULimb; M], [ULimb; N]) {
     let n = last_index(divisor);
     if n == 0 {
-        div_rem_limb_padded(numerator, divisor[0])
+        limb_padded(numerator, divisor[0])
     } else {
         let m = last_index(numerator) - n;
         div_rem_knuth(numerator, divisor, n + 1, m)
@@ -216,11 +216,11 @@ pub const fn scalar2<const N: usize>(value: UWide) -> [ULimb; N] {
 
 /// Division of numerator by a u64 divisor
 #[inline]
-pub fn div_rem_limb_padded<const M: usize, const N: usize>(
+pub fn limb_padded<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: ULimb,
 ) -> ([ULimb; M], [ULimb; N]) {
-    let (numerator, rem) = div_rem_limb(numerator, divisor);
+    let (numerator, rem) = limb(numerator, divisor);
     (numerator, scalar1(rem))
 }
 

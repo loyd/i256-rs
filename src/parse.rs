@@ -40,7 +40,6 @@ pub(crate) const fn char_to_digit(c: u8, radix: u32) -> Option<u32> {
 }
 
 // cannot overflow the buffer, no overflow checking
-#[doc(hidden)]
 macro_rules! unchecked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
@@ -65,7 +64,6 @@ macro_rules! unchecked_loop {
 }
 
 // can overflow the buffer, uses overflow checking
-#[doc(hidden)]
 macro_rules! checked_loop {
     ($t:ty, $digits:ident, $radix:ident, $index:ident, $overflow:ident, $add_op:ident) => {{
         use $crate::parse::char_to_digit;
@@ -96,9 +94,7 @@ macro_rules! checked_loop {
     }};
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! from_str_radix_define {
+macro_rules! define {
     ($is_signed:expr) => {
         /// Converts a string slice in a given base to an integer.
         ///
@@ -123,7 +119,7 @@ macro_rules! from_str_radix_define {
             radix: u32,
         ) -> Result<Self, $crate::error::ParseIntError> {
             use $crate::error::{IntErrorKind, ParseIntError};
-            use $crate::parse::overflow_digits;
+            use $crate::parse::{checked_loop, overflow_digits, unchecked_loop};
 
             if radix < 2 || radix > 36 {
                 panic!("from_str_radix_int: must lie in the range `[2, 36]`");
@@ -162,3 +158,7 @@ macro_rules! from_str_radix_define {
         }
     };
 }
+
+pub(crate) use checked_loop;
+pub(crate) use define;
+pub(crate) use unchecked_loop;

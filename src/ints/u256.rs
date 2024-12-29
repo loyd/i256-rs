@@ -16,29 +16,16 @@
 
 use core::ops::*;
 
-use super::shared_macros::*;
 use crate::{i256, math, ULimb};
 
-int_define!(
+uint_define!(
     name => u256,
+    signed_t => i256,
+    signed_wide_t => i128,
+    unsigned_wide_t => u128,
     bits => 256,
-    kind => unsigned,
+    max_digits => 78,
 );
-
-impl u256 {
-    uint_impl_define!(
-        self => u256,
-        signed_t => i256,
-        signed_wide_t => i128,
-        unsigned_wide_t => u128,
-        bits => 256,
-        max_digits => 78,
-        kind => unsigned,
-        short_circuit => false,
-    );
-}
-
-uint_traits_define!(type => u256, signed_type => i256);
 
 #[cfg(test)]
 mod tests {

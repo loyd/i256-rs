@@ -28,16 +28,19 @@
 // FIXME: Older versions of nightly may require the features
 // `const_bigint_helper_methods`. Remove this comment on 2025/01/01.
 
-#[macro_use]
-mod parse;
+// NOTE: All this has to be defined via macros, due to the lack of full
+// const generic support with associated constants, so we need to define
+// the traits with macros at the high level, for transmutes, etc.
+
 #[macro_use]
 mod util;
-#[macro_use]
-mod write;
 
 mod error;
 mod ints;
+mod parse;
+mod shared;
 mod types;
+mod write;
 
 // exposed only for testing
 pub mod math;

@@ -8,7 +8,10 @@
 // NOTE: This mostly exists for testing and is exposed for that reason.
 #![doc(hidden)]
 
-mod div;
-mod native;
-pub use self::div::{div_rem_full, div_rem_limb, div_rem_wide};
-pub use self::native::*;
+pub mod add;
+pub mod bigint;
+pub mod div;
+pub mod mul;
+pub mod rotate;
+pub mod shift;
+pub mod sub;

@@ -1,7 +1,7 @@
 #[macro_use]
 mod util;
 
-use i256::math::{div_rem_full, div_rem_limb, div_rem_wide};
+use i256::math::div;
 use quickcheck::quickcheck;
 
 fn uwide_div(num: i256::UWide, den: i256::UWide) -> (i256::UWide, i256::UWide) {
@@ -12,7 +12,7 @@ fn uwide_div(num: i256::UWide, den: i256::UWide) -> (i256::UWide, i256::UWide) {
 
     let num = [x0, x1];
     let den = [y0, y1];
-    let (div, rem) = div_rem_full(&num, &den);
+    let (div, rem) = div::full(&num, &den);
 
     let x0 = div[0] as i256::UWide;
     let x1 = div[1] as i256::UWide;
@@ -27,7 +27,7 @@ fn uwide_div_wide(num: i256::UWide, den: i256::ULimb) -> (i256::UWide, i256::ULi
     let x1 = (num >> i256::ULimb::BITS) as i256::ULimb;
 
     let num = [x0, x1];
-    let (div, rem) = div_rem_wide(&num, den as i256::UWide);
+    let (div, rem) = div::wide(&num, den as i256::UWide);
 
     let x0 = div[0] as i256::UWide;
     let x1 = div[1] as i256::UWide;
@@ -40,7 +40,7 @@ fn uwide_div_limb(num: i256::UWide, den: i256::ULimb) -> (i256::UWide, i256::ULi
     let x1 = (num >> i256::ULimb::BITS) as i256::ULimb;
 
     let num = [x0, x1];
-    let (div, rem) = div_rem_limb(&num, den);
+    let (div, rem) = div::limb(&num, den);
 
     let x0 = div[0] as i256::UWide;
     let x1 = div[1] as i256::UWide;
