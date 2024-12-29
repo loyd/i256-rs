@@ -41,67 +41,6 @@ impl i256 {
         kind => signed,
         short_circuit => false,
     );
-
-    /// Shifts the bits to the left by a specified amount, `n`,
-    /// wrapping the truncated bits to the end of the resulting integer.
-    ///
-    /// Please note this isn't the same operation as the `<<` shifting operator!
-    ///
-    /// See [`i128::rotate_left`].
-    #[inline(always)]
-    pub const fn rotate_left(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_left_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Shifts the bits to the right by a specified amount, `n`,
-    /// wrapping the truncated bits to the beginning of the resulting
-    /// integer.
-    ///
-    /// Please note this isn't the same operation as the `>>` shifting operator!
-    ///
-    /// See [`i128::rotate_right`].
-    #[inline(always)]
-    pub const fn rotate_right(self, n: u32) -> Self {
-        let (lo, hi) = math::rotate_right_i128(self.low(), self.high(), n);
-        Self::new(lo, hi)
-    }
-
-    /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
-    /// removes any high-order bits of `rhs` that would cause the shift to
-    /// exceed the bitwidth of the type.
-    ///
-    /// Note that this is *not* the same as a rotate-left; the RHS of a wrapping
-    /// shift-left is restricted to the range of the type, rather than the
-    /// bits shifted out of the LHS being returned to the other end.
-    /// The primitive integer types all implement a
-    /// [`rotate_left`](Self::rotate_left) function, which may be what you
-    /// want instead.
-    ///
-    /// See [`i128::wrapping_shl`].
-    #[inline(always)]
-    pub const fn wrapping_shl(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shl_i128(self.low(), self.high(), rhs % Self::BITS);
-        Self::new(lo, hi)
-    }
-
-    /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where `mask`
-    /// removes any high-order bits of `rhs` that would cause the shift to
-    /// exceed the bitwidth of the type.
-    ///
-    /// Note that this is *not* the same as a rotate-right; the RHS of a
-    /// wrapping shift-right is restricted to the range of the type, rather
-    /// than the bits shifted out of the LHS being returned to the other
-    /// end. The primitive integer types all implement a
-    /// [`rotate_right`](Self::rotate_right) function, which may be what you
-    /// want instead.
-    ///
-    /// See [`i128::wrapping_shr`].
-    #[inline(always)]
-    pub const fn wrapping_shr(self, rhs: u32) -> Self {
-        let (lo, hi) = math::shr_i128(self.low(), self.high(), rhs % Self::BITS);
-        Self::new(lo, hi)
-    }
 }
 
 int_traits_define!(type => i256, unsigned_type => u256);

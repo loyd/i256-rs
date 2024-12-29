@@ -736,24 +736,38 @@ macro_rules! shift_unsigned_impl {
         /// }
         /// ```
         #[inline]
-        pub const fn $shl(x0: $u, x1: $u, shift: u32) -> ($u, $u) {
+        pub const fn $shl<const N: usize>(x: [$u; N], shift: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             const BITS: u32 = <$u>::BITS;
-            debug_assert!(shift < 2 * BITS, "attempt to shift left with overflow");
-            let shift = shift % (2 * BITS);
-            if shift >= BITS {
-                (0, x0.wrapping_shl(shift - BITS))
-            } else if shift == 0 {
-                (x0, x1)
+            debug_assert!(shift < N as u32 * BITS, "attempt to shift left with overflow");
+            let shift = shift % (N as u32 * BITS);
+
+            let mut result = [0; N];
+            if N == 2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let x0 = ne_index!(x[0]);
+                let x1 = ne_index!(x[1]);
+                let (r0, r1) = if shift >= BITS {
+                    (0, x0.wrapping_shl(shift - BITS))
+                } else if shift == 0 {
+                    (x0, x1)
+                } else {
+                    // NOTE: We have `0xABCD_EFGH`, and we want to shift by 1,
+                    // so to `0xBCDE_FGH0`, or we need to carry the `D`. So,
+                    // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
+                    // and then the value needs to be shifted left `<< (4 - 1)`.
+                    let hi = x1.wrapping_shl(shift);
+                    let lo = x0.wrapping_shl(shift);
+                    let carry = x0.wrapping_shr(BITS - shift);
+                    (lo, hi | carry)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1);
             } else {
-                // NOTE: We have `0xABCD_EFGH`, and we want to shift by 1,
-                // so to `0xBCDE_FGH0`, or we need to carry the `D`. So,
-                // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
-                // and then the value needs to be shifted left `<< (4 - 1)`.
-                let hi = x1.wrapping_shl(shift);
-                let lo = x0.wrapping_shl(shift);
-                let carry = x0.wrapping_shr(BITS - shift);
-                (lo, hi | carry)
+                todo!();  // TODO: Implement...
             }
+
+            result
         }
 
         /// Const implementation of `Shr` for internal algorithm use.
@@ -825,24 +839,38 @@ macro_rules! shift_unsigned_impl {
         /// }
         /// ```
         #[inline]
-        pub const fn $shr(x0: $u, x1: $u, shift: u32) -> ($u, $u) {
+        pub const fn $shr<const N: usize>(x: [$u; N], shift: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             const BITS: u32 = <$u>::BITS;
-            debug_assert!(shift < 2 * BITS, "attempt to shift right with overflow");
-            let shift = shift % (2 * BITS);
-            if shift >= BITS {
-                (x1.wrapping_shr(shift - BITS), 0)
-            } else if shift == 0 {
-                (x0, x1)
+            debug_assert!(shift < N as u32 * BITS, "attempt to shift right with overflow");
+            let shift = shift % (N as u32 * BITS);
+
+            let mut result = [0; N];
+            if N == 2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let x0 = ne_index!(x[0]);
+                let x1 = ne_index!(x[1]);
+                let (r0, r1) = if shift >= BITS {
+                    (x1.wrapping_shr(shift - BITS), 0)
+                } else if shift == 0 {
+                    (x0, x1)
+                } else {
+                    // NOTE: We have `0xABCD_EFGH`, and we want to shift by 1,
+                    // so to `0x0ABC_DEFG`, or we need to carry the `D`. So,
+                    // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
+                    // and then the value needs to be shifted left `<< (4 - 1)`.
+                    let hi = x1.wrapping_shr(shift);
+                    let lo = x0.wrapping_shr(shift);
+                    let carry = x1.wrapping_shl(BITS - shift);
+                    (lo | carry, hi)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1);
             } else {
-                // NOTE: We have `0xABCD_EFGH`, and we want to shift by 1,
-                // so to `0x0ABC_DEFG`, or we need to carry the `D`. So,
-                // our mask needs to be `0x000X`, or `0xXXXX >> (4 - 1)`,
-                // and then the value needs to be shifted left `<< (4 - 1)`.
-                let hi = x1.wrapping_shr(shift);
-                let lo = x0.wrapping_shr(shift);
-                let carry = x1.wrapping_shl(BITS - shift);
-                (lo | carry, hi)
+                todo!();  // TODO: Implement...
             }
+
+            result
         }
     )*);
 }
@@ -902,8 +930,16 @@ macro_rules! rotate_unsigned_impl {
         ///     or      eax, ecx
         ///     ret
         /// ```
+        ///
+        /// Note that `x86` supports the [`shld`] and [`shrd`] instructions,
+        /// which make this way faster done as 128-bit integers than smaller
+        /// types, so we prefer using the wide types when available.
+        ///
+        /// [`shld`]: https://www.felixcloutier.com/x86/shld
+        /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
         #[inline]
-        pub const fn $left(x0:$u, x1: $u, n: u32) -> ($u, $u) {
+        pub const fn $left<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             // 0bXYFFFF -> 0bFFFFXY
             const BITS: u32 = <$u>::BITS;
             // First, 0 out all bits above as if we did a narrowing case.
@@ -915,21 +951,32 @@ macro_rules! rotate_unsigned_impl {
             // Then we can just shift on `0xF`.
             //
             // This isn't great but a better than some naive approaches.
-            let n = n % (2 * BITS);
+            let n = n % (N as u32 * BITS);
             let upper = n & !(BITS - 1);
             let n = n & (BITS - 1);
-            let (x0, x1) = if upper != 0 {
-                (x1, x0)
+
+            let mut result = [0; N];
+            if N ==  2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let (x0, x1) = if upper != 0 {
+                    (ne_index!(x[1]), ne_index!(x[0]))
+                } else {
+                    (ne_index!(x[0]), ne_index!(x[1]))
+                };
+                let (r0, r1) = if n == 0 {
+                    (x0, x1)
+                } else {
+                    let hi = (x1.wrapping_shl(n)) | (x0.wrapping_shr(BITS - n));
+                    let lo = (x0.wrapping_shl(n)) | (x1.wrapping_shr(BITS - n));
+                    (lo, hi)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1);
             } else {
-                (x0, x1)
-            };
-            if n == 0 {
-                (x0, x1)
-            } else {
-                let hi = (x1.wrapping_shl(n)) | (x0.wrapping_shr(BITS - n));
-                let lo = (x0.wrapping_shl(n)) | (x1.wrapping_shr(BITS - n));
-                (lo, hi)
+                todo!();  // TODO: Implement
             }
+
+            result
         }
 
         /// Shifts the bits to the right by a specified amount, `n`,
@@ -937,26 +984,45 @@ macro_rules! rotate_unsigned_impl {
         /// integer.
         ///
         /// Please note this isn't the same operation as the `>>` shifting operator!
+        ///
+        /// Note that `x86` supports the [`shld`] and [`shrd`] instructions,
+        /// which make this way faster done as 128-bit integers than smaller
+        /// types, so we prefer using the wide types when available.
+        ///
+        /// [`shld`]: https://www.felixcloutier.com/x86/shld
+        /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
         #[inline]
-        pub const fn $right(x0:$u, x1: $u, n: u32) -> ($u, $u) {
+        pub const fn $right<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             // See rotate_left for the description
             // 0bFFFFXY -> 0bXYFFFF
             const BITS: u32 = <$u>::BITS;
-            let n = n % (2 * BITS);
+            let n = n % (N as u32 * BITS);
             let upper = n & !(BITS - 1);
             let n = n & (BITS - 1);
-            let (x0, x1) = if upper != 0 {
-                (x1, x0)
+
+            let mut result = [0; N];
+            if N ==  2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let (x0, x1) = if upper != 0 {
+                    (ne_index!(x[1]), ne_index!(x[0]))
+                } else {
+                    (ne_index!(x[0]), ne_index!(x[1]))
+                };
+                let (r0, r1) = if n == 0 {
+                    (x0, x1)
+                } else {
+                    let hi = (x1.wrapping_shr(n)) | (x0.wrapping_shl(BITS - n));
+                    let lo = (x0.wrapping_shr(n)) | (x1.wrapping_shl(BITS - n));
+                    (lo, hi)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1);
             } else {
-                (x0, x1)
-            };
-            if n == 0 {
-                (x0, x1)
-            } else {
-                let hi = (x1.wrapping_shr(n)) | (x0.wrapping_shl(BITS - n));
-                let lo = (x0.wrapping_shr(n)) | (x1.wrapping_shl(BITS - n));
-                (lo, hi)
+                todo!();  // TODO: Implement
             }
+
+            result
         }
     )*);
 }
@@ -2002,22 +2068,37 @@ macro_rules! shift_signed_impl {
         /// }
         /// ```
         #[inline]
-        pub const fn $shl(x0: $u, x1: $s, shift: u32) -> ($u, $s) {
+        pub const fn $shl<const N: usize>(x: [$u; N], shift: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             debug_assert!(<$u>::BITS == <$s>::BITS);
+
             const BITS: u32 = <$u>::BITS;
-            debug_assert!(shift < 2 * BITS, "attempt to shift right with overflow");
+            debug_assert!(shift < 2 * BITS, "attempt to shift left with overflow");
             let shift = shift % (2 * BITS);
-            if shift >= BITS {
-                let hi = x0.wrapping_shl(shift - BITS);
-                (0, hi as $s)
-            } else if shift == 0 {
-                (x0, x1)
+
+            let mut result = [0; N];
+            if N == 2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let x0 = ne_index!(x[0]);
+                let x1 = ne_index!(x[1]) as $s;
+                let (r0, r1) = if shift >= BITS {
+                    let hi = x0.wrapping_shl(shift - BITS);
+                    (0, hi as $s)
+                } else if shift == 0 {
+                    (x0, x1)
+                } else {
+                    let hi = x1.wrapping_shl(shift);
+                    let lo = x0.wrapping_shl(shift);
+                    let carry = x0.wrapping_shr(BITS - shift);
+                    (lo, hi | carry as $s)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1 as $u);
             } else {
-                let hi = x1.wrapping_shl(shift);
-                let lo = x0.wrapping_shl(shift);
-                let carry = x0.wrapping_shr(BITS - shift);
-                (lo, hi | carry as $s)
+                todo!();  // TODO: Implement...
             }
+
+            result
         }
 
         /// Const implementation of `Shr` for internal algorithm use.
@@ -2102,25 +2183,40 @@ macro_rules! shift_signed_impl {
         /// }
         /// ```
         #[inline]
-        pub const fn $shr(x0: $u, x1: $s, shift: u32) -> ($u, $s) {
+        pub const fn $shr<const N: usize>(x: [$u; N], shift: u32) -> [$u; N] {
+            assert!(N >= 2, "must have at least 2 limbs");
             debug_assert!(<$u>::BITS == <$s>::BITS);
+
             const BITS: u32 = <$u>::BITS;
             debug_assert!(shift < 2 * BITS, "attempt to shift right with overflow");
             let shift = shift % (2 * BITS);
-            if shift >= BITS {
-                // NOTE: The MSB is 0 if positive and 1 if negative, so this will
-                // always shift to 0 if positive and `-1` if negative.
-                let hi = x1.wrapping_shr(BITS - 1);
-                let lo = x1.wrapping_shr(shift - BITS);
-                (lo as $u, hi)
-            } else if shift == 0 {
-                (x0, x1)
+
+            let mut result = [0; N];
+            if N == 2 {
+                // Simple case, only have to worry about swapping bits, no digits.
+                let x0 = ne_index!(x[0]);
+                let x1 = ne_index!(x[1]) as $s;
+                let (r0, r1) = if shift >= BITS {
+                    // NOTE: The MSB is 0 if positive and 1 if negative, so this will
+                    // always shift to 0 if positive and `-1` if negative.
+                    let hi = x1.wrapping_shr(BITS - 1);
+                    let lo = x1.wrapping_shr(shift - BITS);
+                    (lo as $u, hi)
+                } else if shift == 0 {
+                    (x0, x1)
+                } else {
+                    let hi = x1.wrapping_shr(shift);
+                    let lo = x0.wrapping_shr(shift);
+                    let carry = (x1 as $u).wrapping_shl(BITS - shift);
+                    (lo | carry, hi)
+                };
+                ne_index!(result[0] = r0);
+                ne_index!(result[1] = r1 as $u);
             } else {
-                let hi = x1.wrapping_shr(shift);
-                let lo = x0.wrapping_shr(shift);
-                let carry = (x1 as $u).wrapping_shl(BITS - shift);
-                (lo | carry, hi)
+                todo!();  // TODO: Implement...
             }
+
+            result
         }
     )*);
 }
@@ -2129,108 +2225,6 @@ shift_signed_impl! {
     u32, i32 => shl_i32, shr_i32,
     u64, i64 => shl_i64, shr_i64,
     u128, i128 => shl_i128, shr_i128,
-}
-
-// UNARY OPS - SIGNED
-// ------------------
-
-macro_rules! rotate_signed_impl {
-    ($($u:ty, $s:ty => $left:ident, $right:ident,)*) => ($(
-        /// Shifts the bits to the left by a specified amount, `n`,
-        /// wrapping the truncated bits to the end of the resulting integer.
-        ///
-        /// This is identical to the unsigned variant: `T::MIN rol 1` is
-        /// `1 as T`.
-        ///
-        /// # Assembly
-        ///
-        /// This is basically identical to the unsigned variant. It first
-        /// conditionally swaps the low and high digits, jumps on zero,
-        /// then performs 4 shifts and 2 ors to get the final results.
-        ///
-        /// ```asm
-        /// rotate_left:
-        ///     mov     r8d, edx
-        ///     mov     eax, esi
-        ///     test    r8b, 32
-        ///     mov     edx, edi
-        ///     cmove   edx, esi
-        ///     cmove   eax, edi
-        ///     mov     esi, r8d
-        ///     and     esi, 31
-        ///     je      .LBB
-        ///     mov     edi, edx
-        ///     mov     ecx, esi
-        ///     shl     edi, cl
-        ///     neg     r8b
-        ///     mov     r9d, eax
-        ///     mov     ecx, r8d
-        ///     shr     r9d, cl
-        ///     mov     ecx, esi
-        ///     shl     eax, cl
-        ///     mov     ecx, r8d
-        ///     shr     edx, cl
-        ///     or      r9d, edi
-        ///     or      eax, edx
-        ///     mov     edx, r9d
-        /// .LBB:
-        ///     ret
-        /// ```
-        #[inline]
-        pub const fn $left(x0:$u, x1: $s, n: u32) -> ($u, $s) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            // 0bXYFFFF -> 0bFFFFXY
-            const BITS: u32 = <$u>::BITS;
-            let n = n % (2 * BITS);
-            let upper = n & !(BITS - 1);
-            let n = n & (BITS - 1);
-            let (x0, x1) = if upper != 0 {
-                (x1 as $u, x0)
-            } else {
-                (x0, x1 as $u)
-            };
-            if n == 0 {
-                (x0, x1 as $s)
-            } else {
-                let hi = (x1.wrapping_shl(n)) | (x0.wrapping_shr(BITS - n));
-                let lo = (x0.wrapping_shl(n)) | (x1.wrapping_shr(BITS - n));
-                (lo, hi as $s)
-            }
-        }
-
-        /// Shifts the bits to the right by a specified amount, `n`,
-        /// wrapping the truncated bits to the beginning of the resulting
-        /// integer.
-        ///
-        /// Please note this isn't the same operation as the `>>` shifting operator!
-        #[inline]
-        pub const fn $right(x0:$u, x1: $s, n: u32) -> ($u, $s) {
-            debug_assert!(<$u>::BITS == <$s>::BITS);
-            // 0bFFFFXY -> 0bXYFFFF
-            const BITS: u32 = <$u>::BITS;
-            let n = n % (2 * BITS);
-            let upper = n & !(BITS - 1);
-            let n = n & (BITS - 1);
-            let (x0, x1) = if upper != 0 {
-                (x1 as $u, x0)
-            } else {
-                (x0, x1 as $u)
-            };
-            if n == 0 {
-                (x0, x1 as $s)
-            } else {
-                let hi = (x1.wrapping_shr(n)) | (x0.wrapping_shl(BITS - n));
-                let lo = (x0.wrapping_shr(n)) | (x1.wrapping_shl(BITS - n));
-                (lo, hi as $s)
-            }
-        }
-    )*);
-}
-
-rotate_signed_impl! {
-    u32, i32 => rotate_left_i32, rotate_right_i32,
-    u64, i64 => rotate_left_i64, rotate_right_i64,
-    u128, i128 => rotate_left_i128, rotate_right_i128,
 }
 
 #[cfg(test)]
@@ -2386,28 +2380,37 @@ mod tests {
         );
     }
 
+    fn from_le_shift<T: Copy>(x: [T; 2], y: u32, cb: impl Fn([T; 2], u32) -> [T; 2]) -> [T; 2] {
+        if cfg!(target_endian = "big") {
+            let result = cb([x[1], x[0]], y);
+            [result[1], result[0]]
+        } else {
+            cb(x, y)
+        }
+    }
+
     #[test]
     fn shl_u32_test() {
-        assert_eq!(shl_u32(1, 0, 1), (2, 0));
-        assert_eq!(shl_u32(0, 1, 0), (0, 1));
-        assert_eq!(shl_u32(0, 1, 1), (0, 2));
-        assert_eq!(shl_u32(1, 0, 32), (0, 1));
-        assert_eq!(shl_u32(0, 1, 32), (0, 0));
-        assert_eq!(shl_u32(2, 0, 31), (0, 1));
-        assert_eq!(shl_u32(0, 2, 31), (0, 0));
-        assert_eq!(shl_u32(1, 2, 31), (2147483648, 0));
+        assert_eq!(from_le_shift([1, 0], 1, shl_u32), [2, 0]);
+        assert_eq!(from_le_shift([0, 1], 0, shl_u32), [0, 1]);
+        assert_eq!(from_le_shift([0, 1], 1, shl_u32), [0, 2]);
+        assert_eq!(from_le_shift([1, 0], 32, shl_u32), [0, 1]);
+        assert_eq!(from_le_shift([0, 1], 32, shl_u32), [0, 0]);
+        assert_eq!(from_le_shift([2, 0], 31, shl_u32), [0, 1]);
+        assert_eq!(from_le_shift([0, 2], 31, shl_u32), [0, 0]);
+        assert_eq!(from_le_shift([1, 2], 31, shl_u32), [2147483648, 0]);
     }
 
     #[test]
     fn shr_u32_test() {
-        assert_eq!(shr_u32(1, 0, 1), (0, 0));
-        assert_eq!(shr_u32(0, 1, 0), (0, 1));
-        assert_eq!(shr_u32(0, 1, 1), (2147483648, 0));
-        assert_eq!(shr_u32(1, 0, 32), (0, 0));
-        assert_eq!(shr_u32(0, 1, 32), (1, 0));
-        assert_eq!(shr_u32(2, 0, 31), (0, 0));
-        assert_eq!(shr_u32(0, 2, 31), (4, 0));
-        assert_eq!(shr_u32(1, 2, 31), (4, 0));
+        assert_eq!(from_le_shift([1, 0], 1, shr_u32), [0, 0]);
+        assert_eq!(from_le_shift([0, 1], 0, shr_u32), [0, 1]);
+        assert_eq!(from_le_shift([0, 1], 1, shr_u32), [2147483648, 0]);
+        assert_eq!(from_le_shift([1, 0], 32, shr_u32), [0, 0]);
+        assert_eq!(from_le_shift([0, 1], 32, shr_u32), [1, 0]);
+        assert_eq!(from_le_shift([2, 0], 31, shr_u32), [0, 0]);
+        assert_eq!(from_le_shift([0, 2], 31, shr_u32), [4, 0]);
+        assert_eq!(from_le_shift([1, 2], 31, shr_u32), [4, 0]);
     }
 
     #[test]

@@ -83,60 +83,6 @@ macro_rules! associated_consts_define {
     };
 }
 
-/// Define the high and low implementations for 4 limb implementations.
-///
-/// This is specific for **ONLY** our 256-bit integers (4x 64-bit limbs).
-macro_rules! high_low_define {
-    (
-        self => $t:ty,
-        low_type => $lo_t:ty,
-        high_type => $hi_t:ty,
-        kind => $kind:ident $(,)?
-    ) => {
-        /// Flatten two 128-bit integers as bytes to flat, 32 bytes.
-        ///
-        /// We keep this as a standalone function since Rust can sometimes
-        /// vectorize this in a way using purely safe Rust cannot, which
-        /// improves performance while ensuring we are very careful.
-        /// These are guaranteed to be plain old [`data`] with a fixed size
-        /// alignment, and padding.
-        ///
-        /// [`data`]: https://rust-lang.github.io/unsafe-code-guidelines/layout/scalars.html#fixed-width-integer-types
-        #[inline(always)]
-        const fn to_flat_bytes(x: [u8; 16], y: [u8; 16]) -> [u8; Self::BYTES] {
-            // SAFETY: plain old data
-            unsafe { core::mem::transmute::<[[u8; 16]; 2], [u8; Self::BYTES]>([x, y]) }
-        }
-
-        #[doc = concat!("Create a new `", stringify!($t), "` from the low and high bits.")]
-        #[inline(always)]
-        pub const fn new(lo: $lo_t, hi: $hi_t) -> Self {
-            let inst = if cfg!(target_endian = "big") {
-                Self::from_be_bytes(Self::to_flat_bytes(hi.to_be_bytes(), lo.to_be_bytes()))
-            } else {
-                Self::from_le_bytes(Self::to_flat_bytes(lo.to_le_bytes(), hi.to_le_bytes()))
-            };
-            assert!(inst.limbs.len() ==  4, "cannot create type with more than 4 limbs.");
-
-            inst
-        }
-
-        #[doc = concat!("Get the high ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
-        #[inline(always)]
-        pub const fn high(self) -> $hi_t {
-            assert!(self.limbs.len() ==  4, "cannot get high bits with more than 4 limbs.");
-            self.get_wide(1) as $hi_t
-        }
-
-        #[doc = concat!("Get the low ", stringify!($crate::ULimb::BITS), " bits of the ", stringify!($kind), " integer.")]
-        #[inline(always)]
-        pub const fn low(self) -> $lo_t {
-            assert!(self.limbs.len() ==  4, "cannot get low bits with more than 4 limbs.");
-            self.get_wide(0) as $lo_t
-        }
-    };
-}
-
 macro_rules! cmp_define {
     (
         @ord
@@ -2715,7 +2661,7 @@ macro_rules! traits_define {
             #[inline(always)]
             #[allow(clippy::suspicious_arithmetic_impl)]
             fn shl(self, other: Self) -> Self::Output {
-                let shift = other.low() as u32 & u32::MAX;
+                let shift = other.least_significant_limb() as u32 & u32::MAX;
                 self.wrapping_shl(shift)
             }
         }
@@ -2729,7 +2675,7 @@ macro_rules! traits_define {
             #[inline(always)]
             #[allow(clippy::suspicious_arithmetic_impl)]
             fn shr(self, other: Self) -> Self::Output {
-                let shift = other.low() as u32 & u32::MAX;
+                let shift = other.least_significant_limb() as u32 & u32::MAX;
                 self.wrapping_shr(shift)
             }
         }
@@ -2797,7 +2743,6 @@ pub(crate) use checked_define;
 pub(crate) use cmp_define;
 pub(crate) use extensions_define;
 pub(crate) use from_trait_define;
-pub(crate) use high_low_define;
 pub(crate) use int_define;
 pub(crate) use limb_ops_define;
 pub(crate) use ops_define;

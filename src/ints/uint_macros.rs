@@ -4,25 +4,6 @@
 //! implementing your own produces many errors, look through
 //! and custom implement the types required.
 
-/// Define the high and low implementations for 4 limb implementations.
-///
-/// This is specific for **ONLY** our 256-bit integers (4x 64-bit limbs).
-macro_rules! uint_high_low_define {
-    (
-        self => $t:ty,
-        low_type => $lo_t:ty,
-        high_type => $hi_t:ty,
-        kind => $kind:ident $(,)?
-    ) => {
-        high_low_define!(
-            self => $t,
-            low_type => $lo_t,
-            high_type => $hi_t,
-            kind => $kind,
-        );
-    };
-}
-
 #[rustfmt::skip]
 macro_rules! uint_associated_consts_define {
     (
@@ -81,6 +62,87 @@ macro_rules! uint_cmp_define {
 macro_rules! uint_bitops_define {
     (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
         bitops_define!(type => $s_t, wide_type => $wide_t);
+
+        /// Shifts the bits to the left by a specified amount, `n`,
+        /// wrapping the truncated bits to the end of the resulting integer.
+        ///
+        /// Please note this isn't the same operation as the `<<` shifting operator!
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_left`].")]
+        #[inline(always)]
+        pub const fn rotate_left(self, n: u32) -> Self {
+            #[cfg(not(feature = "limb32"))]
+            let result = math::rotate_left_u128(self.to_ne_wide(), n);
+
+            #[cfg(feature = "limb32")]
+            let result = math::rotate_left_u64(self.to_ne_wide(), n);
+
+            Self::from_ne_wide(result)
+        }
+
+        /// Shifts the bits to the right by a specified amount, `n`,
+        /// wrapping the truncated bits to the beginning of the resulting
+        /// integer.
+        ///
+        /// Please note this isn't the same operation as the `>>` shifting operator!
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_right`].")]
+        #[inline(always)]
+        pub const fn rotate_right(self, n: u32) -> Self {
+            #[cfg(not(feature = "limb32"))]
+            let result = math::rotate_right_u128(self.to_ne_wide(), n);
+
+            #[cfg(feature = "limb32")]
+            let result = math::rotate_right_u64(self.to_ne_wide(), n);
+
+            Self::from_ne_wide(result)
+        }
+
+        /// Panic-free bitwise shift-left; yields `self << mask(rhs)`,
+        /// where `mask` removes any high-order bits of `rhs` that
+        /// would cause the shift to exceed the bitwidth of the type.
+        ///
+        /// Note that this is *not* the same as a rotate-left; the
+        /// RHS of a wrapping shift-left is restricted to the range
+        /// of the type, rather than the bits shifted out of the LHS
+        /// being returned to the other end. The primitive integer
+        /// types all implement a [`rotate_left`](Self::rotate_left) function,
+        /// which may be what you want instead.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_shl`].")]
+        #[inline(always)]
+        pub const fn wrapping_shl(self, rhs: u32) -> Self {
+            #[cfg(not(feature = "limb32"))]
+            let result = math::shl_u128(self.to_ne_wide(), rhs % Self::BITS);
+
+            #[cfg(feature = "limb32")]
+            let result = math::shl_u64(self.to_ne_wide(), rhs % Self::BITS);
+
+            Self::from_ne_wide(result)
+        }
+
+        /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`,
+        /// where `mask` removes any high-order bits of `rhs` that
+        /// would cause the shift to exceed the bitwidth of the type.
+        ///
+        /// Note that this is *not* the same as a rotate-right; the
+        /// RHS of a wrapping shift-right is restricted to the range
+        /// of the type, rather than the bits shifted out of the LHS
+        /// being returned to the other end. The primitive integer
+        /// types all implement a [`rotate_right`](Self::rotate_right) function,
+        /// which may be what you want instead.
+        ///
+        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_shr`].")]
+        #[inline(always)]
+        pub const fn wrapping_shr(self, rhs: u32) -> Self {
+            #[cfg(not(feature = "limb32"))]
+            let result = math::shr_u128(self.to_ne_wide(), rhs % Self::BITS);
+
+            #[cfg(feature = "limb32")]
+            let result = math::shr_u64(self.to_ne_wide(), rhs % Self::BITS);
+
+            Self::from_ne_wide(result)
+        }
     };
 }
 
@@ -1719,12 +1781,6 @@ macro_rules! uint_impl_define {
         );
         uint_bitops_define!(signed_type => $s_t, wide_type => $wide_u_t);
         uint_byte_order_define!(signed_type => $s_t, wide_type => $wide_u_t);
-        uint_high_low_define!(
-            self => $self,
-            low_type => $wide_u_t,
-            high_type => $wide_u_t,
-            kind => $kind,
-        );
         uint_cmp_define!(
             low_type => $wide_u_t,
             high_type => $wide_u_t,
