@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overflow checks for `shr` and `shl` implementations.
 - Fixed the padding and formatting for `Octal`, `UpperHex`, `LowerHex` and `Binary`.
 - Division by an unsigned factor from a signed big integer, to correctly adjust the quotient and remainder for floor division.
+- Optimize unsigned, checked multiplication by looking for immediate overflow.
 
 ## Changed
 

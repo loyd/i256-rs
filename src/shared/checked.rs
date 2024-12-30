@@ -37,6 +37,16 @@ macro_rules! define {
         #[doc = concat!("See [`", stringify!($wide_t), "::checked_mul`].")]
         #[inline(always)]
         pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+            if !Self::IS_SIGNED {
+                // quick optimization: if we have 2, 2^N * 2^M will be 2^(N+M),
+                // so we can quickly check overflow.
+                match (self.checked_ilog2(), rhs.checked_ilog2()) {
+                    (Some(l), Some(r)) if l + r > Self::BITS - 1 => return None,
+                    (None, _) | (_, None) => return Some(Self::from_u8(0)),
+                    _ => (),
+                };
+            }
+
             let (value, overflowed) = self.overflowing_mul(rhs);
             if !overflowed {
                 Some(value)

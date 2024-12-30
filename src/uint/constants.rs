@@ -26,6 +26,9 @@ macro_rules! define {
         pub const fn max_value() -> Self {
             Self::from_ne_limbs([$crate::ULimb::MAX; Self::LIMBS])
         }
+
+        #[doc = $crate::shared::constants::is_signed_doc!()]
+        pub const IS_SIGNED: bool = false;
     };
 }
 

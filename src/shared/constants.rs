@@ -79,3 +79,12 @@ See [`", stringify!($wide_t), "::max_value`].
 }
 
 pub(crate) use max_value_doc;
+
+#[rustfmt::skip]
+macro_rules! is_signed_doc {
+    () => {
+        "If the integer is signed, that is, can contain negative numbers."
+    };
+}
+
+pub(crate) use is_signed_doc;
