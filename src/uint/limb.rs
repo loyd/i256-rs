@@ -95,7 +95,7 @@ macro_rules! define {
         pub fn wrapping_div_rem_ulimb(self, n: $crate::ULimb) -> (Self, $crate::ULimb) {
             let x = self.to_le_limbs();
             let (div, rem) = $crate::math::div::limb(&x, n);
-            let div = u256::from_le_limbs(div);
+            let div = Self::from_le_limbs(div);
             (div, rem)
         }
     };

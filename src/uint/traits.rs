@@ -37,7 +37,7 @@ macro_rules! define {
             }
         }
 
-        impl core::fmt::LowerHex for u256 {
+        impl core::fmt::LowerHex for $t {
             #[inline]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 let mut buffer = [0u8; Self::BITS as usize];
@@ -59,7 +59,7 @@ macro_rules! define {
             }
         }
 
-        impl core::fmt::UpperHex for u256 {
+        impl core::fmt::UpperHex for $t {
             #[inline]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 let mut buffer = [0u8; Self::BITS as usize];
@@ -103,7 +103,7 @@ macro_rules! define {
             }
         }
 
-        impl core::fmt::Octal for u256 {
+        impl core::fmt::Octal for $t {
             #[inline]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
                 let mut buffer = [0u8; Self::BITS as usize];
