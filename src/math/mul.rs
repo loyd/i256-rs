@@ -86,7 +86,6 @@ macro_rules! unsigned_define {
             let mut carry: $t;
             let mut vij: $t;
 
-            // this is effectively an 2D matrix for long multiplication.
             let mut i: usize = 0;
             let mut j: usize;
             while i < M {
@@ -506,7 +505,6 @@ macro_rules! widening_define {
             let mut carry: $t;
             let mut vij: $t;
 
-            // this is effectively an 2D matrix for long multiplication.
             let mut i: usize = 0;
             let mut j: usize;
             while i < M {

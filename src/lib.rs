@@ -90,8 +90,18 @@ define!(
     signed_wide => i128,
     bits => 256,
 );
+define!(
+    unsigned => U512,
+    signed => I512,
+    unsigned_wide => u128,
+    signed_wide => i128,
+    bits => 512,
+);
 
+/// The 256-bit unsigned integer type.
 pub type u256 = U256;
+
+/// The 256-bit signed integer type.
 pub type i256 = I256;
 
 #[cfg(test)]
