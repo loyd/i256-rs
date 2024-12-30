@@ -2,7 +2,7 @@
 
 macro_rules! define {
     (primitive => $base:ty, impl => $($t:ty)*) => ($(
-        impl Shl<$t> for $base {
+        impl core::ops::Shl<$t> for $base {
             type Output = Self;
 
             #[inline(always)]
@@ -16,7 +16,7 @@ macro_rules! define {
             }
         }
 
-        impl Shr<$t> for $base {
+        impl core::ops::Shr<$t> for $base {
             type Output = Self;
 
             #[inline(always)]
@@ -32,7 +32,7 @@ macro_rules! define {
     )*);
 
     (big => $base:ty, impl => $($t:ty)*) => ($(
-        impl Shl<$t> for $base {
+        impl core::ops::Shl<$t> for $base {
             type Output = Self;
 
             #[inline(always)]
@@ -48,7 +48,7 @@ macro_rules! define {
             }
         }
 
-        impl Shr<$t> for $base {
+        impl core::ops::Shr<$t> for $base {
             type Output = Self;
 
             #[inline(always)]
@@ -66,48 +66,60 @@ macro_rules! define {
     )*);
 
     (reference => $base:ty, impl => $($t:ty)*) => ($(
-        impl Shl<&$t> for $base {
-            type Output = <Self as Shl>::Output;
+        impl core::ops::Shl<&$t> for $base {
+            type Output = <Self as core::ops::Shl>::Output;
 
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shl(self, other: &$t) -> Self::Output {
+                use core::ops::Shl;
                 self.shl(*other)
             }
         }
 
-        impl ShlAssign<$t> for $base {
+        impl core::ops::ShlAssign<$t> for $base {
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shl_assign(&mut self, other: $t) {
+                use core::ops::Shl;
                 *self = self.shl(other);
             }
         }
 
-        impl ShlAssign<&$t> for $base {
+        impl core::ops::ShlAssign<&$t> for $base {
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shl_assign(&mut self, other: &$t) {
+                use core::ops::Shl;
                 *self = self.shl(other);
             }
         }
 
-        impl Shr<&$t> for $base {
-            type Output = <Self as Shr>::Output;
+        impl core::ops::Shr<&$t> for $base {
+            type Output = <Self as core::ops::Shr>::Output;
 
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shr(self, other: &$t) -> Self::Output {
+                use core::ops::Shr;
                 self.shr(*other)
             }
         }
 
-        impl ShrAssign<$t> for $base {
+        impl core::ops::ShrAssign<$t> for $base {
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shr_assign(&mut self, other: $t) {
+                use core::ops::Shr;
                 *self = self.shr(other);
             }
         }
 
-        impl ShrAssign<&$t> for $base {
+        impl core::ops::ShrAssign<&$t> for $base {
             #[inline(always)]
+            #[allow(unused_imports)]
             fn shr_assign(&mut self, other: &$t) {
+                use core::ops::Shr;
                 *self = self.shr(other);
             }
         }

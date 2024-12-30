@@ -211,10 +211,10 @@ macro_rules! define {
     };
 
     (@all) => {
-        limb_define!();
-        limb_define!(@wrapping);
-        limb_define!(@overflowing);
-        limb_define!(@checked);
+        $crate::shared::limb::define!();
+        $crate::shared::limb::define!(@wrapping);
+        $crate::shared::limb::define!(@overflowing);
+        $crate::shared::limb::define!(@checked);
     };
 }
 

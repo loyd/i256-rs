@@ -4,8 +4,7 @@
 macro_rules! define {
     (
         bits =>
-        $bits:expr,max_digits =>
-        $max_digits:expr,wide_type =>
+        $bits:expr,wide_type =>
         $wide_t:ty,low_type =>
         $lo_t:ty,high_type =>
         $hi_t:ty $(,)?
@@ -34,9 +33,6 @@ macro_rules! define {
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::BITS`].")]
         pub const BITS: u32 = $bits;
-
-        /// The number of decimal digits for the largest magnitude value.
-        pub const MAX_DIGITS: usize = $max_digits;
 
         // Internal use only
 

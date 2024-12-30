@@ -234,7 +234,7 @@ pub(crate) use wrapping_shr_doc;
 
 macro_rules! traits {
     ($t:ty) => {
-        impl BitAnd for $t {
+        impl core::ops::BitAnd for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -242,7 +242,7 @@ macro_rules! traits {
                 self.bitand_const(rhs)
             }
         }
-        impl BitOr for $t {
+        impl core::ops::BitOr for $t {
             type Output = $t;
 
             #[inline(always)]
@@ -251,7 +251,7 @@ macro_rules! traits {
             }
         }
 
-        impl BitXor for $t {
+        impl core::ops::BitXor for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -261,9 +261,9 @@ macro_rules! traits {
         }
 
         $crate::shared::traits::define! {
-            type => $t, impl => BitAnd, op => bitand, assign => BitAndAssign, assign_op => bitand_assign,
-            type => $t, impl => BitOr, op => bitor, assign => BitOrAssign, assign_op => bitor_assign,
-            type => $t, impl => BitXor, op => bitxor, assign => BitXorAssign, assign_op => bitxor_assign,
+            type => $t, impl => core::ops::BitAnd, op => bitand, assign => core::ops::BitAndAssign, assign_op => bitand_assign,
+            type => $t, impl => core::ops::BitOr, op => bitor, assign => core::ops::BitOrAssign, assign_op => bitor_assign,
+            type => $t, impl => core::ops::BitXor, op => bitxor, assign => core::ops::BitXorAssign, assign_op => bitxor_assign,
         }
     };
 }

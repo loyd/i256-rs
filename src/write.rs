@@ -46,12 +46,12 @@ macro_rules! define {
             };
 
             // This isn't optimized at all.
-            let mut rem: ULimb;
+            let mut rem: $crate::ULimb;
             let mut index = buffer.len();
             let limit = Self::from_u32(radix);
             while self.ge_const(limit) && index > start_index {
                 index -= 1;
-                (self, rem) = self.div_rem_ulimb(radix as ULimb);
+                (self, rem) = self.div_rem_ulimb(radix as $crate::ULimb);
                 buffer[index] = $crate::write::digit_to_char(rem as u32, radix);
             }
 

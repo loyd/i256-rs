@@ -1,18 +1,23 @@
 //! Helpers and logic for working with traits.
 
 macro_rules! define {
+    // NOTE: A lot of this looks horrifying but it's so we can
+    // have a trait with a required namespace prefix, that is
+    // optional. This is mostly so we can avoid importing
+    // `core::ops` everywhere.
+
     // Implment a trait, just only with the op and no assign.
     ($(
         type => $t:ty,
-        impl => $trait:ident,
+        impl => $trait:ident $(:: $ns:ident)*,
         op => $op:ident,
     )*) => ($(
-        impl $trait<&$t> for $t {
-            type Output = <Self as $trait>::Output;
+        impl $trait $(::$ns)* <&$t> for $t {
+            type Output = <Self as $trait $(::$ns)* >::Output;
 
             #[inline(always)]
             fn $op(self, rhs: &Self) -> Self::Output {
-                self.$op(*rhs)
+                <Self as $trait $(::$ns)* > :: $op(self, *rhs)
             }
         }
     )*);
@@ -20,31 +25,31 @@ macro_rules! define {
     // Implement a trait, including the op and the assign in place op.
     ($(
         type => $t:ty,
-        impl => $trait:ident,
+        impl => $trait:ident $(:: $ns1:ident)*,
         op => $op:ident,
-        assign => $assign:ident,
+        assign => $assign:ident $(:: $ns2:ident)*,
         assign_op => $op_assign:ident,
     )*) => ($(
-        impl $trait<&$t> for $t {
-            type Output = <Self as $trait>::Output;
+        impl $trait $(::$ns1)* <&$t> for $t {
+            type Output = <Self as $trait $(::$ns1)* >::Output;
 
             #[inline(always)]
             fn $op(self, rhs: &Self) -> Self::Output {
-                self.$op(*rhs)
+                <Self as $trait $(::$ns1)* > :: $op(self, *rhs)
             }
         }
 
-        impl $assign for $t {
+        impl $assign $(::$ns2)* for $t {
             #[inline(always)]
             fn $op_assign(&mut self, other: Self) {
-                *self = self.$op(other);
+                *self = <Self as $trait $(::$ns1)* > :: $op(*self, other);
             }
         }
 
-        impl $assign<&$t> for $t {
+        impl $assign $(::$ns2)* <&$t> for $t {
             #[inline(always)]
             fn $op_assign(&mut self, other: &Self) {
-                *self = self.$op(other);
+                *self = <Self as $trait $(::$ns1)* > :: $op(*self, *other);
             }
         }
     )*);
@@ -67,16 +72,16 @@ macro_rules! define {
     // Create an impl trait for a reference, with optional arguments
     ($(
         ref => $t:ty,
-        impl => $trait:ident,
+        impl => $trait:ident $(:: $ns:ident)*,
         op => $op:ident,
         $(args => $($args:ident:$type:ty,)* ;)?
     )*) => ($(
-        impl $trait for &$t {
-            type Output = <$t as $trait>::Output;
+        impl $trait $(::$ns)* for &$t {
+            type Output = <$t as $trait $(::$ns)* >::Output;
 
             #[inline(always)]
             fn $op(self $($(, $args: $type)*)?) -> Self::Output {
-                $trait::$op(*self $($(, $args)*)?)
+                $trait $(::$ns)* :: $op(*self $($(, $args)*)?)
             }
         }
     )*);

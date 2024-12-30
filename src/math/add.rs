@@ -221,7 +221,7 @@ unsigned_define!(
     carrying => carrying_add_u64,
 );
 
-limb_function!(wrapping_unsigned, wrapping_u64, wrapping_u64, &[ULimb; N], ret => [ULimb; N]);
+limb_function!(wrapping_unsigned, wrapping_u64, wrapping_u32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_unsigned, overflowing_u64, overflowing_u32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
 limb_function!(wrapping_limb, wrapping_limb_u64, wrapping_limb_u32, &[ULimb; N], ULimb, ret => [ULimb; N]);
@@ -568,7 +568,7 @@ signed_define!(
     carrying => carrying_add_u64,
 );
 
-limb_function!(wrapping_signed, wrapping_i64, wrapping_i64, &[ULimb; N], ret => [ULimb; N]);
+limb_function!(wrapping_signed, wrapping_i64, wrapping_i32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_signed, overflowing_i64, overflowing_i32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
 limb_function!(wrapping_ulimb, wrapping_ulimb_i64, wrapping_ulimb_i32, &[ULimb; N], ULimb, ret => [ULimb; N]);

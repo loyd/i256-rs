@@ -47,7 +47,7 @@ pub(crate) use define;
 
 macro_rules! traits {
     ($t:ty) => {
-        impl Add for $t {
+        impl core::ops::Add for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -63,7 +63,7 @@ macro_rules! traits {
             }
         }
 
-        impl Div for $t {
+        impl core::ops::Div for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -79,7 +79,7 @@ macro_rules! traits {
             }
         }
 
-        impl Mul for $t {
+        impl core::ops::Mul for $t {
             type Output = $t;
 
             #[inline(always)]
@@ -95,7 +95,7 @@ macro_rules! traits {
             }
         }
 
-        impl Rem for $t {
+        impl core::ops::Rem for $t {
             type Output = $t;
 
             #[inline(always)]
@@ -111,7 +111,7 @@ macro_rules! traits {
             }
         }
 
-        impl Sub for $t {
+        impl core::ops::Sub for $t {
             type Output = $t;
 
             #[inline(always)]
@@ -128,14 +128,14 @@ macro_rules! traits {
         }
 
         $crate::shared::traits::define! {
-            type => $t, impl => Add, op => add, assign => AddAssign, assign_op => add_assign,
-            type => $t, impl => Div, op => div, assign => DivAssign, assign_op => div_assign,
-            type => $t, impl => Mul, op => mul, assign => MulAssign, assign_op => mul_assign,
-            type => $t, impl => Rem, op => rem, assign => RemAssign, assign_op => rem_assign,
-            type => $t, impl => Sub, op => sub, assign => SubAssign, assign_op => sub_assign,
+            type => $t, impl => core::ops::Add, op => add, assign => core::ops::AddAssign, assign_op => add_assign,
+            type => $t, impl => core::ops::Div, op => div, assign => core::ops::DivAssign, assign_op => div_assign,
+            type => $t, impl => core::ops::Mul, op => mul, assign => core::ops::MulAssign, assign_op => mul_assign,
+            type => $t, impl => core::ops::Rem, op => rem, assign => core::ops::RemAssign, assign_op => rem_assign,
+            type => $t, impl => core::ops::Sub, op => sub, assign => core::ops::SubAssign, assign_op => sub_assign,
         }
 
-        impl Not for $t {
+        impl core::ops::Not for $t {
             type Output = $t;
 
             #[inline(always)]
@@ -144,7 +144,7 @@ macro_rules! traits {
             }
         }
 
-        impl Shl for $t {
+        impl core::ops::Shl for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -155,7 +155,7 @@ macro_rules! traits {
             }
         }
 
-        impl Shr for $t {
+        impl core::ops::Shr for $t {
             type Output = Self;
 
             #[inline(always)]
@@ -167,14 +167,14 @@ macro_rules! traits {
         }
 
         $crate::shared::traits::define! {
-            ref => $t, impl => Not, op => not,
-            ref => $t, impl => Shl, op => shl, args => other: &$t, ;
-            ref => $t, impl => Shr, op => shr, args => other: &$t, ;
+            ref => $t, impl => core::ops::Not, op => not,
+            ref => $t, impl => core::ops::Shl, op => shl, args => other: &$t, ;
+            ref => $t, impl => core::ops::Shr, op => shr, args => other: &$t, ;
         }
 
         $crate::shared::traits::define! {
-            type => $t, impl => Shl, op => shl,
-            type => $t, impl => Shr, op => shr,
+            type => $t, impl => core::ops::Shl, op => shl,
+            type => $t, impl => core::ops::Shr, op => shr,
         }
     };
 }
