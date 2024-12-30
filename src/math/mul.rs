@@ -6,7 +6,7 @@
 #![doc(hidden)]
 
 use super::bigint::{mac_u32, mac_u64};
-use crate::{ILimb, ULimb};
+use crate::{ILimb, IWide, ULimb, UWide};
 
 // NOTE: Division and remainders aren't supported due to the difficulty in
 // implementation. See `div.rs` for the implementation.
@@ -55,9 +55,11 @@ macro_rules! unsigned_define {
         $t:ty,wide =>
         $w:ty,wrapping_full =>
         $wrapping_full:ident,wrapping_limb =>
-        $wrapping_limb:ident,overflowing_full =>
+        $wrapping_limb:ident,wrapping_wide =>
+        $wrapping_wide:ident,overflowing_full =>
         $overflowing_full:ident,overflowing_limb =>
-        $overflowing_limb:ident,mac =>
+        $overflowing_limb:ident,overflowing_wide =>
+        $overflowing_wide:ident,mac =>
         $mac:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
@@ -120,6 +122,14 @@ macro_rules! unsigned_define {
         #[inline(always)]
         pub const fn $wrapping_limb<const N: usize>(x: &[$t; N], y: $t) -> [$t; N] {
             $wrapping_full(&x, &[y])
+        }
+
+        /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $wrapping_wide<const N: usize>(x: &[$t; N], y: $w) -> [$t; N] {
+            let lo = y as $t;
+            let hi = (y >> <$t>::BITS) as $t;
+            $wrapping_full(&x, &[lo, hi])
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -196,6 +206,14 @@ macro_rules! unsigned_define {
         pub const fn $overflowing_limb<const N: usize>(x: &[$t; N], y: $t) -> ([$t; N], bool) {
             $overflowing_full(&x, &[y])
         }
+
+        /// Const implementation of `overflowing_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $overflowing_wide<const N: usize>(x: &[$t; N], y: $w) -> ([$t; N], bool) {
+            let lo = y as $t;
+            let hi = (y >> <$t>::BITS) as $t;
+            $overflowing_full(&x, &[lo, hi])
+        }
     };
 }
 
@@ -204,8 +222,10 @@ unsigned_define!(
     wide => u64,
     wrapping_full => wrapping_u32,
     wrapping_limb => wrapping_limb_u32,
+    wrapping_wide => wrapping_wide_u32,
     overflowing_full => overflowing_u32,
     overflowing_limb => overflowing_limb_u32,
+    overflowing_wide => overflowing_wide_u32,
     mac => mac_u32,
 );
 unsigned_define!(
@@ -213,30 +233,43 @@ unsigned_define!(
     wide => u128,
     wrapping_full => wrapping_u64,
     wrapping_limb => wrapping_limb_u64,
+    wrapping_wide => wrapping_wide_u64,
     overflowing_full => overflowing_u64,
     overflowing_limb => overflowing_limb_u64,
+    overflowing_wide => overflowing_wide_u64,
     mac => mac_u64,
 );
 
 limb_function!(wrapping_unsigned, wrapping_u64, wrapping_u32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_unsigned, overflowing_u64, overflowing_u32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
+// limb
 limb_function!(wrapping_limb, wrapping_limb_u64, wrapping_limb_u32, &[ULimb; N], ULimb, ret => [ULimb; N]);
 limb_function!(overflowing_limb, overflowing_limb_u64, overflowing_limb_u32, &[ULimb; N], ULimb, ret => ([ULimb; N], bool));
+
+// wide
+limb_function!(wrapping_wide, wrapping_wide_u64, wrapping_wide_u32, &[ULimb; N], UWide, ret => [ULimb; N]);
+limb_function!(overflowing_wide, overflowing_wide_u64, overflowing_wide_u32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
 
 macro_rules! signed_define {
     (
         unsigned =>
-        $u:ty,signed =>
-        $s:ty,wrapping_unsigned =>
+        $u:ty,unsigned_wide =>
+        $uw:ty,signed =>
+        $s:ty,signed_wide =>
+        $sw:ty,wrapping_unsigned =>
         $wrapping_unsigned:ident,wrapping_full =>
         $wrapping_full:ident,wrapping_ulimb =>
         $wrapping_ulimb:ident,wrapping_ilimb =>
-        $wrapping_ilimb:ident,overflowing_unsigned =>
+        $wrapping_ilimb:ident,wrapping_uwide =>
+        $wrapping_uwide:ident,wrapping_iwide =>
+        $wrapping_iwide:ident,overflowing_unsigned =>
         $overflowing_unsigned:ident,overflowing_full =>
         $overflowing_full:ident,overflowing_ulimb =>
         $overflowing_ulimb:ident,overflowing_ilimb =>
-        $overflowing_ilimb:ident,
+        $overflowing_ilimb:ident,overflowing_uwide =>
+        $overflowing_uwide:ident,overflowing_iwide =>
+        $overflowing_iwide:ident,
     ) => {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         ///
@@ -302,6 +335,16 @@ macro_rules! signed_define {
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $wrapping_uwide<const N: usize>(x: &[$u; N], y: $uw) -> [$u; N] {
+            let mut rhs = [0; 2];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            let lo = y as $u;
+            $wrapping_unsigned(&x, &rhs)
+        }
+
+        /// Const implementation of `wrapping_mul` for internal algorithm use.
         ///
         /// Returns the value, wrapping on overflow.
         ///
@@ -334,6 +377,19 @@ macro_rules! signed_define {
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
             ne_index!(rhs[0] = y as $u);
+            $wrapping_unsigned(&x, &rhs)
+        }
+
+        /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $wrapping_iwide<const N: usize>(x: &[$u; N], y: $sw) -> [$u; N] {
+            // NOTE: This does not work like above, but there is a trick.
+            // Widen the type and we can do the exact same approach.
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
+            let y = y as $uw;
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
             $wrapping_unsigned(&x, &rhs)
         }
 
@@ -427,6 +483,15 @@ macro_rules! signed_define {
             $overflowing_full(&x, &rhs)
         }
 
+        /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $overflowing_uwide<const N: usize>(x: &[$u; N], y: $uw) -> ([$u; N], bool) {
+            let mut rhs = [0; N];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $overflowing_full(&x, &rhs)
+        }
+
         /// Const implementation of `overflowing_mul` for internal algorithm use.
         ///
         /// Returns the value, wrapping on overflow.
@@ -457,41 +522,71 @@ macro_rules! signed_define {
             ne_index!(rhs[0] = y as $u);
             $overflowing_full(&x, &rhs)
         }
+
+        /// Const implementation of `overflowing_mul` for internal algorithm use.
+        #[inline(always)]
+        pub const fn $overflowing_iwide<const N: usize>(x: &[$u; N], y: $sw) -> ([$u; N], bool) {
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
+            let y = y as $uw;
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $overflowing_full(&x, &rhs)
+        }
     };
 }
 
 signed_define!(
     unsigned => u32,
+    unsigned_wide => u64,
     signed => i32,
+    signed_wide => i64,
     wrapping_unsigned => wrapping_u32,
     wrapping_full => wrapping_i32,
     wrapping_ulimb => wrapping_ulimb_i32,
     wrapping_ilimb => wrapping_ilimb_i32,
+    wrapping_uwide => wrapping_uwide_i32,
+    wrapping_iwide => wrapping_iwide_i32,
     overflowing_unsigned => overflowing_u32,
     overflowing_full => overflowing_i32,
     overflowing_ulimb => overflowing_ulimb_i32,
     overflowing_ilimb => overflowing_ilimb_i32,
+    overflowing_uwide => overflowing_uwide_i32,
+    overflowing_iwide => overflowing_iwide_i32,
 );
 signed_define!(
     unsigned => u64,
+    unsigned_wide => u128,
     signed => i64,
+    signed_wide => i128,
     wrapping_unsigned => wrapping_u64,
     wrapping_full => wrapping_i64,
     wrapping_ulimb => wrapping_ulimb_i64,
     wrapping_ilimb => wrapping_ilimb_i64,
+    wrapping_uwide => wrapping_uwide_i64,
+    wrapping_iwide => wrapping_iwide_i64,
     overflowing_unsigned => overflowing_u64,
     overflowing_full => overflowing_i64,
     overflowing_ulimb => overflowing_ulimb_i64,
     overflowing_ilimb => overflowing_ilimb_i64,
+    overflowing_uwide => overflowing_uwide_i64,
+    overflowing_iwide => overflowing_iwide_i64,
 );
 
 limb_function!(wrapping_signed, wrapping_i64, wrapping_i32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_signed, overflowing_i64, overflowing_i32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
+// limb
 limb_function!(wrapping_ulimb, wrapping_ulimb_i64, wrapping_ulimb_i32, &[ULimb; N], ULimb, ret => [ULimb; N]);
 limb_function!(wrapping_ilimb, wrapping_ilimb_i64, wrapping_ilimb_i32, &[ULimb; N], ILimb, ret => [ULimb; N]);
 limb_function!(overflowing_ulimb, overflowing_ulimb_i64, overflowing_ulimb_i32, &[ULimb; N], ULimb, ret => ([ULimb; N], bool));
 limb_function!(overflowing_ilimb, overflowing_ilimb_i64, overflowing_ilimb_i32, &[ULimb; N], ILimb, ret => ([ULimb; N], bool));
+
+// wide
+limb_function!(wrapping_uwide, wrapping_uwide_i64, wrapping_uwide_i32, &[ULimb; N], UWide, ret => [ULimb; N]);
+limb_function!(wrapping_iwide, wrapping_iwide_i64, wrapping_iwide_i32, &[ULimb; N], IWide, ret => [ULimb; N]);
+limb_function!(overflowing_uwide, overflowing_uwide_i64, overflowing_uwide_i32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
+limb_function!(overflowing_iwide, overflowing_iwide_i64, overflowing_iwide_i32, &[ULimb; N], IWide, ret => ([ULimb; N], bool));
 
 macro_rules! widening_define {
     (type => $t:ty,name => $name:ident,mac => $mac:ident $(,)?) => {

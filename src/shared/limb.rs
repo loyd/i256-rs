@@ -2,7 +2,9 @@
 
 macro_rules! define {
     () => {
-        /// Add an unsigned limb to the big integer.
+        // LIMB
+
+        /// Add [`ULimb`][crate::ULimb] to the big integer.
         ///
         #[doc = $crate::shared::docs::limb_doc!(addition)]
         #[inline(always)]
@@ -18,7 +20,7 @@ macro_rules! define {
             }
         }
 
-        /// Subtract an unsigned limb from the big integer.
+        /// Subtract [`ULimb`][crate::ULimb] from the big integer.
         ///
         #[doc = $crate::shared::docs::limb_doc!(subtraction)]
         #[inline(always)]
@@ -34,7 +36,7 @@ macro_rules! define {
             }
         }
 
-        /// Multiply our big integer by an unsigned limb.
+        /// Multiply our big integer by [`ULimb`][crate::ULimb].
         ///
         #[doc = $crate::shared::docs::limb_doc!(multiplication)]
         #[inline(always)]
@@ -51,7 +53,7 @@ macro_rules! define {
         }
 
         /// Get the quotient and remainder of our big integer divided
-        /// by an unsigned limb.
+        /// by [`ULimb`][crate::ULimb].
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
         ///
@@ -71,7 +73,7 @@ macro_rules! define {
             }
         }
 
-        /// Get the quotient of our big integer divided by an unsigned limb.
+        /// Get the quotient of our big integer divided by [`ULimb`][crate::ULimb].
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
         #[inline(always)]
@@ -80,7 +82,7 @@ macro_rules! define {
             self.div_rem_ulimb(n).0
         }
 
-        /// Get the remainder of our big integer divided by an unsigned limb.
+        /// Get the remainder of our big integer divided by [`ULimb`][crate::ULimb].
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
         #[inline(always)]
@@ -88,10 +90,113 @@ macro_rules! define {
         pub fn rem_ulimb(self, n: $crate::ULimb) -> $crate::ULimb {
             self.div_rem_ulimb(n).1
         }
+
+        // WIDE
+
+        /// Add [`UWide`][crate::UWide] to the big integer.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn add_uwide(self, n: $crate::UWide) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_add_uwide(n)
+            } else {
+                match self.checked_add_uwide(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to add with overflow"),
+                }
+            }
+        }
+
+        /// Subtract [`UWide`][crate::UWide] from the big integer.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn sub_uwide(self, n: $crate::UWide) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_sub_uwide(n)
+            } else {
+                match self.checked_sub_uwide(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to subtract with overflow"),
+                }
+            }
+        }
+
+        /// Multiply our big integer by [`UWide`][crate::UWide].
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn mul_uwide(self, n: $crate::UWide) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_mul_uwide(n)
+            } else {
+                match self.checked_mul_uwide(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to multiply with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`UWide`][crate::UWide].
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        ///
+        /// # Panics
+        ///
+        /// This panics if the divisor is 0.
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_rem_uwide(self, n: $crate::UWide) -> (Self, $crate::UWide) {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_div_rem_uwide(n)
+            } else {
+                match self.checked_div_rem_uwide(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to divide with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient of our big integer divided by [`UWide`][crate::UWide].
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_uwide(self, n: $crate::UWide) -> Self {
+            self.div_rem_uwide(n).0
+        }
+
+        /// Get the remainder of our big integer divided by [`UWide`][crate::UWide].
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
+            self.div_rem_uwide(n).1
+        }
+
+        // U32
+
+        // TODO: Add
+
+        // U64
+
+        // TODO: Add
+
+        // U128
+
+        // TODO: Add
     };
 
     (@wrapping) => {
-        /// Get the quotient of our big integer divided by an unsigned limb,
+        // LIMB
+
+        /// Get the quotient of our big integer divided by [`ULimb`][crate::ULimb],
         /// wrapping on overflow.
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
@@ -101,7 +206,7 @@ macro_rules! define {
             self.wrapping_div_rem_ulimb(n).0
         }
 
-        /// Get the remainder of our big integer divided by an unsigned limb,
+        /// Get the remainder of our big integer divided by [`ULimb`][crate::ULimb],
         /// wrapping on overflow.
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
@@ -110,11 +215,47 @@ macro_rules! define {
         pub fn wrapping_rem_ulimb(self, n: $crate::ULimb) -> $crate::ULimb {
             self.wrapping_div_rem_ulimb(n).1
         }
+
+        // WIDE
+
+        /// Get the quotient of our big integer divided by [`UWide`][crate::UWide],
+        /// wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_uwide(self, n: $crate::UWide) -> Self {
+            self.wrapping_div_rem_uwide(n).0
+        }
+
+        /// Get the remainder of our big integer divided by [`UWide`][crate::UWide],
+        /// wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
+            self.wrapping_div_rem_uwide(n).1
+        }
+
+        // U32
+
+        // TODO: Add
+
+        // U64
+
+        // TODO: Add
+
+        // U128
+
+        // TODO: Add
     };
 
     (@overflowing) => {
+        // LIMB
+
         /// Get the quotient and remainder of our big integer divided
-        /// by an unsigned limb, returning the value and if overflow
+        /// by [`ULimb`][crate::ULimb], returning the value and if overflow
         /// occurred.
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
@@ -124,7 +265,7 @@ macro_rules! define {
         }
 
         /// Get the quotient of our big integer divided
-        /// by an unsigned limb, returning the value and if overflow
+        /// by [`ULimb`][crate::ULimb], returning the value and if overflow
         /// occurred.
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
@@ -136,7 +277,7 @@ macro_rules! define {
         }
 
         /// Get the remainder of our big integer divided
-        /// by an unsigned limb, returning the value and if overflow
+        /// by [`ULimb`][crate::ULimb], returning the value and if overflow
         /// occurred.
         ///
         #[doc = $crate::shared::docs::limb_doc!(division)]
@@ -146,10 +287,60 @@ macro_rules! define {
             let (value, overflowed) = self.overflowing_div_rem_ulimb(n);
             (value.1, overflowed)
         }
+
+        // WIDE
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`UWide`][crate::UWide], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline]
+        pub fn overflowing_div_rem_uwide(self, n: $crate::UWide) -> ((Self, $crate::UWide), bool) {
+            (self.wrapping_div_rem_uwide(n), false)
+        }
+
+        /// Get the quotient of our big integer divided
+        /// by [`UWide`][crate::UWide], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_div_uwide(self, n: $crate::UWide) -> (Self, bool) {
+            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
+            (value.0, overflowed)
+        }
+
+        /// Get the remainder of our big integer divided
+        /// by [`UWide`][crate::UWide], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_rem_uwide(self, n: $crate::UWide) -> ($crate::UWide, bool) {
+            let (value, overflowed) = self.overflowing_div_rem_uwide(n);
+            (value.1, overflowed)
+        }
+
+        // U32
+
+        // TODO: Add
+
+        // U64
+
+        // TODO: Add
+
+        // U128
+
+        // TODO: Add
     };
 
     (@checked) => {
-        /// Add an unsigned limb to the big integer, returning None on overflow.
+        // LIMB
+
+        /// Add [`ULimb`][crate::ULimb] to the big integer, returning None on overflow.
         ///
         #[doc = $crate::shared::docs::limb_doc!(addition)]
         #[inline(always)]
@@ -163,7 +354,7 @@ macro_rules! define {
             }
         }
 
-        /// Subtract an unsigned limb from the big integer, returning None on overflow.
+        /// Subtract [`ULimb`][crate::ULimb] from the big integer, returning None on overflow.
         ///
         #[doc = $crate::shared::docs::limb_doc!(addition)]
         #[inline(always)]
@@ -177,7 +368,7 @@ macro_rules! define {
             }
         }
 
-        /// Multiply our big integer by an unsigned limb, returning None on overflow.
+        /// Multiply our big integer by [`ULimb`][crate::ULimb], returning None on overflow.
         ///
         #[doc = $crate::shared::docs::limb_doc!(multiplication)]
         #[inline(always)]
@@ -223,6 +414,95 @@ macro_rules! define {
         pub fn checked_rem_ulimb(self, n: $crate::ULimb) -> Option<$crate::ULimb> {
             Some(self.checked_div_rem_ulimb(n)?.1)
         }
+
+        // WIDE
+
+        /// Add [`UWide`][crate::UWide] to the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_add_uwide(self, n: $crate::UWide) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_add_uwide(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Subtract [`UWide`][crate::UWide] from the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_sub_uwide(self, n: $crate::UWide) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_sub_uwide(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Multiply our big integer by [`UWide`][crate::UWide], returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_mul_uwide(self, n: $crate::UWide) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_mul_uwide(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline]
+        pub fn checked_div_rem_uwide(self, n: $crate::UWide) -> Option<(Self, $crate::UWide)> {
+            if n == 0 {
+                None
+            } else {
+                Some(self.wrapping_div_rem_uwide(n))
+            }
+        }
+
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_div_uwide(self, n: $crate::UWide) -> Option<Self> {
+            Some(self.checked_div_rem_uwide(n)?.0)
+        }
+
+        /// Get the remainder of our big integer divided by a signed
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_rem_uwide(self, n: $crate::UWide) -> Option<$crate::UWide> {
+            Some(self.checked_div_rem_uwide(n)?.1)
+        }
+
+        // U32
+
+        // TODO: Add
+
+        // U64
+
+        // TODO: Add
+
+        // U128
+
+        // TODO: Add
     };
 
     (@all) => {

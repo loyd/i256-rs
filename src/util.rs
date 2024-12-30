@@ -44,6 +44,8 @@ macro_rules! swap_array {
 }
 
 /// Conditionally implement a function correctly based on the types.
+///
+/// Note this also supports wide API methods, with the same overloads.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! limb_function {

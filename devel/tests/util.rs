@@ -258,7 +258,7 @@ macro_rules! signed_op_equal {
 macro_rules! unsigned_limb_op_equal {
     ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
         let x = util::to_u256($x0, $x1);
-        let fres = x.$full(i256::u256::from_ulimb($y));
+        let fres = x.$full(i256::u256::from($y));
         let lres = x.$limb($y);
 
         $cmp(fres, lres)

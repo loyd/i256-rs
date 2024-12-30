@@ -121,6 +121,22 @@ macro_rules! limb_doc {
 pub(crate) use limb_doc;
 
 #[rustfmt::skip]
+macro_rules! wide_doc {
+    ($op:ident) => {
+        concat!(
+"
+This allows may allows optimizations a full ", stringify!($op), " cannot do.
+However, performance can be highly variable and you should always benchmark
+your results. A full description of the performance tradeoffs with wide types
+can be found in the documentation for [`UWide`][crate::UWide].
+"
+        )
+    };
+}
+
+pub(crate) use wide_doc;
+
+#[rustfmt::skip]
 macro_rules! as_cast_doc {
     ($bits:literal, $kind:ident, $to:expr) => {
         concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " integer to ", $to, ", as if by an `as` cast.")
