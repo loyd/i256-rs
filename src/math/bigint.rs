@@ -10,7 +10,8 @@ macro_rules! define {
         $w:ty,add =>
         $add:ident,sub =>
         $sub:ident,mul =>
-        $mul:ident,signed => false
+        $mul:ident,mac =>
+        $mac:ident,signed => false
         $(,)?
     ) => {
         /// Calculates `self` + `rhs` + `carry` and checks for overflow.
@@ -38,6 +39,14 @@ macro_rules! define {
         #[inline(always)]
         pub const fn $mul(lhs: $t, rhs: $t, carry: $t) -> ($t, $t) {
             let value = (lhs as $w) * (rhs as $w) + (carry as $w);
+            (value as $t, (value >> <$t>::BITS) as $t)
+        }
+
+        /// Multiply/add/carry, or `a + (b * c) + carry`.
+        #[must_use]
+        #[inline(always)]
+        pub const fn $mac(a: $t, b: $t, c: $t, carry: $t) -> ($t, $t) {
+            let value = (a as $w) + (b as $w) * (c as $w) + (carry as $w);
             (value as $t, (value >> <$t>::BITS) as $t)
         }
     };
@@ -70,6 +79,7 @@ define!(
     add => carrying_add_u32,
     sub => borrowing_sub_u32,
     mul => carrying_mul_u32,
+    mac => mac_u32,
     signed => false,
 );
 define!(
@@ -78,6 +88,7 @@ define!(
     add => carrying_add_u64,
     sub => borrowing_sub_u64,
     mul => carrying_mul_u64,
+    mac => mac_u64,
     signed => false,
 );
 define!(
