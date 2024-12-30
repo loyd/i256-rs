@@ -11,9 +11,7 @@ pub(crate) const fn digit_to_char(digit: u32, radix: u32) -> u8 {
     }
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! to_str_radix_define {
+macro_rules! define {
     ($is_signed:expr) => {
         /// Write the integer to bytes for the given integer.
         ///
@@ -48,12 +46,12 @@ macro_rules! to_str_radix_define {
             };
 
             // This isn't optimized at all.
-            let mut rem: ULimb;
+            let mut rem: $crate::ULimb;
             let mut index = buffer.len();
             let limit = Self::from_u32(radix);
             while self.ge_const(limit) && index > start_index {
                 index -= 1;
-                (self, rem) = self.div_rem_ulimb(radix as ULimb);
+                (self, rem) = self.div_rem_ulimb(radix as $crate::ULimb);
                 buffer[index] = $crate::write::digit_to_char(rem as u32, radix);
             }
 
@@ -72,3 +70,5 @@ macro_rules! to_str_radix_define {
         }
     };
 }
+
+pub(crate) use define;
