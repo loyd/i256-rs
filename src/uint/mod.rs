@@ -18,6 +18,7 @@ pub(crate) mod bitops;
 pub(crate) mod casts;
 pub(crate) mod checked;
 pub(crate) mod constants;
+pub(crate) mod extensions;
 pub(crate) mod limb;
 pub(crate) mod ops;
 pub(crate) mod overflowing;
@@ -70,7 +71,7 @@ macro_rules! define {
                 wide_type => $wide_u_t,
                 kind => unsigned,
             );
-            $crate::shared::extensions::define!(high_type => $crate::ULimb);
+            $crate::uint::extensions::define!(high_type => $crate::ULimb);
             $crate::uint::ops::define!(signed_type => $s_t, wide_type => $wide_u_t);
             $crate::shared::bigint::define!(wide_type => $wide_u_t);
             $crate::uint::wrapping::define!(signed_type => $s_t, wide_type => $wide_u_t);

@@ -30,6 +30,9 @@ macro_rules! define {
             ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MAX as $crate::ULimb);
             Self::from_ne_limbs(limbs)
         }
+
+        #[doc = $crate::shared::constants::is_signed_doc!()]
+        pub const IS_SIGNED: bool = true;
     };
 }
 

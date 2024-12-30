@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `to_str_radix`.
 - Add support for 32-bit limbs.
 - `most_significant_limb` and `least_significant_limb` methods.
+- Added `widening_mul` and `carrying_mul` methods.
 
 ## Fixed
 
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overflow checks for `shr` and `shl` implementations.
 - Fixed the padding and formatting for `Octal`, `UpperHex`, `LowerHex` and `Binary`.
 - Division by an unsigned factor from a signed big integer, to correctly adjust the quotient and remainder for floor division.
+- Optimize unsigned, checked multiplication by looking for immediate overflow.
 
 ## Changed
 

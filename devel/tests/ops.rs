@@ -319,6 +319,22 @@ quickcheck! {
         }
     }
 
+    fn u256_low_quickcheck(x0: u128, x1: u128) -> bool {
+        util::to_u256(x0, x1).low().as_u128() == x0
+    }
+
+    fn u256_high_quickcheck(x0: u128, x1: u128) -> bool {
+        util::to_u256(x0, x1).high().as_u128() == x1
+    }
+
+    fn u256_high_mul_quickcheck(x0: u128, x1: u128, y0: u128, y1: u128) -> bool {
+        let x = util::to_u256(x0, x1);
+        let y = util::to_u256(y0, y1);
+        let expected = x.widening_mul(y).1;
+        let actual = x.high_mul(y);
+        expected == actual
+    }
+
     fn i256_wrapping_add_quickcheck(x0: u128, x1: i128, y0: u128, y1: i128) -> bool {
         signed_op_equal!(wrap x0, x1, y0, y1, wrapping_add)
     }
@@ -857,4 +873,15 @@ fn checked_rem_ulimb_tests() {
     let (quo, rem) = num.wrapping_div_rem_ulimb(den);
     assert_eq!(rem, 18446744073709551614);
     assert_eq!(quo, i256::i256::from_i128(-18446744073709551618));
+}
+
+#[test]
+fn widening_mul_tests() {
+    let x = i256::u256::from_le_u64([0, 0, 1, 0]);
+    let y = i256::u256::from_le_u64([1, 0, 0, 0]);
+    let (lo, hi) = x.widening_mul(y);
+    assert_eq!(lo, x.wrapping_mul(y));
+    assert_eq!(lo.to_le_u64(), [0, 0, 1, 0]);
+    assert_eq!(hi.to_le_u64(), [0, 0, 0, 0]);
+    assert_eq!(hi, x.high_mul(y));
 }
