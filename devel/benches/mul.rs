@@ -104,6 +104,19 @@ macro_rules! add_group {
                 ilimb_idata.iter(),
                 bench_op!(overflowing_mul_ilimb, i256::i256, i256::ILimb)
             );
+
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-check-bnum"),
+                bnum_udata.iter(),
+                bench_op!(checked_mul, BnumU256)
+            );
+            add_bench!(
+                group,
+                concat!($prefix, "::unsigned-check-256"),
+                u256_udata.iter(),
+                bench_op!(checked_mul, i256::u256)
+            );
         }
     };
 }
