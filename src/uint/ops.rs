@@ -256,6 +256,61 @@ macro_rules! define {
             let xor = self.bitxor_const(rhs);
             xor.wrapping_shr(1).wrapping_add(self.bitand_const(rhs))
         }
+
+        /// Calculates the complete product `self * rhs` without the possibility to overflow.
+        ///
+        /// This returns the low-order (wrapping) bits and the high-order (overflow) bits
+        /// of the result as two separate values, in that order.
+        ///
+        /// If you also need to add a carry to the wide result, then you want
+        /// [`Self::carrying_mul`] instead.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// Please note that this example is shared between integer types.
+        /// Which explains why `u32` is used here.
+        ///
+        /// ```rust,ignore
+        /// #![feature(bigint_helper_methods)]
+        /// assert_eq!(5u32.widening_mul(2), (10, 0));
+        /// assert_eq!(1_000_000_000u32.widening_mul(10), (1410065408, 2));
+        /// ```
+        ///
+        /// See [`u64::widening_mul`].
+        ///
+        /// <div class="warning">
+        /// This is a nightly-only experimental API in the Rust core implementation,
+        /// and therefore is subject to change at any time.
+        /// </div>
+        pub const fn widening_mul(self, rhs: Self) -> (Self, Self) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (lo, hi) = $crate::math::mul::widening(&lhs, &rhs);
+            (Self::from_ne_limbs(lo), Self::from_ne_limbs(hi))
+        }
+
+        /// Calculates the "full multiplication" `self * rhs + carry`
+        /// without the possibility to overflow.
+        ///
+        /// This returns the low-order (wrapping) bits and the high-order (overflow) bits
+        /// of the result as two separate values, in that order.
+        ///
+        /// Performs "long multiplication" which takes in an extra amount to add, and may return an
+        /// additional amount of overflow. This allows for chaining together multiple
+        /// multiplications to create "big integers" which represent larger values.
+        ///
+        /// If you don't need the `carry`, then you can use [`Self::widening_mul`] instead.
+        pub const fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let (lo, hi) = $crate::math::mul::widening(&lhs, &rhs);
+            let (lo, overflowed) = Self::from_ne_limbs(lo).overflowing_add(carry);
+            let hi = Self::from_ne_limbs(hi).add_ulimb(overflowed as $crate::ULimb);
+
+            (lo, hi)
+        }
     };
 }
 

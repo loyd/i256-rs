@@ -288,4 +288,14 @@ quickcheck! {
         let actual = unsplit(result[0], result[1]);
         expected == actual as i64
     }
+
+    fn widening_mul_quickcheck(x: u64, y: u64) -> bool {
+        let (x0, x1) = split(x as u64);
+        let (y0, y1) = split(y as u64);
+        let (lo, hi) = mul::widening_u32(&[x0, x1], &[y0, y1]);
+        let expected = (x as u128) * (y as u128);
+        let lo = unsplit(lo[0], lo[1]) as u128;
+        let hi = unsplit(hi[0], hi[1]) as u128;
+        expected == lo | (hi << 64)
+    }
 }

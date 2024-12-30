@@ -494,6 +494,65 @@ limb_function!(wrapping_ilimb, wrapping_ilimb_i64, wrapping_ilimb_i32, &[ULimb; 
 limb_function!(overflowing_ulimb, overflowing_ulimb_i64, overflowing_ulimb_i32, &[ULimb; N], ULimb, ret => ([ULimb; N], bool));
 limb_function!(overflowing_ilimb, overflowing_ilimb_i64, overflowing_ilimb_i32, &[ULimb; N], ILimb, ret => ([ULimb; N], bool));
 
+macro_rules! widening_define {
+    (type => $t:ty,name => $name:ident,mac => $mac:ident $(,)?) => {
+        /// Widening multiplication, which returns both the low and high bits.
+        ///
+        /// This cannot overflow, since all overflow is stored in the high bits.
+        #[inline(always)]
+        pub const fn $name<const M: usize>(x: &[$t; M], y: &[$t; M]) -> ([$t; M], [$t; M]) {
+            let mut lo: [$t; M] = [0; M];
+            let mut hi: [$t; M] = [0; M];
+            let mut carry: $t;
+            let mut vij: $t;
+
+            // this is effectively an 2D matrix for long multiplication.
+            let mut i: usize = 0;
+            let mut j: usize;
+            while i < M {
+                carry = 0;
+                j = 0;
+                let xi = ne_index!(x[i]);
+                while j < M {
+                    let ij = i + j;
+                    let yj = ne_index!(y[j]);
+                    if ij < M {
+                        (vij, carry) = $mac(ne_index!(lo[ij]), xi, yj, carry);
+                        ne_index!(lo[ij] = vij);
+                    } else {
+                        (vij, carry) = $mac(ne_index!(hi[ij - M]), xi, yj, carry);
+                        ne_index!(hi[ij - M] = vij);
+                    }
+                    j += 1;
+                }
+
+                let ij = i + j;
+                if ij < M {
+                    ne_index!(lo[ij] = carry);
+                } else {
+                    ne_index!(hi[ij - M] = carry);
+                }
+                i += 1;
+            }
+
+            (lo, hi)
+        }
+    };
+}
+
+widening_define!(
+    type => u32,
+    name => widening_u32,
+    mac => mac_u32,
+);
+widening_define!(
+    type => u64,
+    name => widening_u64,
+    mac => mac_u64,
+);
+
+limb_function!(widening, widening_u64, widening_u32, &[ULimb; N], ret => ([ULimb; N], [ULimb; N]));
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -519,6 +578,19 @@ mod tests {
         if cfg!(target_endian = "big") {
             let (result, overflowed) = cb(&[x[1], x[0]], &[y[1], y[0]]);
             ([result[1], result[0]], overflowed)
+        } else {
+            cb(x, y)
+        }
+    }
+
+    fn from_le_wide<T: Copy>(
+        x: &[T; 2],
+        y: &[T; 2],
+        cb: impl Fn(&[T; 2], &[T; 2]) -> ([T; 2], [T; 2]),
+    ) -> ([T; 2], [T; 2]) {
+        if cfg!(target_endian = "big") {
+            let r = cb(&[x[1], x[0]], &[y[1], y[0]]);
+            ([r.0[1], r.0[0]], [r.1[1], r.1[0]])
         } else {
             cb(x, y)
         }
@@ -623,6 +695,16 @@ mod tests {
         assert_eq!(
             from_le_over(&[u32::MAX, i32::MIN as u32], &[0, 0], overflowing_i32),
             ([0, 0], false)
+        );
+    }
+
+    #[test]
+    fn widening_mul_i32_test() {
+        assert_eq!(from_le_wide(&[1, 0], &[0, 1], widening_u32), ([0, 1], [0, 0]));
+        assert_eq!(from_le_wide(&[0, 1], &[0, 1], widening_u32), ([0, 0], [1, 0]));
+        assert_eq!(
+            from_le_wide(&[u32::MAX, u32::MAX], &[u32::MAX, u32::MAX], widening_u32),
+            ([1, 0], [u32::MAX - 1, u32::MAX])
         );
     }
 }
