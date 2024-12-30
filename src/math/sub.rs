@@ -98,14 +98,11 @@ macro_rules! unsigned_define {
             let mut result = [0; N];
             let mut c: bool = false;
             let mut vi: $u;
-            while index < N - 1 {
+            while index < N {
                 (vi, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
                 ne_index!(result[index] = vi);
                 index += 1;
             }
-
-            let (vn, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
-            ne_index!(result[index] = vn);
 
             (result, c)
         }
@@ -195,14 +192,11 @@ macro_rules! unsigned_define {
             let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
             ne_index!(result[index] = v);
             index += 1;
-            while index < N - 1 {
+            while index < N {
                 (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
                 ne_index!(result[index] = v);
                 index += 1;
             }
-
-            (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
-            ne_index!(result[index] = v);
 
             (result, c)
         }

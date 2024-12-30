@@ -344,9 +344,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add_uwide(self, n: $crate::UWide) -> Self {
-            todo!();
-            //let limbs = $crate::math::add::wrapping_uwide(&self.to_ne_limbs(), n);
-            //Self::from_ne_limbs(limbs)
+            let limbs = $crate::math::add::wrapping_uwide(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
         }
 
         /// Add [`IWide`][crate::IWide] to the big integer, wrapping on overflow.
@@ -355,9 +354,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add_iwide(self, n: $crate::IWide) -> Self {
-            todo!();
-            //let limbs = $crate::math::add::wrapping_iwide(&self.to_ne_limbs(), n);
-            //Self::from_ne_limbs(limbs)
+            let limbs = $crate::math::add::wrapping_iwide(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
         }
 
         /// Subtract [`UWide`][crate::UWide] from the big integer, wrapping on
@@ -606,9 +604,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_uwide(self, n: $crate::UWide) -> (Self, bool) {
-            todo!();
-            //let (limbs, overflowed) = $crate::math::add::overflowing_uwide(&self.to_ne_limbs(), n);
-            //(Self::from_ne_limbs(limbs), overflowed)
+            let (limbs, overflowed) = $crate::math::add::overflowing_uwide(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Add [`IWide`][crate::IWide] to the big integer, returning the value
@@ -618,9 +615,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_iwide(self, n: $crate::IWide) -> (Self, bool) {
-            todo!();
-            //let (limbs, overflowed) = $crate::math::add::overflowing_iwide(&self.to_ne_limbs(), n);
-            //(Self::from_ne_limbs(limbs), overflowed)
+            let (limbs, overflowed) = $crate::math::add::overflowing_iwide(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Subtract [`UWide`][crate::UWide] from the big integer, returning the value

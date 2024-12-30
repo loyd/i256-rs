@@ -111,9 +111,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add_uwide(self, n: $crate::UWide) -> Self {
-            todo!();
-            //let limbs = $crate::math::add::wrapping_wide(&self.to_ne_limbs(), n);
-            //Self::from_ne_limbs(limbs)
+            let limbs = $crate::math::add::wrapping_wide(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
         }
 
         /// Subtract [`UWide`][crate::UWide] from the big integer, wrapping on
@@ -250,9 +249,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_uwide(self, n: $crate::UWide) -> (Self, bool) {
-            todo!();
-            //let (limbs, overflowed) = $crate::math::add::overflowing_wide(&self.to_ne_limbs(), n);
-            //(Self::from_ne_limbs(limbs), overflowed)
+            let (limbs, overflowed) = $crate::math::add::overflowing_wide(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Subtract [`UWide`][crate::UWide] from the big integer, returning the value

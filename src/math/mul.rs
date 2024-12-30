@@ -127,9 +127,10 @@ macro_rules! unsigned_define {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         #[inline(always)]
         pub const fn $wrapping_wide<const N: usize>(x: &[$t; N], y: $w) -> [$t; N] {
-            let lo = y as $t;
-            let hi = (y >> <$t>::BITS) as $t;
-            $wrapping_full(&x, &[lo, hi])
+            let mut rhs = [0; 2];
+            ne_index!(rhs[0] = y as $t);
+            ne_index!(rhs[1] = (y >> <$t>::BITS) as $t);
+            $wrapping_full(&x, &rhs)
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
@@ -210,9 +211,10 @@ macro_rules! unsigned_define {
         /// Const implementation of `overflowing_mul` for internal algorithm use.
         #[inline(always)]
         pub const fn $overflowing_wide<const N: usize>(x: &[$t; N], y: $w) -> ([$t; N], bool) {
-            let lo = y as $t;
-            let hi = (y >> <$t>::BITS) as $t;
-            $overflowing_full(&x, &[lo, hi])
+            let mut rhs = [0; 2];
+            ne_index!(rhs[0] = y as $t);
+            ne_index!(rhs[1] = (y >> <$t>::BITS) as $t);
+            $overflowing_full(&x, &rhs)
         }
     };
 }
@@ -340,7 +342,6 @@ macro_rules! signed_define {
             let mut rhs = [0; 2];
             ne_index!(rhs[0] = y as $u);
             ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
-            let lo = y as $u;
             $wrapping_unsigned(&x, &rhs)
         }
 

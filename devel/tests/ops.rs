@@ -233,6 +233,10 @@ quickcheck! {
         unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_ulimb)
     }
 
+    fn u256_wrapping_add_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_uwide)
+    }
+
     fn u256_wrapping_sub_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_sub, wrapping_sub_ulimb)
     }
@@ -285,6 +289,10 @@ quickcheck! {
         unsigned_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_ulimb)
     }
 
+    fn u256_overflowing_add_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        unsigned_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_uwide)
+    }
+
     fn u256_overflowing_sub_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         unsigned_limb_op_equal!(over x0, x1, y, overflowing_sub, overflowing_sub_ulimb)
     }
@@ -335,6 +343,10 @@ quickcheck! {
 
     fn u256_checked_add_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         unsigned_limb_op_equal!(check x0, x1, y, checked_add, checked_add_ulimb)
+    }
+
+    fn u256_checked_add_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        unsigned_limb_op_equal!(check x0, x1, y, checked_add, checked_add_uwide)
     }
 
     fn u256_checked_sub_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
@@ -665,6 +677,10 @@ quickcheck! {
         signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_ulimb)
     }
 
+    fn i256_wrapping_add_uwide_quickcheck(x0: u128, x1: i128, y: i256::UWide) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_uwide)
+    }
+
     fn i256_wrapping_sub_ulimb_quickcheck(x0: u128, x1: i128, y: i256::ULimb) -> bool {
         signed_limb_op_equal!(wrap x0, x1, y, wrapping_sub, wrapping_sub_ulimb)
     }
@@ -679,6 +695,10 @@ quickcheck! {
 
     fn i256_overflowing_add_ulimb_quickcheck(x0: u128, x1: i128, y: i256::ULimb) -> bool {
         signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_ulimb)
+    }
+
+    fn i256_overflowing_add_uwide_quickcheck(x0: u128, x1: i128, y: i256::UWide) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_uwide)
     }
 
     fn i256_overflowing_sub_ulimb_quickcheck(x0: u128, x1: i128, y: i256::ULimb) -> bool {
@@ -697,6 +717,10 @@ quickcheck! {
         signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_ulimb)
     }
 
+    fn i256_checked_add_uwide_quickcheck(x0: u128, x1: i128, y: i256::UWide) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_uwide)
+    }
+
     fn i256_checked_sub_ulimb_quickcheck(x0: u128, x1: i128, y: i256::ULimb) -> bool {
         signed_limb_op_equal!(check x0, x1, y, checked_sub, checked_sub_ulimb)
     }
@@ -711,6 +735,10 @@ quickcheck! {
 
     fn i256_wrapping_add_ilimb_quickcheck(x0: u128, x1: i128, y: i256::ILimb) -> bool {
         signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_ilimb)
+    }
+
+    fn i256_wrapping_add_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_iwide)
     }
 
     fn i256_wrapping_sub_ilimb_quickcheck(x0: u128, x1: i128, y: i256::ILimb) -> bool {
@@ -765,6 +793,10 @@ quickcheck! {
         signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_ilimb)
     }
 
+    fn i256_overflowing_add_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_iwide)
+    }
+
     fn i256_overflowing_sub_ilimb_quickcheck(x0: u128, x1: i128, y: i256::ILimb) -> bool {
         signed_limb_op_equal!(over x0, x1, y, overflowing_sub, overflowing_sub_ilimb)
     }
@@ -815,6 +847,10 @@ quickcheck! {
 
     fn i256_checked_add_ilimb_quickcheck(x0: u128, x1: i128, y: i256::ILimb) -> bool {
         signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_ilimb)
+    }
+
+    fn i256_checked_add_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_iwide)
     }
 
     fn i256_checked_sub_ilimb_quickcheck(x0: u128, x1: i128, y: i256::ILimb) -> bool {
