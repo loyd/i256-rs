@@ -8,11 +8,11 @@ use owo_colors::{OwoColorize, Stream::Stdout};
 use serde::Deserialize;
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Estimates {
     mean: Estimate,
-    median: Estimate,
-    slope: Estimate,
+    median: Option<Estimate>,
+    slope: Option<Estimate>,
     #[serde(default)]
     median_abs_dev: Option<Estimate>,
     #[serde(default)]
@@ -20,7 +20,7 @@ struct Estimates {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Estimate {
     point_estimate: f64,
     standard_error: f64,
@@ -28,7 +28,7 @@ struct Estimate {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct ConfidenceInterval {
     confidence_level: f64,
     lower_bound: f64,
@@ -36,7 +36,7 @@ struct ConfidenceInterval {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Benchmark {
     group_id: String,
     title: String,
@@ -147,11 +147,11 @@ pub fn main() -> io::Result<()> {
         .expect("must have a maxium benchmark");
     let max_length = max_title.len();
     for (benchmark, estimates) in benches {
-        let slope = &estimates.slope;
-        let estimate = human_number(slope.point_estimate);
-        let lower = human_number(slope.confidence_interval.lower_bound);
-        let upper = human_number(slope.confidence_interval.upper_bound);
-        let error = human_number(slope.standard_error);
+        let metric = estimates.slope.unwrap_or(estimates.mean);
+        let estimate = human_number(metric.point_estimate);
+        let lower = human_number(metric.confidence_interval.lower_bound);
+        let upper = human_number(metric.confidence_interval.upper_bound);
+        let error = human_number(metric.standard_error);
         // want something like: group/bench:  74.224 µs +/- 10ns (74.053 µs, 74.440 µs)
         println!(
             "{:width$}: {} ± {error} ({}, {})",

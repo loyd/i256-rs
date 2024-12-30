@@ -52,6 +52,17 @@ jobs:
         cd devel
         cargo test
 
+    # Run a single benchmark for quick evaluation our code works.
+    - name: Run Benchmarks
+      run: |
+        cd devel
+        cargo bench --bench mul_algos mul64/simple::mul64_v3
+
+    - name: Print Simple Benchmark
+      run: |
+        cd devel
+        cargo run --features print-benches --bin print-benches
+
     - name: Run Benchmarks
       run: |
         cd devel
