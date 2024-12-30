@@ -45,6 +45,11 @@ path = "benches/div.rs"
 harness = false
 
 [[bench]]
+name = "div_by_mul"
+path = "benches/div_by_mul.rs"
+harness = false
+
+[[bench]]
 name = "mul"
 path = "benches/mul.rs"
 harness = false
