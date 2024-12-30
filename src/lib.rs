@@ -91,11 +91,25 @@ define!(
     bits => 256,
 );
 define!(
+    unsigned => U384,
+    signed => I384,
+    unsigned_wide => u128,
+    signed_wide => i128,
+    bits => 384,
+);
+define!(
     unsigned => U512,
     signed => I512,
     unsigned_wide => u128,
     signed_wide => i128,
     bits => 512,
+);
+define!(
+    unsigned => U1024,
+    signed => I1024,
+    unsigned_wide => u128,
+    signed_wide => i128,
+    bits => 1024,
 );
 
 /// The 256-bit unsigned integer type.
