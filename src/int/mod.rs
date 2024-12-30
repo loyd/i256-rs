@@ -29,6 +29,7 @@ pub(crate) mod overflowing;
 pub(crate) mod saturating;
 pub(crate) mod strict;
 pub(crate) mod traits;
+pub(crate) mod unchecked;
 pub(crate) mod wrapping;
 
 /// Define a signed integer.
@@ -82,8 +83,8 @@ macro_rules! define {
             $crate::int::overflowing::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
             $crate::int::saturating::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
             $crate::int::checked::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::int::strict::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::shared::unchecked::define!(type => $u_t, wide_type => $wide_s_t);
+            $crate::int::strict::define!(unsigned_type => $u_t);
+            $crate::int::unchecked::define!(unsigned_type => $u_t);
             $crate::shared::unbounded::define!(type => $u_t, wide_type => $wide_s_t);
             $crate::int::limb::define!(@all);
 

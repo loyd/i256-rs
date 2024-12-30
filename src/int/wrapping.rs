@@ -8,8 +8,9 @@ macro_rules! define {
         /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at
         /// the boundary of the type.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_add`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_add)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add(self, rhs: Self) -> Self {
             let result = $crate::math::add::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(result)
@@ -18,8 +19,9 @@ macro_rules! define {
         /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around
         /// at the boundary of the type.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_sub`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_sub)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub(self, rhs: Self) -> Self {
             let result = $crate::math::sub::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(result)
@@ -28,8 +30,9 @@ macro_rules! define {
         /// Wrapping (modular) subtraction with an unsigned integer. Computes
         /// `self - rhs`, wrapping around at the boundary of the type.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_sub_unsigned`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_sub_unsigned)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub_unsigned(self, rhs: $u_t) -> Self {
             self.wrapping_sub(Self::from_unsigned(rhs))
         }
@@ -42,10 +45,11 @@ macro_rules! define {
         /// optimizes nicely for small multiplications. See [`u256::wrapping_mul`]
         /// for a more detailed analysis, which is identical.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_mul`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_mul)]
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_mul(self, rhs: Self) -> Self {
             let limbs = $crate::math::mul::wrapping_signed(&self.to_ne_limbs(), &rhs.to_ne_limbs());
             Self::from_ne_limbs(limbs)
@@ -56,10 +60,9 @@ macro_rules! define {
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
         ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_rem(self, n: Self) -> (Self, Self) {
             // NOTE: Our algorithm assumes little-endian order, which we might not have.
             // So, we transmute to LE order prior to the call.
@@ -100,8 +103,9 @@ macro_rules! define {
         ///
         /// This function will panic if `rhs` is zero.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_div`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_div)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div(self, rhs: Self) -> Self {
             self.wrapping_div_rem(rhs).0
         }
@@ -118,8 +122,9 @@ macro_rules! define {
         ///
         /// This function will panic if `rhs` is zero.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_div_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_div_euclid)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
             let (mut q, r) = self.wrapping_div_rem(rhs);
             if r.is_negative() {
@@ -144,8 +149,9 @@ macro_rules! define {
         ///
         /// This function will panic if `rhs` is zero.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_rem`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_rem)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_rem(self, rhs: Self) -> Self {
             self.wrapping_div_rem(rhs).1
         }
@@ -157,8 +163,9 @@ macro_rules! define {
         /// the negative minimal value for the type). In this case, this method
         /// returns 0.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_rem_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_rem_euclid)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
             let r = self.wrapping_rem(rhs);
             if r.is_negative() {
@@ -184,8 +191,9 @@ macro_rules! define {
         /// type); this is a positive value that is too large to represent
         /// in the type. In such a case, this function returns `MIN` itself.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_neg`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_neg)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_neg(self) -> Self {
             // NOTE: This is identical to `add(not(x), 1i256)`
             let twos_neg = self.not_const().wrapping_add_ulimb(1);
@@ -202,8 +210,9 @@ macro_rules! define {
         /// positive value that is too large to represent in the type. In such a
         /// case, this function returns `MIN` itself.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_abs`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, wrapping_abs)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_abs(self) -> Self {
             self.overflowing_abs().0
         }

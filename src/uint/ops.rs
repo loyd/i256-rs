@@ -15,7 +15,7 @@ macro_rules! define {
             rhs.eq_const(Self::from_u8(0))
         }
 
-        $crate::shared::ops::define!(type => $s_t, wide_type => $wide_t);
+        $crate::shared::ops::define!(type => $s_t, wide_type => u128);
 
         /// Performs Euclidean division.
         ///
@@ -23,12 +23,11 @@ macro_rules! define {
         /// definitions of division are equal, this
         /// is exactly equal to `self / rhs`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, div_euclid)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_euclid(self, rhs: Self) -> Self {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_div_euclid(rhs)
@@ -46,19 +45,18 @@ macro_rules! define {
         /// definitions of division are equal, this
         /// is exactly equal to `self % rhs`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rem_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, rem_euclid)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn rem_euclid(self, rhs: Self) -> Self {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_rem(rhs)
             } else {
                 match self.checked_rem_euclid(rhs) {
                     Some(v) => v,
-                    _ => core::panic!("attempt to divide by zero"),
+                    _ => core::panic!("attempt to divide with overflow"),
                 }
             }
         }
@@ -68,12 +66,11 @@ macro_rules! define {
         ///
         /// This is the same as performing `self / rhs` for all unsigned integers.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_floor`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, div_floor)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_floor(self, rhs: Self) -> Self {
             self.wrapping_div(rhs)
         }
@@ -81,12 +78,11 @@ macro_rules! define {
         /// Calculates the quotient of `self` and `rhs`, rounding the result towards
         /// positive infinity.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_ceil`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, div_ceil)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_ceil(self, rhs: Self) -> Self {
             let (d, r) = self.wrapping_div_rem(rhs);
             if !r.eq_const(Self::from_u8(0)) {
@@ -108,7 +104,7 @@ macro_rules! define {
         ///
         /// This function will panic if `self` is zero, or if `base` is less than 2.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::ilog`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, ilog)]
         #[inline(always)]
         pub fn ilog(self, base: Self) -> u32 {
             if let Some(log) = self.checked_ilog(base) {
@@ -120,11 +116,9 @@ macro_rules! define {
 
         /// Returns the base 2 logarithm of the number, rounded down.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!(self)]
         ///
-        /// This function will panic if `self` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::ilog2`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, ilog2)]
         #[inline(always)]
         pub const fn ilog2(self) -> u32 {
             if let Some(log) = self.checked_ilog2() {
@@ -158,8 +152,9 @@ macro_rules! define {
 
         /// Computes the absolute difference between `self` and `other`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::abs_diff`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, abs_diff)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs_diff(self, other: Self) -> Self {
             if self.lt_const(other) {
                 other.wrapping_sub(self)
@@ -171,22 +166,18 @@ macro_rules! define {
         /// Calculates the smallest value greater than or equal to `self` that
         /// is a multiple of `rhs`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
+        #[doc = $crate::shared::docs::overflow_assertions_doc!()]
         ///
-        /// ## Overflow behavior
-        ///
-        /// On overflow, this function will panic if overflow checks are enabled
-        /// (default in debug mode) and wrap if overflow checks are disabled
-        /// (default in release mode).
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::next_multiple_of`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u64, next_multiple_of)]
         #[inline]
         pub fn next_multiple_of(self, rhs: Self) -> Self {
-            match self.wrapping_rem(rhs) {
+            use core::ops::{Add, Rem, Sub};
+
+            match self.rem(rhs) {
                 Self::MIN => self,
-                r => self.wrapping_add(rhs.wrapping_sub(r)),
+                r => self.add(rhs.sub(r)),
             }
         }
 
@@ -206,7 +197,7 @@ macro_rules! define {
 
         /// Returns `true` if and only if `self == 2^k` for some `k`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::is_power_of_two`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u64, is_power_of_two)]
         #[inline(always)]
         pub const fn is_power_of_two(self) -> bool {
             self.count_ones() == 1
@@ -228,8 +219,9 @@ macro_rules! define {
         /// `uN`), it panics in debug mode and the return value is wrapped to 0 in
         /// release mode (the only situation in which this method can return 0).
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::next_power_of_two`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u64, next_power_of_two)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn next_power_of_two(self) -> Self {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_next_power_of_two()
@@ -247,9 +239,9 @@ macro_rules! define {
         /// sufficiently-large unsigned integral type. This implies that the result
         /// is always rounded towards zero and that no overflow will ever occur.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::midpoint`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u64, midpoint)]
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn midpoint(self, rhs: Self) -> Self {
             // Use the well known branchless algorithm from Hacker's Delight to compute
             // `(a + b) / 2` without overflowing: `((a ^ b) >> 1) + (a & b)`.
@@ -278,12 +270,10 @@ macro_rules! define {
         /// assert_eq!(1_000_000_000u32.widening_mul(10), (1410065408, 2));
         /// ```
         ///
-        /// See [`u64::widening_mul`].
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
+        #[doc = $crate::shared::docs::primitive_doc!(u64, widening_mul)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn widening_mul(self, rhs: Self) -> (Self, Self) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
@@ -302,6 +292,11 @@ macro_rules! define {
         /// multiplications to create "big integers" which represent larger values.
         ///
         /// If you don't need the `carry`, then you can use [`Self::widening_mul`] instead.
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u64, carrying_mul)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();

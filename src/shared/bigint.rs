@@ -13,14 +13,10 @@ macro_rules! define {
         /// chaining together multiple additions to create a wider addition, and
         /// can be useful for bignum addition.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::carrying_add`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, carrying_add)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (a, b) = self.overflowing_add(rhs);
             let (c, d) = a.overflowing_add_ulimb(carry as $crate::ULimb);
@@ -36,12 +32,8 @@ macro_rules! define {
         /// subtractions to create a wider subtraction, and can be useful for
         /// bignum subtraction.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::borrowing_sub`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, borrowing_sub)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
         #[must_use]
         pub const fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {

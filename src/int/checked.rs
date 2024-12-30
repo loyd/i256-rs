@@ -8,8 +8,9 @@ macro_rules! define {
         /// Checked addition with an unsigned integer. Computes `self + rhs`,
         /// returning `None` if overflow occurred.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_add_unsigned`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_add_unsigned)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_add_unsigned(self, rhs: $u_t) -> Option<Self> {
             let (value, overflowed) = self.overflowing_add_unsigned(rhs);
             if !overflowed {
@@ -22,8 +23,9 @@ macro_rules! define {
         /// Checked subtraction with an unsigned integer. Computes `self - rhs`,
         /// returning `None` if overflow occurred.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_sub_unsigned`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_sub_unsigned)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_sub_unsigned(self, rhs: $u_t) -> Option<Self> {
             let (value, overflowed) = self.overflowing_sub_unsigned(rhs);
             if !overflowed {
@@ -35,8 +37,9 @@ macro_rules! define {
 
         /// Checked negation. Computes `-self`, returning `None` if `self == MIN`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_neg`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_neg)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_neg(self) -> Option<Self> {
             let (value, overflowed) = self.overflowing_neg();
             if !overflowed {
@@ -49,8 +52,9 @@ macro_rules! define {
         /// Checked absolute value. Computes `self.abs()`, returning `None` if
         /// `self == MIN`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_abs`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_abs)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_abs(self) -> Option<Self> {
             match self.overflowing_abs() {
                 (value, false) => Some(value),
@@ -68,8 +72,9 @@ macro_rules! define {
         /// `checked_ilog2` can produce results more efficiently for base 2, and
         /// `checked_ilog10` can produce results more efficiently for base 10.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_ilog`].")]
-        #[inline]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_ilog)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_ilog(self, base: Self) -> Option<u32> {
             match self.le_const(Self::from_u8(0)) || base.le_const(Self::from_u8(1)) {
                 true => None,
@@ -104,8 +109,9 @@ macro_rules! define {
         /// multiple of `rhs`. Returns `None` if `rhs` is zero or the operation
         /// would result in overflow.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::checked_next_multiple_of`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_next_multiple_of)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
             // This would otherwise fail when calculating `r` when self == T::MIN.
             if rhs.eq_const(Self::from_i8(-1)) {

@@ -50,7 +50,7 @@
 //! - [`num-bigint`], [`malachite`], or [`rug`]: Dynamic-width big integers with
 //!   high-
 //! performance calculations with very large integers.
-
+//!
 //! Specifically, [`i256`] has optimizations that would be considered
 //! anti-features for these libraries: better performance for smaller values
 //! (variable-time calculations) and operations with native, scalar values. This

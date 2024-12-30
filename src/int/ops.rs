@@ -56,6 +56,7 @@ macro_rules! define {
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::unsigned_abs`].")]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn unsigned_abs(self) -> $u_t {
             self.wrapping_abs().as_unsigned()
         }
@@ -73,14 +74,11 @@ macro_rules! define {
         /// towards -infinity; if `rhs < 0`, this is equal to rounding towards
         /// +infinity.
         ///
-        /// # Panics
-        ///
-        /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
-        /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
-        /// flag.
+        #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
         #[doc = concat!("See [`", stringify!($wide_t), "::div_euclid`].")]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_euclid(self, rhs: Self) -> Self {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_div_euclid(rhs)
@@ -98,14 +96,11 @@ macro_rules! define {
         /// `r = self.rem_euclid(rhs)`, the result satisfies
         /// `self = rhs * self.div_euclid(rhs) + r` and `0 <= r < abs(rhs)`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
-        /// and `rhs` is -1. This behavior is not affected by the
-        /// `overflow-checks` flag.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rem_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, rem_euclid)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn rem_euclid(self, rhs: Self) -> Self {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_rem_euclid(rhs)
@@ -120,14 +115,11 @@ macro_rules! define {
         /// Calculates the quotient of `self` and `rhs`, rounding the result towards
         /// negative infinity.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
-        /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
-        /// flag.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_floor`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, div_floor)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_floor(self, rhs: Self) -> Self {
             let (d, r) = self.wrapping_div_rem(rhs);
 
@@ -148,14 +140,11 @@ macro_rules! define {
         /// Calculates the quotient of `self` and `rhs`, rounding the result towards
         /// positive infinity.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        /// This function will panic if `rhs` is zero or if `self` is `Self::MIN`
-        /// and `rhs` is -1. This behavior is not affected by the `overflow-checks`
-        /// flag.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_ceil`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, div_ceil)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_ceil(self, rhs: Self) -> Self {
             let (d, r) = self.wrapping_div_rem(rhs);
 
@@ -174,25 +163,22 @@ macro_rules! define {
         /// calculates the largest value less than or equal to `self` that is a
         /// multiple of `rhs`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
+        #[doc = $crate::shared::docs::overflow_assertions_doc!()]
         ///
-        /// ## Overflow behavior
-        ///
-        /// On overflow, this function will panic if overflow checks are enabled
-        /// (default in debug mode) and wrap if overflow checks are disabled
-        /// (default in release mode).
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::next_multiple_of`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, next_multiple_of)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn next_multiple_of(self, rhs: Self) -> Self {
+            use core::ops::Rem;
+
             if rhs.eq_const(Self::from_i8(-1)) {
                 return self;
             }
 
             let zero = Self::from_u8(0);
-            let r = self.wrapping_rem(rhs);
+            let r = self.rem(rhs);
             let m = if (r > zero && rhs < zero) || (r < zero && rhs > zero) {
                 r + rhs
             } else {
@@ -232,7 +218,7 @@ macro_rules! define {
         /// This function will panic if `self` is less than or equal to zero,
         /// or if `base` is less than 2.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::ilog`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, ilog)]
         #[inline(always)]
         pub fn ilog(self, base: Self) -> u32 {
             assert!(
@@ -252,7 +238,7 @@ macro_rules! define {
         ///
         /// This function will panic if `self` is less than or equal to zero.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::ilog2`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, ilog2)]
         #[inline(always)]
         pub const fn ilog2(self) -> u32 {
             if let Some(log) = self.checked_ilog2() {
@@ -279,8 +265,9 @@ macro_rules! define {
 
         /// Computes the absolute value of `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::abs`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, abs)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs(self) -> Self {
             match self.checked_abs() {
                 Some(value) => value,
@@ -293,8 +280,9 @@ macro_rules! define {
         /// This function always returns the correct answer without overflow or
         /// panics by returning an unsigned integer.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::abs_diff`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, abs_diff)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs_diff(self, other: Self) -> $u_t {
             if self.lt_const(other) {
                 other.as_unsigned().wrapping_sub(self.as_unsigned())
@@ -309,7 +297,7 @@ macro_rules! define {
         ///  - `1` if the number is positive
         ///  - `-1` if the number is negative
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::signum`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, signum)]
         #[inline(always)]
         pub const fn signum(self) -> Self {
             match self.cmp_const(Self::from_u8(0)) {
@@ -326,9 +314,9 @@ macro_rules! define {
         /// result is always rounded towards negative infinity and that no
         /// overflow will ever occur.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::midpoint`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, midpoint)]
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn midpoint(self, rhs: Self) -> Self {
             // Use the well known branchless algorithm from Hacker's Delight to compute
             // `(a + b) / 2` without overflowing: `((a ^ b) >> 1) + (a & b)`.

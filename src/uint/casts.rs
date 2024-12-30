@@ -21,8 +21,9 @@ macro_rules! define {
         /// This produces the same result as an `as` cast, but ensures that the
         /// bit-width remains the same.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::cast_signed`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, cast_signed)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn cast_signed(self) -> $s_t {
             self.as_signed()
         }

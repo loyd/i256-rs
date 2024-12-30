@@ -8,24 +8,16 @@ macro_rules! define {
         /// Strict addition with a signed integer. Computes `self + rhs`,
         /// panicking if overflow occurred.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        /// ## Overflow behavior
-        ///
-        /// This function will always panic on overflow, regardless of whether
-        /// overflow checks are enabled.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_add_signed`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[inline]
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_add_signed)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn strict_add_signed(self, rhs: $s_t) -> Self {
             match self.checked_add_signed(rhs) {
                 Some(v) => v,
-                None => core::panic!("attempt to add with overflow"),
+                None => core::panic!("attempt to negate with overflow"),
             }
         }
 
@@ -35,21 +27,16 @@ macro_rules! define {
         /// way overflow could ever happen. This function exists so that all
         /// operations are accounted for in the strict operations.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(div-zero)]
         ///
-        /// This function will panic if `rhs` is zero.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_div`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_div)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn strict_div(self, rhs: Self) -> Self {
             match self.checked_div(rhs) {
                 Some(v) => v,
-                None => core::panic!("attempt to divide by zero"),
+                None => core::panic!("attempt to divide with overflow"),
             }
         }
 
@@ -60,21 +47,16 @@ macro_rules! define {
         /// This function exists so that all operations are accounted for in the
         /// strict operations.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(div-zero)]
         ///
-        /// This function will panic if `rhs` is zero.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_rem`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_rem)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn strict_rem(self, rhs: Self) -> Self {
             match self.checked_rem(rhs) {
                 Some(v) => v,
-                None => core::panic!("attempt to divide by zero"),
+                None => core::panic!("attempt to divide with overflow"),
             }
         }
 
@@ -86,21 +68,16 @@ macro_rules! define {
         /// positive integers, all common definitions of division are equal, this
         /// is exactly equal to `self.strict_div(rhs)`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(div-zero)]
         ///
-        /// This function will panic if `rhs` is zero.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_div_euclid`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_div_euclid)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn strict_div_euclid(self, rhs: Self) -> Self {
             match self.checked_div_euclid(rhs) {
                 Some(v) => v,
-                None => core::panic!("attempt to divide by zero"),
+                None => core::panic!("attempt to divide with overflow"),
             }
         }
 
@@ -113,21 +90,16 @@ macro_rules! define {
         /// definitions of division are equal, this is exactly equal to
         /// `self.strict_rem(rhs)`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(div-zero)]
         ///
-        /// This function will panic if `rhs` is zero.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_rem_euclid`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_rem_euclid)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn strict_rem_euclid(self, rhs: Self) -> Self {
             match self.checked_rem_euclid(rhs) {
                 Some(v) => v,
-                None => core::panic!("attempt to divide by zero"),
+                None => core::panic!("attempt to divide with overflow"),
             }
         }
 
@@ -136,20 +108,12 @@ macro_rules! define {
         ///
         /// Note that negating any positive integer will overflow.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        /// ## Overflow behavior
-        ///
-        /// This function will always panic on overflow, regardless of whether
-        /// overflow checks are enabled.
-        #[doc = concat!("See [`", stringify!($wide_t), "::strict_neg`].")]
-        ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
-        #[inline]
-        #[must_use]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, strict_neg)]
+        #[doc = $crate::shared::docs::nightly_doc!()]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn strict_neg(self) -> Self {
             match self.checked_neg() {
                 Some(v) => v,

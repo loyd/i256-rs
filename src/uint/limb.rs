@@ -11,8 +11,9 @@ macro_rules! define {
         /// Add an unsigned limb to the big integer, wrapping on
         /// overflow.
         ///
-        /// This allows optimizations a full addition cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add_ulimb(self, n: $crate::ULimb) -> Self {
             let limbs = $crate::math::add::wrapping_limb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
@@ -21,8 +22,9 @@ macro_rules! define {
         /// Subtract an unsigned limb from the big integer, wrapping on
         /// overflow.
         ///
-        /// This allows optimizations a full subtraction cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub_ulimb(self, n: $crate::ULimb) -> Self {
             let limbs = $crate::math::sub::wrapping_limb(&self.to_ne_limbs(), n);
             Self::from_ne_limbs(limbs)
@@ -31,7 +33,7 @@ macro_rules! define {
         /// Multiply our big integer by an unsigned limb, wrapping on
         /// overflow.
         ///
-        /// This allows optimizations a full multiplication cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
         ///
         /// Many different algorithms were attempted, with a soft [`mulx`] approach
         /// (1), a flat, fixed-width long multiplication (2), and a
@@ -51,6 +53,7 @@ macro_rules! define {
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_mul_ulimb(self, n: $crate::ULimb) -> Self {
             // 256-Bit
             // -------
@@ -86,12 +89,11 @@ macro_rules! define {
         /// Get the quotient and remainder of our big integer divided
         /// by an unsigned limb, wrapping on overflow.
         ///
-        /// This allows optimizations a full division cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(division)]
         ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
+        #[doc = $crate::shared::docs::div_by_zero_doc!(n)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_rem_ulimb(self, n: $crate::ULimb) -> (Self, $crate::ULimb) {
             let x = self.to_le_limbs();
             let (div, rem) = $crate::math::div::limb(&x, n);
@@ -106,8 +108,9 @@ macro_rules! define {
         /// Add an unsigned limb to the big integer, returning the value
         /// and if overflow occurred.
         ///
-        /// This allows optimizations a full addition cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_ulimb(self, n: $crate::ULimb) -> (Self, bool) {
             let (limbs, overflowed) = $crate::math::add::overflowing_limb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
@@ -116,8 +119,9 @@ macro_rules! define {
         /// Subtract an unsigned limb from the big integer, returning the value
         /// and if overflow occurred.
         ///
-        /// This allows optimizations a full subtraction cannot do.
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub_ulimb(self, n: $crate::ULimb) -> (Self, bool) {
             let (limbs, overflowed) = $crate::math::sub::overflowing_limb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
@@ -125,6 +129,8 @@ macro_rules! define {
 
         /// Multiply our big integer by an unsigned limb, returning the value
         /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
         ///
         /// Many different algorithms were attempted, with a soft [`mulx`] approach
         /// (1), a flat, fixed-width long multiplication (2), and a
@@ -145,6 +151,7 @@ macro_rules! define {
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         /// [`wrapping_mul_ulimb`]: Self::wrapping_mul_ulimb
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_mul_ulimb(self, n: $crate::ULimb) -> (Self, bool) {
             let (limbs, overflowed) = $crate::math::mul::overflowing_limb(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)

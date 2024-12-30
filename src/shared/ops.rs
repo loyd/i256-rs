@@ -11,7 +11,7 @@ macro_rules! define {
     (type => $t:ty,wide_type => $wide_t:ty) => {
         /// Raises self to the power of `exp`, using exponentiation by squaring.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::pow`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, pow)]
         #[inline]
         pub const fn pow(self, exp: u32) -> Self {
             if cfg!(not(have_overflow_checks)) {
@@ -26,10 +26,9 @@ macro_rules! define {
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
         ///
-        /// # Panics
-        ///
-        /// This panics if the divisor is 0.
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_rem(self, n: Self) -> (Self, Self) {
             if cfg!(not(have_overflow_checks)) {
                 self.wrapping_div_rem(n)

@@ -8,8 +8,9 @@ macro_rules! define {
         /// Saturating integer addition. Computes `self + rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_add`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_add)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add(self, rhs: Self) -> Self {
             match self.checked_add(rhs) {
                 Some(value) => value,
@@ -21,8 +22,9 @@ macro_rules! define {
         /// Saturating addition with an unsigned integer. Computes `self + rhs`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_add_unsigned`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_add_unsigned)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add_unsigned(self, rhs: $u_t) -> Self {
             // Overflow can only happen at the upper bound
             // We cannot use `unwrap_or` here because it is not `const`
@@ -35,8 +37,9 @@ macro_rules! define {
         /// Saturating integer subtraction. Computes `self - rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_sub`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_sub)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_sub(self, rhs: Self) -> Self {
             match self.checked_sub(rhs) {
                 Some(value) => value,
@@ -48,8 +51,9 @@ macro_rules! define {
         /// Saturating subtraction with an unsigned integer. Computes `self - rhs`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_sub_unsigned`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_sub_unsigned)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_sub_unsigned(self, rhs: $u_t) -> Self {
             // Overflow can only happen at the lower bound
             // We cannot use `unwrap_or` here because it is not `const`
@@ -62,8 +66,9 @@ macro_rules! define {
         /// Saturating integer negation. Computes `-self`, returning `MAX` if `self
         /// == MIN` instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_neg`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_neg)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_neg(self) -> Self {
             Self::from_u8(0).saturating_sub(self)
         }
@@ -71,8 +76,9 @@ macro_rules! define {
         /// Saturating absolute value. Computes `self.abs()`, returning `MAX` if
         /// `self == MIN` instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_abs`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_abs)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_abs(self) -> Self {
             match self.checked_abs() {
                 Some(value) => value,
@@ -83,8 +89,9 @@ macro_rules! define {
         /// Saturating integer multiplication. Computes `self * rhs`, saturating at
         /// the numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_mul`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_mul)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_mul(self, rhs: Self) -> Self {
             match self.checked_mul(rhs) {
                 Some(x) => x,
@@ -101,11 +108,10 @@ macro_rules! define {
         /// Saturating integer division. Computes `self / rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_div`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_div)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         #[inline(always)]
         pub fn saturating_div(self, rhs: Self) -> Self {
             match self.overflowing_div(rhs) {
@@ -117,8 +123,9 @@ macro_rules! define {
         /// Saturating integer exponentiation. Computes `self.pow(exp)`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_pow`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_pow)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_pow(self, exp: u32) -> Self {
             match self.checked_pow(exp) {
                 Some(x) => x,
