@@ -1,4 +1,4 @@
-avoid-breaking-exported-api = false
+avoid-breaking-exported-api = true
 disallowed-macros = [
     # Can also use an inline table with a `path` key.
     { path = "std::print", reason = "no IO allowed" },
