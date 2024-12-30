@@ -365,9 +365,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub_uwide(self, n: $crate::UWide) -> Self {
-            todo!();
-            //let limbs = $crate::math::sub::wrapping_uwide(&self.to_ne_limbs(), n);
-            //Self::from_ne_limbs(limbs)
+            let limbs = $crate::math::sub::wrapping_uwide(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
         }
 
         /// Subtract [`IWide`][crate::IWide] from the big integer, wrapping on
@@ -377,9 +376,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub_iwide(self, n: $crate::IWide) -> Self {
-            todo!();
-            //let limbs = $crate::math::sub::wrapping_iwide(&self.to_ne_limbs(), n);
-            //Self::from_ne_limbs(limbs)
+            let limbs = $crate::math::sub::wrapping_iwide(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
         }
 
         /// Multiply our big integer by [`UWide`][crate::UWide], wrapping on overflow.
@@ -626,9 +624,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub_uwide(self, n: $crate::UWide) -> (Self, bool) {
-            todo!();
-            //let (limbs, overflowed) = $crate::math::sub::overflowing_uwide(&self.to_ne_limbs(), n);
-            //(Self::from_ne_limbs(limbs), overflowed)
+            let (limbs, overflowed) = $crate::math::sub::overflowing_uwide(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Subtract [`IWide`][crate::IWide] from the big integer, returning the value
@@ -638,9 +635,8 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub_iwide(self, n: $crate::IWide) -> (Self, bool) {
-            todo!();
-            //let (limbs, overflowed) = $crate::math::sub::overflowing_iwide(&self.to_ne_limbs(), n);
-            //(Self::from_ne_limbs(limbs), overflowed)
+            let (limbs, overflowed) = $crate::math::sub::overflowing_iwide(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
         }
 
         /// Multiply our big integer by [`UWide`][crate::UWide], returning the value
