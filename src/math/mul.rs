@@ -5,6 +5,7 @@
 
 #![doc(hidden)]
 
+use super::bigint::{mac_u32, mac_u64};
 use crate::{ILimb, ULimb};
 
 // NOTE: Division and remainders aren't supported due to the difficulty in
@@ -56,7 +57,8 @@ macro_rules! unsigned_define {
         $wrapping_full:ident,wrapping_limb =>
         $wrapping_limb:ident,overflowing_full =>
         $overflowing_full:ident,overflowing_limb =>
-        $overflowing_limb:ident $(,)?
+        $overflowing_limb:ident,mac =>
+        $mac:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_mul` for internal algorithm use.
         ///
@@ -80,9 +82,9 @@ macro_rules! unsigned_define {
             // dimensions, so we can just invert it in the other case.
             assert!(M >= N, "lhs must be >= than rhs");
 
-            const SHIFT: u32 = <$t>::BITS;
             let mut r: [$t; M] = [0; M];
             let mut carry: $t;
+            let mut vij: $t;
 
             // this is effectively an 2D matrix for long multiplication.
             let mut i: usize = 0;
@@ -90,17 +92,15 @@ macro_rules! unsigned_define {
             while i < M {
                 carry = 0;
                 j = 0;
+                let xi = ne_index!(x[i]);
                 while j < N && i + j < M {
                     let ij = i + j;
-                    // FIXME: Replace with `carrying_mul` when we add it
+                    let yj = ne_index!(y[j]);
                     // NOTE: This is a major miscompilation for performance regression.
                     // Not having all of these statements on the same line somehow
                     // causes a performance regression, a serious one.
-                    let prod = carry as $w
-                        + ne_index!(r[ij]) as $w
-                        + (ne_index!(x[i]) as $w) * (ne_index!(y[j]) as $w);
-                    ne_index!(r[ij] = prod as $t);
-                    carry = (prod >> SHIFT) as $t;
+                    (vij, carry) = $mac(ne_index!(r[ij]), xi, yj, carry);
+                    ne_index!(r[ij] = vij);
                     j += 1;
                 }
 
@@ -145,9 +145,9 @@ macro_rules! unsigned_define {
             // dimensions, so we can just invert it in the other case.
             assert!(M >= N, "lhs must be >= than rhs");
 
-            const SHIFT: u32 = <$t>::BITS;
             let mut r: [$t; M] = [0; M];
             let mut carry: $t;
+            let mut vij: $t;
             let mut overflowed = false;
 
             // this is effectively an 2D matrix for long multiplication.
@@ -164,13 +164,11 @@ macro_rules! unsigned_define {
                     let ij = i + j;
                     let yj = ne_index!(y[j]);
                     if ij < M {
-                        // FIXME: Replace with `carrying_mul` when we add it
                         // NOTE: This is a major miscompilation for performance regression.
                         // Not having all of these statements on the same line somehow
                         // causes a performance regression, a serious one.
-                        let prod = carry as $w + ne_index!(r[ij]) as $w + (xi as $w) * (yj as $w);
-                        ne_index!(r[ij] = prod as $t);
-                        carry = (prod >> SHIFT) as $t;
+                        (vij, carry) = $mac(ne_index!(r[ij]), xi, yj, carry);
+                        ne_index!(r[ij] = vij);
                     } else if xi != 0 && yj != 0 {
                         overflowed = true;
                         break;
@@ -209,6 +207,7 @@ unsigned_define!(
     wrapping_limb => wrapping_limb_u32,
     overflowing_full => overflowing_u32,
     overflowing_limb => overflowing_limb_u32,
+    mac => mac_u32,
 );
 unsigned_define!(
     type => u64,
@@ -217,6 +216,7 @@ unsigned_define!(
     wrapping_limb => wrapping_limb_u64,
     overflowing_full => overflowing_u64,
     overflowing_limb => overflowing_limb_u64,
+    mac => mac_u64,
 );
 
 limb_function!(wrapping_unsigned, wrapping_u64, wrapping_u32, &[ULimb; N], ret => [ULimb; N]);
