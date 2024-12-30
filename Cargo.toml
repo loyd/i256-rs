@@ -26,6 +26,12 @@ exclude = [
 [features]
 default = ["std"]
 std = []
+i384 = []
+# Enable the `U384` and `I384` types.
+i512 = []
+# Enable the `U512` and `I512` types.
+i1024 = []
+# Enable the `U1024` and `I1024` types.
 
 # Internal only features.
 # Enable the lint checks.
@@ -51,3 +57,7 @@ opt-level = 3
 debug = false
 debug-assertions = false
 lto = true
+
+[package.metadata.docs.rs]
+features = ["i384", "i512", "i1024"]
+rustdoc-args = ["--cfg", "docsrs"]
