@@ -56,3 +56,8 @@ jobs:
       run: |
         cd devel
         cargo bench
+
+    - name: Print Benchmarks
+      run: |
+        cd devel
+        cargo run --features print-benches --bin print-benches
