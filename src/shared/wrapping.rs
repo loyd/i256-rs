@@ -6,8 +6,9 @@ macro_rules! define {
         /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
         /// wrapping around at the boundary of the type.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::wrapping_pow`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, wrapping_pow)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_pow(self, mut exp: u32) -> Self {
             if exp == 0 {
                 return Self::from_u8(1);

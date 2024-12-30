@@ -50,19 +50,19 @@ macro_rules! define {
         bits => $bits:expr,
         kind => $kind:ident $(,)?
     ) => {
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u8`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`u8`]")]
         #[inline(always)]
         pub const fn from_u8(value: u8) -> Self {
             Self::from_u32(value as u32)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u16`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`u16`]")]
         #[inline(always)]
         pub const fn from_u16(value: u16) -> Self {
             Self::from_u32(value as u32)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u32`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`u32`]")]
         #[inline(always)]
         pub const fn from_u32(value: u32) -> Self {
             let mut limbs = [0; Self::LIMBS];
@@ -70,7 +70,7 @@ macro_rules! define {
             Self::from_ne_limbs(limbs)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u64`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`u64`]")]
         #[inline(always)]
         pub const fn from_u64(value: u64) -> Self {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -86,7 +86,7 @@ macro_rules! define {
             Self::from_ne_limbs(limbs)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a `u128`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`u128`]")]
         #[inline(always)]
         pub const fn from_u128(value: u128) -> Self {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -105,7 +105,7 @@ macro_rules! define {
             Self::from_ne_limbs(limbs)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned limb, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`ULimb`][crate::ULimb]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_ulimb(value: $crate::ULimb) -> Self {
@@ -118,7 +118,7 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned wide type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`UWide`][crate::UWide]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_uwide(value: $crate::UWide) -> Self {
@@ -131,31 +131,31 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an unsigned integer, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, concat!("[`", stringify!($u_t), "`]"))]
         #[inline(always)]
         pub const fn from_unsigned(value: $u_t) -> Self {
             Self::from_ne_limbs(value.to_ne_limbs())
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed integer, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, concat!("[`", stringify!($s_t), "`]"))]
         #[inline(always)]
         pub const fn from_signed(value: $s_t) -> Self {
             Self::from_ne_limbs(value.to_ne_limbs())
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i8`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`i8`]")]
         #[inline(always)]
         pub const fn from_i8(value: i8) -> Self {
             Self::from_i32(value as i32)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i16`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`i16`]")]
         #[inline(always)]
         pub const fn from_i16(value: i16) -> Self {
             Self::from_i32(value as i32)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i32`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`i32`]")]
         #[inline(always)]
         pub const fn from_i32(value: i32) -> Self {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -171,7 +171,7 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from an `i64`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`i64`]")]
         #[inline(always)]
         pub const fn from_i64(value: i64) -> Self {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -187,8 +187,7 @@ macro_rules! define {
             }
         }
 
-        /// Create the 256-bit unsigned integer from an `i128`, as if by an `as`
-        /// cast.
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`i128`]")]
         #[inline(always)]
         pub const fn from_i128(value: i128) -> Self {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -209,7 +208,7 @@ macro_rules! define {
             Self::from_ne_limbs(limbs)
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a signed limb, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`ILimb`][crate::ILimb]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_ilimb(value: $crate::ILimb) -> Self {
@@ -222,7 +221,7 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from a wide type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::from_cast_doc!($bits, $kind, "[`IWide`][crate::IWide]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn from_iwide(value: $crate::IWide) -> Self {
@@ -235,19 +234,19 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u8`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`u8`]")]
         #[inline(always)]
         pub const fn as_u8(&self) -> u8 {
             self.as_u32() as u8
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u16`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`u16`]")]
         #[inline(always)]
         pub const fn as_u16(&self) -> u16 {
             self.as_u32() as u16
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u32`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`u32`]")]
         #[inline(always)]
         pub const fn as_u32(&self) -> u32 {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -256,7 +255,7 @@ macro_rules! define {
             ne_index!(limbs[0]) as u32
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u64`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`u64`]")]
         #[inline(always)]
         pub const fn as_u64(&self) -> u64 {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -272,20 +271,7 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned limb, as if by an `as` cast.")]
-        #[inline(always)]
-        #[allow(clippy::unnecessary_cast)]
-        pub const fn as_ulimb(&self) -> $crate::ULimb {
-            const BITS: u32 = $crate::ULimb::BITS;
-            assert!(BITS == 32 || BITS == 64);
-            if BITS == 32 {
-                self.as_u32() as $crate::ULimb
-            } else {
-                self.as_u64() as $crate::ULimb
-            }
-        }
-
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `u128`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`u128`]")]
         #[inline(always)]
         pub const fn as_u128(&self) -> u128 {
             const BITS: u32 = $crate::ULimb::BITS;
@@ -305,7 +291,20 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " an unsigned wide type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`ULimb`][crate::ULimb]")]
+        #[inline(always)]
+        #[allow(clippy::unnecessary_cast)]
+        pub const fn as_ulimb(&self) -> $crate::ULimb {
+            const BITS: u32 = $crate::ULimb::BITS;
+            assert!(BITS == 32 || BITS == 64);
+            if BITS == 32 {
+                self.as_u32() as $crate::ULimb
+            } else {
+                self.as_u64() as $crate::ULimb
+            }
+        }
+
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`UWide`][crate::UWide]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_uwide(&self) -> $crate::UWide {
@@ -318,57 +317,57 @@ macro_rules! define {
             }
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i8`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`i8`]")]
         #[inline(always)]
         pub const fn as_i8(&self) -> i8 {
             self.as_u8() as i8
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i16`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`i16`]")]
         #[inline(always)]
         pub const fn as_i16(&self) -> i16 {
             self.as_u16() as i16
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i32`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`i32`]")]
         #[inline(always)]
         pub const fn as_i32(&self) -> i32 {
             self.as_u32() as i32
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to an `i64`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`i64`]")]
         #[inline(always)]
         pub const fn as_i64(&self) -> i64 {
             self.as_u64() as i64
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " to a `i128`, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`i128`]")]
         #[inline(always)]
         pub const fn as_i128(&self) -> i128 {
             self.as_u128() as i128
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed limb, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`ILimb`][crate::ILimb]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_ilimb(&self) -> $crate::ILimb {
             self.as_ulimb() as $crate::ILimb
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " a signed wide type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, "[`IWide`][crate::IWide]")]
         #[inline(always)]
         #[allow(clippy::unnecessary_cast)]
         pub const fn as_iwide(&self) -> $crate::IWide {
             self.as_uwide() as $crate::IWide
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the unsigned type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, concat!("[`", stringify!($u_t), "`]"))]
         #[inline(always)]
         pub const fn as_unsigned(&self) -> $u_t {
             <$u_t>::from_ne_limbs(self.to_ne_limbs())
         }
 
-        #[doc = concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " unsigned integer to the signed type, as if by an `as` cast.")]
+        #[doc = $crate::shared::docs::as_cast_doc!($bits, $kind, concat!("[`", stringify!($s_t), "`]"))]
         #[inline(always)]
         pub const fn as_signed(&self) -> $s_t {
             <$s_t>::from_ne_limbs(self.to_ne_limbs())

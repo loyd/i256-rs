@@ -9,8 +9,9 @@ macro_rules! define {
         /// Returns a tuple of the exponentiation along with a bool indicating
         /// whether an overflow happened.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_pow`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, overflowing_pow)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {
             if exp == 0 {
                 return (Self::from_u8(1), false);
@@ -46,10 +47,9 @@ macro_rules! define {
         /// This allows storing of both the quotient and remainder without
         /// making repeated calls.
         ///
-        /// # Panics
-        ///
-        /// This function will panic if `rhs` is zero.
+        #[doc = $crate::shared::docs::div_by_zero_doc!(n)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_div_rem(self, n: Self) -> ((Self, Self), bool) {
             if self.is_div_overflow(n) {
                 ((self, Self::from_u8(0)), true)

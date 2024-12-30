@@ -15,14 +15,14 @@ macro_rules! define {
 
         #[deprecated]
         #[inline(always)]
-        #[doc = $crate::shared::constants::min_value_doc!($wide_t)]
+        #[doc = $crate::shared::constants::min_value_doc!(u128)]
         pub const fn min_value() -> Self {
             Self::from_ne_limbs([0; Self::LIMBS])
         }
 
         #[deprecated]
         #[inline(always)]
-        #[doc = $crate::shared::constants::max_value_doc!($wide_t)]
+        #[doc = $crate::shared::constants::max_value_doc!(u128)]
         pub const fn max_value() -> Self {
             Self::from_ne_limbs([$crate::ULimb::MAX; Self::LIMBS])
         }

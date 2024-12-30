@@ -38,6 +38,7 @@ macro_rules! define {
         /// Naively, this is [`Self::widening_mul`] and then taking the
         /// high half, however, this can use custom optimizations.
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn high_mul(self, rhs: Self) -> Self {
             // Extract high-and-low masks.
             let x1 = self.high();

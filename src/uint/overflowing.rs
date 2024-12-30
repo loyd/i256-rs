@@ -12,8 +12,9 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_add)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
@@ -27,8 +28,9 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_add_signed`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_add_signed)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_signed(self, rhs: $s_t) -> (Self, bool) {
             let is_negative = rhs.is_negative();
             let (r, overflowed) = self.overflowing_add(Self::from_signed(rhs));
@@ -41,8 +43,9 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_sub`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_sub)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
@@ -56,7 +59,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub_signed(self, rhs: $s_t) -> (Self, bool) {
             let (res, overflow) = self.overflowing_sub(rhs.as_unsigned());
             (res, overflow ^ (rhs.is_negative()))
@@ -83,11 +86,12 @@ macro_rules! define {
         ///
         /// The analysis here is practically identical to that of [`wrapping_mul`].
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_mul`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_mul)]
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         /// [`wrapping_mul`]: Self::wrapping_mul
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
             let rhs = rhs.to_ne_limbs();
@@ -102,12 +106,11 @@ macro_rules! define {
         /// integers overflow never occurs, so the second value is always
         /// `false`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_div`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_div)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
             (self.wrapping_div(rhs), false)
         }
@@ -122,12 +125,11 @@ macro_rules! define {
         /// definitions of division are equal, this
         /// is exactly equal to `self.overflowing_div(rhs)`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_div_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_div_euclid)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_div_euclid(self, rhs: Self) -> (Self, bool) {
             self.overflowing_div(rhs)
         }
@@ -139,12 +141,11 @@ macro_rules! define {
         /// unsigned integers overflow never occurs, so the second value is
         /// always `false`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_rem`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_rem)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
             (self.wrapping_rem(rhs), false)
         }
@@ -160,12 +161,11 @@ macro_rules! define {
         /// definitions of division are equal, this operation
         /// is exactly equal to `self.overflowing_rem(rhs)`.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::overflowing_rem_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_rem_euclid)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_rem_euclid(self, rhs: Self) -> (Self, bool) {
             self.overflowing_rem(rhs)
         }

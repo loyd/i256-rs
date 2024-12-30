@@ -7,8 +7,10 @@ macro_rules! define {
 
         /// Saturating integer addition. Computes `self + rhs`, saturating at
         /// the numeric bounds instead of overflowing.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_add`].")]
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_add)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add(self, rhs: Self) -> Self {
             match self.checked_add(rhs) {
                 Some(v) => v,
@@ -18,8 +20,10 @@ macro_rules! define {
 
         /// Saturating addition with a signed integer. Computes `self + rhs`,
         /// saturating at the numeric bounds instead of overflowing.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_add_signed`].")]
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_add_signed)]
         #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add_signed(self, rhs: $s_t) -> Self {
             let is_negative = rhs.is_negative();
             let (r, overflowed) = self.overflowing_add(Self::from_signed(rhs));
@@ -34,8 +38,10 @@ macro_rules! define {
 
         /// Saturating integer subtraction. Computes `self - rhs`, saturating
         /// at the numeric bounds instead of overflowing.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_sub`].")]
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_sub)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_sub(self, rhs: Self) -> Self {
             match self.checked_sub(rhs) {
                 Some(v) => v,
@@ -45,8 +51,10 @@ macro_rules! define {
 
         /// Saturating integer multiplication. Computes `self * rhs`,
         /// saturating at the numeric bounds instead of overflowing.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_mul`].")]
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_mul)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_mul(self, rhs: Self) -> Self {
             match self.checked_mul(rhs) {
                 Some(v) => v,
@@ -57,11 +65,11 @@ macro_rules! define {
         /// Saturating integer division. Computes `self / rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        /// # Panics
+        #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        /// This function will panic if `rhs` is zero.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_div`].")]
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_div)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn saturating_div(self, rhs: Self) -> Self {
             // on unsigned types, there is no overflow in integer division
             self.wrapping_div(rhs)
@@ -69,8 +77,10 @@ macro_rules! define {
 
         /// Saturating integer exponentiation. Computes `self.pow(exp)`,
         /// saturating at the numeric bounds instead of overflowing.
-        #[doc = concat!("See [`", stringify!($wide_t), "::saturating_pow`].")]
-        #[inline]
+        ///
+        #[doc = $crate::shared::docs::primitive_doc!(u128, saturating_pow)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_pow(self, exp: u32) -> Self {
             match self.checked_pow(exp) {
                 Some(x) => x,

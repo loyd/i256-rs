@@ -9,6 +9,7 @@ pub(crate) mod bitops;
 pub(crate) mod casts;
 pub(crate) mod checked;
 pub(crate) mod constants;
+pub(crate) mod docs;
 pub(crate) mod endian;
 pub(crate) mod extensions;
 pub(crate) mod limb;

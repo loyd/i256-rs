@@ -9,12 +9,9 @@ macro_rules! define {
         /// If `rhs` is larger or equal to the number of bits in `self`,
         /// the entire value is shifted out, and `0` is returned.
         ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn unbounded_shl(self, rhs: u32) -> Self {
             if rhs < Self::BITS {
                 self.wrapping_shl(rhs)
@@ -29,12 +26,9 @@ macro_rules! define {
         /// If `rhs` is larger or equal to the number of bits in `self`,
         /// the entire value is shifted out, and `0` is returned.
         ///
-        /// <div class="warning">
-        /// This is a nightly-only experimental API in the Rust core implementation,
-        /// and therefore is subject to change at any time.
-        /// </div>
+        #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
-        #[must_use]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn unbounded_shr(self, rhs: u32) -> Self {
             if rhs < Self::BITS {
                 self.wrapping_shr(rhs)

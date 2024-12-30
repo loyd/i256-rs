@@ -15,8 +15,9 @@ macro_rules! define {
         /// This optimizes very nicely, with efficient `bswap` or `rol`
         /// implementations for each.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::swap_bytes`].")]
-        #[inline]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, swap_bytes)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn swap_bytes(&self) -> Self {
             let mut r = Self {
                 limbs: [0; Self::LIMBS],
@@ -33,8 +34,9 @@ macro_rules! define {
         /// bit becomes the most significant bit, second least-significant bit
         /// becomes second most-significant bit, etc.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::reverse_bits`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, reverse_bits)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn reverse_bits(&self) -> Self {
             let mut r = Self {
                 limbs: [0; Self::LIMBS],
@@ -52,8 +54,9 @@ macro_rules! define {
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::from_be`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_be)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be(x: Self) -> Self {
             if cfg!(target_endian = "big") {
                 x
@@ -67,8 +70,9 @@ macro_rules! define {
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::from_le`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_le)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le(x: Self) -> Self {
             if cfg!(target_endian = "little") {
                 x
@@ -82,8 +86,9 @@ macro_rules! define {
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::to_be`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_be)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be(self) -> Self {
             if cfg!(target_endian = "big") {
                 self
@@ -97,8 +102,9 @@ macro_rules! define {
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::to_le`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_le)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le(self) -> Self {
             if cfg!(target_endian = "little") {
                 self
@@ -110,8 +116,9 @@ macro_rules! define {
         /// Returns the memory representation of this integer as a byte array in
         /// big-endian (network) byte order.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::to_be_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_be_bytes)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_bytes(self) -> [u8; Self::BYTES] {
             self.to_be().to_ne_bytes()
         }
@@ -119,8 +126,9 @@ macro_rules! define {
         /// Returns the memory representation of this integer as a byte array in
         /// little-endian byte order.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::to_le_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_le_bytes)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_bytes(self) -> [u8; Self::BYTES] {
             self.to_le().to_ne_bytes()
         }
@@ -132,11 +140,12 @@ macro_rules! define {
         /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
         /// instead.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::to_ne_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_ne_bytes)]
         ///
         /// [`to_be_bytes`]: Self::to_be_bytes
         /// [`to_le_bytes`]: Self::to_le_bytes
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_ne_bytes(self) -> [u8; Self::BYTES] {
             // SAFETY: plain old data
             unsafe {
@@ -147,8 +156,9 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a byte array in big endian.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::from_be_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_be_bytes)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_bytes(bytes: [u8; Self::BYTES]) -> Self {
             Self::from_ne_bytes(bytes).to_be()
         }
@@ -156,8 +166,9 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a byte array in little endian.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::from_le_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_le_bytes)]
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_bytes(bytes: [u8; Self::BYTES]) -> Self {
             Self::from_ne_bytes(bytes).to_le()
         }
@@ -169,11 +180,12 @@ macro_rules! define {
         /// likely wants to use [`from_be_bytes`] or [`from_le_bytes`], as
         /// appropriate instead.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::from_ne_bytes`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_ne_bytes)]
         ///
         /// [`from_be_bytes`]: Self::from_be_bytes
         /// [`from_le_bytes`]: Self::from_le_bytes
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_ne_bytes(bytes: [u8; Self::BYTES]) -> Self {
             // SAFETY: plain old data
             let limbs = unsafe {
@@ -188,6 +200,7 @@ macro_rules! define {
         /// The value of each limb stays the same, however, the order that each
         /// is stored within the buffer is in big-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             if cfg!(target_endian = "little") {
                 swap_array!(self.to_ne_limbs())
@@ -202,6 +215,7 @@ macro_rules! define {
         /// The value of each limb stays the same, however, the order that each
         /// is stored within the buffer is in little-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             if cfg!(target_endian = "little") {
                 self.to_ne_limbs()
@@ -219,6 +233,7 @@ macro_rules! define {
         /// [`to_be_limbs`]: Self::to_be_limbs
         /// [`to_le_limbs`]: Self::to_le_limbs
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_ne_limbs(self) -> [$crate::ULimb; Self::LIMBS] {
             self.limbs
         }
@@ -229,6 +244,7 @@ macro_rules! define {
         /// The value of each limb stays the same, however, the order that each
         /// is stored within the buffer as if it was from big-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_limbs(limbs)
@@ -243,6 +259,7 @@ macro_rules! define {
         /// The value of each limb stays the same, however, the order that each
         /// is stored within the buffer as if it was from little-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_limbs(swap_array!(limbs))
@@ -261,6 +278,7 @@ macro_rules! define {
         /// [`from_be_limbs`]: Self::from_be_limbs
         /// [`from_le_limbs`]: Self::from_le_limbs
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_ne_limbs(limbs: [$crate::ULimb; Self::LIMBS]) -> Self {
             assert!(Self::BITS % 128 == 0, "must have a multiple of 128 for our size.");
             Self {
@@ -271,6 +289,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of wide in
         /// big-endian (network) byte order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_wide(self) -> [$crate::UWide; Self::WIDE] {
             if cfg!(target_endian = "little") {
                 swap_array!(self.to_ne_wide())
@@ -282,6 +301,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of wide in
         /// little-endian byte order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_wide(self) -> [$crate::UWide; Self::WIDE] {
             if cfg!(target_endian = "little") {
                 self.to_ne_wide()
@@ -299,6 +319,7 @@ macro_rules! define {
         /// [`to_be_wide`]: Self::to_be_wide
         /// [`to_le_wide`]: Self::to_le_wide
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_ne_wide(self) -> [$crate::UWide; Self::WIDE] {
             let bytes = self.to_ne_bytes();
             // SAFETY: plain old data
@@ -310,6 +331,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a wide type in big endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_wide(wide)
@@ -321,6 +343,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a wide type in little endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_wide(swap_array!(wide))
@@ -339,6 +362,7 @@ macro_rules! define {
         /// [`from_be_wide`]: Self::from_be_wide
         /// [`from_le_wide`]: Self::from_le_wide
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_ne_wide(wide: [$crate::UWide; Self::WIDE]) -> Self {
             // SAFETY: plain old data
             let bytes = unsafe {
@@ -350,6 +374,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of `u32` digits
         /// in big-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_u32(self) -> [u32; Self::U32_LEN] {
             if cfg!(target_endian = "little") {
                 swap_array!(self.to_ne_u32())
@@ -361,6 +386,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of `u32` digits
         /// in litte-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_u32(self) -> [u32; Self::U32_LEN] {
             if cfg!(target_endian = "little") {
                 self.to_ne_u32()
@@ -378,6 +404,7 @@ macro_rules! define {
         /// [`to_be_u32`]: Self::to_be_u32
         /// [`to_le_u32`]: Self::to_le_u32
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_ne_u32(self) -> [u32; Self::U32_LEN] {
             let bytes = self.to_ne_bytes();
             // SAFETY: plain old data
@@ -389,6 +416,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as `u32` elements in big-endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_u32(value: [u32; Self::U32_LEN]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_u32(value)
@@ -400,6 +428,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as `u32` elements in little-endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_u32(value: [u32; Self::U32_LEN]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_u32(swap_array!(value))
@@ -418,6 +447,7 @@ macro_rules! define {
         /// [`from_be_u32`]: Self::from_be_u32
         /// [`from_le_u32`]: Self::from_le_u32
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_ne_u32(value: [u32; Self::U32_LEN]) -> Self {
             // SAFETY: plain old data
             let bytes = unsafe {
@@ -429,6 +459,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of `u64` digits
         /// in big-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_u64(self) -> [u64; Self::U64_LEN] {
             if cfg!(target_endian = "little") {
                 swap_array!(self.to_ne_u64())
@@ -440,6 +471,7 @@ macro_rules! define {
         /// Returns the memory representation of this as a series of `u64` digits
         /// in litte-endian order.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_u64(self) -> [u64; Self::U64_LEN] {
             if cfg!(target_endian = "little") {
                 self.to_ne_u64()
@@ -457,6 +489,7 @@ macro_rules! define {
         /// [`to_be_u64`]: Self::to_be_u64
         /// [`to_le_u64`]: Self::to_le_u64
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_ne_u64(self) -> [u64; Self::U64_LEN] {
             let bytes = self.to_ne_bytes();
             // SAFETY: plain old data
@@ -468,6 +501,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as `u64` elements in big-endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_u64(value: [u64; Self::U64_LEN]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_u64(value)
@@ -479,6 +513,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as `u64` elements in little-endian.
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_u64(value: [u64; Self::U64_LEN]) -> Self {
             if cfg!(target_endian = "big") {
                 Self::from_ne_u64(swap_array!(value))
@@ -497,6 +532,7 @@ macro_rules! define {
         /// [`from_be_u64`]: Self::from_be_u64
         /// [`from_le_u64`]: Self::from_le_u64
         #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_ne_u64(value: [u64; Self::U64_LEN]) -> Self {
             // SAFETY: plain old data
             let bytes = unsafe {
