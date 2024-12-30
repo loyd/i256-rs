@@ -414,18 +414,17 @@ macro_rules! define {
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_rem_uwide(self, n: $crate::UWide) -> (Self, $crate::UWide) {
-            todo!();
-//            let x = self.unsigned_abs().to_le_limbs();
-//            let (div, mut rem) = $crate::math::div::limb(&x, n);
-//            let mut div = Self::from_le_limbs(div);
-//            if self.is_negative() {
-//                div = div.wrapping_neg();
-//            }
-//            if self.is_negative() && rem != 0 {
-//                div -= Self::from_u8(1);
-//                rem = n - rem;
-//            }
-//            (div, rem)
+            let x = self.unsigned_abs().to_le_limbs();
+            let (div, mut rem) = $crate::math::div::wide(&x, n);
+            let mut div = Self::from_le_limbs(div);
+            if self.is_negative() {
+                div = div.wrapping_neg();
+            }
+            if self.is_negative() && rem != 0 {
+                div -= Self::from_u8(1);
+                rem = n - rem;
+            }
+            (div, rem)
         }
 
         /// Get the quotient and remainder of our big integer divided
@@ -436,20 +435,19 @@ macro_rules! define {
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_rem_iwide(self, n: $crate::IWide) -> (Self, $crate::IWide) {
-            todo!();
-//            let x = self.unsigned_abs().to_le_limbs();
-//            let (div, rem) = $crate::math::div::limb(&x, n.unsigned_abs());
-//            let mut div = Self::from_le_limbs(div);
-//            let mut rem = rem as $crate::IWide;
-//
-//            if self.is_negative() != n.is_negative() {
-//                div = div.wrapping_neg();
-//            }
-//            if self.is_negative() {
-//                rem = rem.wrapping_neg();
-//            }
-//
-//            (div, rem)
+            let x = self.unsigned_abs().to_le_limbs();
+            let (div, rem) = $crate::math::div::wide(&x, n.unsigned_abs());
+            let mut div = Self::from_le_limbs(div);
+            let mut rem = rem as $crate::IWide;
+
+            if self.is_negative() != n.is_negative() {
+                div = div.wrapping_neg();
+            }
+            if self.is_negative() {
+                rem = rem.wrapping_neg();
+            }
+
+            (div, rem)
         }
 
         /// Get the quotient of our big integer divided

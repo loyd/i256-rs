@@ -256,7 +256,25 @@ quickcheck! {
     fn u256_wrapping_rem_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         if y != 0 {
             unsigned_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_ulimb, |x, y| {
-                x == i256::u256::from_ulimb(y)
+                x == i256::u256::from(y)
+            })
+        } else {
+            true
+        }
+    }
+
+    fn u256_wrapping_div_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_div, wrapping_div_uwide)
+        } else {
+            true
+        }
+    }
+
+    fn u256_wrapping_rem_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_uwide, |x, y| {
+                x == i256::u256::from(y)
             })
         } else {
             true
@@ -290,7 +308,25 @@ quickcheck! {
     fn u256_overflowing_rem_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         if y != 0 {
             unsigned_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_ulimb, |x: (i256::u256, bool), y: (i256::ULimb, bool)| {
-                x.0 == i256::u256::from_ulimb(y.0) && x.1 == y.1
+                x.0 == i256::u256::from(y.0) && x.1 == y.1
+            })
+        } else {
+            true
+        }
+    }
+
+    fn u256_overflowing_div_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(over x0, x1, y, overflowing_div, overflowing_div_uwide)
+        } else {
+            true
+        }
+    }
+
+    fn u256_overflowing_rem_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_uwide, |x: (i256::u256, bool), y: (i256::UWide, bool)| {
+                x.0 == i256::u256::from(y.0) && x.1 == y.1
             })
         } else {
             true
@@ -324,7 +360,25 @@ quickcheck! {
     fn u256_checked_rem_ulimb_quickcheck(x0: u128, x1: u128, y: i256::ULimb) -> bool {
         if y != 0 {
             unsigned_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_ulimb, |x: Option<i256::u256>, y: Option<i256::ULimb>| {
-                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::u256::from_ulimb(v).to_le_bytes())
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::u256::from(v).to_le_bytes())
+            })
+        } else {
+            true
+        }
+    }
+
+    fn u256_checked_div_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(check x0, x1, y, checked_div, checked_div_uwide)
+        } else {
+            true
+        }
+    }
+
+    fn u256_checked_rem_uwide_quickcheck(x0: u128, x1: u128, y: i256::UWide) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_uwide, |x: Option<i256::u256>, y: Option<i256::UWide>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::u256::from(v).to_le_bytes())
             })
         } else {
             true
@@ -636,7 +690,6 @@ quickcheck! {
     }
 
     fn i256_overflowing_mul_uwide_quickcheck(x0: u128, x1: i128, y: i256::UWide) -> bool {
-        // TODO: Failing on (1, 0, 170141183460469231731687303715884105728)
         signed_limb_op_equal!(over x0, x1, y, overflowing_mul, overflowing_mul_uwide)
     }
 
@@ -685,7 +738,25 @@ quickcheck! {
             true
         } else {
             signed_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_ilimb, |x, y| {
-                x == i256::i256::from_ilimb(y)
+                x == i256::i256::from(y)
+            })
+        }
+    }
+
+    fn i256_wrapping_div_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(wrap x0, x1, y, wrapping_div, wrapping_div_iwide)
+        }
+    }
+
+    fn i256_wrapping_rem_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_iwide, |x, y| {
+                x == i256::i256::from_iwide(y)
             })
         }
     }
@@ -719,7 +790,25 @@ quickcheck! {
             true
         } else {
             signed_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_ilimb, |x: (i256::i256, bool), y: (i256::ILimb, bool)| {
-                x.0 == i256::i256::from_ilimb(y.0) && x.1 == y.1
+                x.0 == i256::i256::from(y.0) && x.1 == y.1
+            })
+        }
+    }
+
+    fn i256_overflowing_div_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(over x0, x1, y, overflowing_div, overflowing_div_iwide)
+        }
+    }
+
+    fn i256_overflowing_rem_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_iwide, |x: (i256::i256, bool), y: (i256::IWide, bool)| {
+                x.0 == i256::i256::from(y.0) && x.1 == y.1
             })
         }
     }
@@ -753,7 +842,25 @@ quickcheck! {
             true
         } else {
             signed_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_ilimb, |x: Option<i256::i256>, y: Option<i256::ILimb>| {
-                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::i256::from_ilimb(v).to_le_bytes())
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::i256::from(v).to_le_bytes())
+            })
+        }
+    }
+
+    fn i256_checked_div_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(check x0, x1, y, checked_div, checked_div_iwide)
+        }
+    }
+
+    fn i256_checked_rem_iwide_quickcheck(x0: u128, x1: i128, y: i256::IWide) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_iwide, |x: Option<i256::i256>, y: Option<i256::IWide>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::i256::from(v).to_le_bytes())
             })
         }
     }

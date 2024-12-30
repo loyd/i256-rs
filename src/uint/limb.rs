@@ -166,11 +166,9 @@ macro_rules! define {
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_rem_uwide(self, n: $crate::UWide) -> (Self, $crate::UWide) {
-            let x = self.to_le_limbs();
-            todo!();
-            //let (div, rem) = $crate::math::div::wide(&x, n);
-            //let div = Self::from_le_limbs(div);
-            //(div, rem)
+            let (div, rem) = $crate::math::div::wide(&self.to_le_limbs(), n);
+            let div = Self::from_le_limbs(div);
+            (div, rem)
         }
 
         // U32
