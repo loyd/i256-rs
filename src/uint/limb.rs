@@ -224,11 +224,142 @@ macro_rules! define {
 
         // U64
 
-        // TODO: Add
+        /// Add [`u64`] to the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_add_u64(self, n: u64) -> Self {
+            let limbs = $crate::math::add::wrapping_scalar_u64(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Subtract [`u64`] from the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_sub_u64(self, n: u64) -> Self {
+            let limbs = $crate::math::sub::wrapping_scalar_u64(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Multiply our big integer by [`u64`], wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_mul_u64(self, n: u64) -> Self {
+            let limbs = $crate::math::mul::wrapping_scalar_u64(&self.to_ne_limbs(), n);
+            Self::from_ne_limbs(limbs)
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`u64`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        ///
+        #[doc = $crate::shared::docs::div_by_zero_doc!(n)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_rem_u64(self, n: u64) -> (Self, u64) {
+            const BITS: u32 = $crate::ULimb::BITS;
+            assert!(BITS == 32 || BITS == 64);
+            if BITS == 32 {
+                let (quo, rem) = self.wrapping_div_rem_uwide(n as $crate::UWide);
+                (quo, rem as u64)
+            } else {
+                let (quo, rem) = self.wrapping_div_rem_ulimb(n as $crate::ULimb);
+                (quo, rem as u64)
+            }
+        }
 
         // U128
 
-        // TODO: Add
+        /// Add [`u128`] to the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_add_u128(self, n: u128) -> Self {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.wrapping_add_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let limbs = $crate::math::add::wrapping_mn(&lhs, &rhs);
+                Self::from_ne_limbs(limbs)
+            }
+        }
+
+        /// Subtract [`u128`] from the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_sub_u128(self, n: u128) -> Self {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.wrapping_sub_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let limbs = $crate::math::sub::wrapping_mn(&lhs, &rhs);
+                Self::from_ne_limbs(limbs)
+            }
+        }
+
+        /// Multiply our big integer by [`u128`], wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_mul_u128(self, n: u128) -> Self {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.wrapping_mul_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let limbs = $crate::math::mul::wrapping_unsigned(&lhs, &rhs);
+                Self::from_ne_limbs(limbs)
+            }
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`u128`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        ///
+        #[doc = $crate::shared::docs::div_by_zero_doc!(n)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_rem_u128(self, n: u128) -> (Self, u128) {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                let (quo, rem) = self.wrapping_div_rem_uwide(n as $crate::UWide);
+                (quo, rem as u128)
+            } else {
+                let (div, rem) = $crate::math::div::from_u128(&self.to_le_limbs(), n);
+                let div = Self::from_le_limbs(div);
+                (div, rem)
+            }
+        }
     };
 
     (@overflowing) => {
@@ -380,11 +511,100 @@ macro_rules! define {
 
         // U64
 
-        // TODO: Add
+        /// Add [`u64`] to the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_add_u64(self, n: u64) -> (Self, bool) {
+            let (limbs, overflowed) = $crate::math::add::overflowing_scalar_u64(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
+        /// Subtract [`u64`] from the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_sub_u64(self, n: u64) -> (Self, bool) {
+            let (limbs, overflowed) = $crate::math::sub::overflowing_scalar_u64(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
+
+        /// Multiply our big integer by [`u64`], returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_mul_u64(self, n: u64) -> (Self, bool) {
+            let (limbs, overflowed) = $crate::math::mul::overflowing_scalar_u64(&self.to_ne_limbs(), n);
+            (Self::from_ne_limbs(limbs), overflowed)
+        }
 
         // U128
 
-        // TODO: Add
+        /// Add [`u128`] to the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_add_u128(self, n: u128) -> (Self, bool) {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.overflowing_add_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let (limbs, overflowed) = $crate::math::add::overflowing_mn(&lhs, &rhs);
+                (Self::from_ne_limbs(limbs), overflowed)
+            }
+        }
+
+        /// Subtract [`u128`] from the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_sub_u128(self, n: u128) -> (Self, bool) {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.overflowing_sub_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let (limbs, overflowed) = $crate::math::sub::overflowing_mn(&lhs, &rhs);
+                (Self::from_ne_limbs(limbs), overflowed)
+            }
+        }
+
+        /// Multiply our big integer by [`u128`], returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_mul_u128(self, n: u128) -> (Self, bool) {
+            const BITS: u32 = $crate::UWide::BITS;
+            assert!(BITS == 64 || BITS == 128);
+            if BITS == 128 {
+                // this contains optimizations: keep this branch
+                self.overflowing_mul_uwide(n as $crate::UWide)
+            } else {
+                let lhs = self.to_ne_limbs();
+                let rhs = $crate::util::u128_to_limb(n);
+                let (limbs, overflowed) = $crate::math::mul::overflowing_unsigned(&lhs, &rhs);
+                (Self::from_ne_limbs(limbs), overflowed)
+            }
+        }
     };
 
     (@checked) => {

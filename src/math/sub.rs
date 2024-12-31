@@ -324,6 +324,10 @@ limb_function!(overflowing_limb, overflowing_limb_u64, overflowing_limb_u32, &[U
 limb_function!(wrapping_wide, wrapping_wide_u64, wrapping_wide_u32, &[ULimb; N], UWide, ret => [ULimb; N]);
 limb_function!(overflowing_wide, overflowing_wide_u64, overflowing_wide_u32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
 
+// u64
+limb_function!(wrapping_scalar_u64, wrapping_limb_u64, wrapping_wide_u32, &[ULimb; N], u64, ret => [ULimb; N]);
+limb_function!(overflowing_scalar_u64, overflowing_limb_u64, overflowing_wide_u32, &[ULimb; N], u64, ret => ([ULimb; N], bool));
+
 macro_rules! signed_define {
     (
         unsigned =>
@@ -734,6 +738,15 @@ limb_function!(wrapping_uwide, wrapping_uwide_i64, wrapping_uwide_i32, &[ULimb; 
 limb_function!(wrapping_iwide, wrapping_iwide_i64, wrapping_iwide_i32, &[ULimb; N], IWide, ret => [ULimb; N]);
 limb_function!(overflowing_uwide, overflowing_uwide_i64, overflowing_uwide_i32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
 limb_function!(overflowing_iwide, overflowing_iwide_i64, overflowing_iwide_i32, &[ULimb; N], IWide, ret => ([ULimb; N], bool));
+
+// u64
+limb_function!(wrapping_uscalar_i64, wrapping_ulimb_i64, wrapping_uwide_i32, &[ULimb; N], u64, ret => [ULimb; N]);
+limb_function!(wrapping_iscalar_i64, wrapping_ilimb_i64, wrapping_iwide_i32, &[ULimb; N], i64, ret => [ULimb; N]);
+limb_function!(overflowing_uscalar_i64, overflowing_ulimb_i64, overflowing_uwide_i32, &[ULimb; N], u64, ret => ([ULimb; N], bool));
+limb_function!(overflowing_iscalar_i64, overflowing_ilimb_i64, overflowing_iwide_i32, &[ULimb; N], i64, ret => ([ULimb; N], bool));
+// u128
+limb_function!(mn wrapping_mn, wrapping_mn_u64, wrapping_mn_u32, &[ULimb; M], &[ULimb; N], ret => [ULimb; M]);
+limb_function!(mn overflowing_mn, overflowing_mn_u64, overflowing_mn_u32, &[ULimb; M], &[ULimb; N], ret => ([ULimb; M], bool));
 
 #[cfg(test)]
 mod tests {
