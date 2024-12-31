@@ -936,6 +936,224 @@ quickcheck! {
             })
         }
     }
+
+    // 32-bit scalars
+
+    fn u256_wrapping_add_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_u32)
+    }
+
+    fn u256_wrapping_sub_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_sub, wrapping_sub_u32)
+    }
+
+    fn u256_wrapping_mul_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_mul, wrapping_mul_u32)
+    }
+
+    fn u256_wrapping_div_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(wrap x0, x1, y, wrapping_div, wrapping_div_u32)
+        } else {
+            true
+        }
+    }
+
+    fn u256_wrapping_rem_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_u32, |x, y| {
+                x == i256::u256::from(y)
+            })
+        } else {
+            true
+        }
+    }
+
+    fn u256_overflowing_add_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_u32)
+    }
+
+    fn u256_overflowing_sub_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(over x0, x1, y, overflowing_sub, overflowing_sub_u32)
+    }
+
+    fn u256_overflowing_mul_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(over x0, x1, y, overflowing_mul, overflowing_mul_u32)
+    }
+
+    fn u256_overflowing_div_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(over x0, x1, y, overflowing_div, overflowing_div_u32)
+        } else {
+            true
+        }
+    }
+
+    fn u256_overflowing_rem_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_u32, |x: (i256::u256, bool), y: (u32, bool)| {
+                x.0 == i256::u256::from(y.0) && x.1 == y.1
+            })
+        } else {
+            true
+        }
+    }
+
+    fn u256_checked_add_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(check x0, x1, y, checked_add, checked_add_u32)
+    }
+
+    fn u256_checked_sub_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(check x0, x1, y, checked_sub, checked_sub_u32)
+    }
+
+    fn u256_checked_mul_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        unsigned_limb_op_equal!(check x0, x1, y, checked_mul, checked_mul_u32)
+    }
+
+    fn u256_checked_div_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(check x0, x1, y, checked_div, checked_div_u32)
+        } else {
+            true
+        }
+    }
+
+    fn u256_checked_rem_u32_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
+        if y != 0 {
+            unsigned_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_u32, |x: Option<i256::u256>, y: Option<u32>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::u256::from(v).to_le_bytes())
+            })
+        } else {
+            true
+        }
+    }
+
+    fn i256_wrapping_add_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_u32)
+    }
+
+    fn i256_wrapping_sub_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_sub, wrapping_sub_u32)
+    }
+
+    fn i256_wrapping_mul_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_mul, wrapping_mul_u32)
+    }
+
+    fn i256_overflowing_add_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_u32)
+    }
+
+    fn i256_overflowing_sub_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_sub, overflowing_sub_u32)
+    }
+
+    fn i256_overflowing_mul_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_mul, overflowing_mul_u32)
+    }
+
+    fn i256_checked_add_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_u32)
+    }
+
+    fn i256_checked_sub_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_sub, checked_sub_u32)
+    }
+
+    fn i256_checked_mul_u32_quickcheck(x0: u128, x1: i128, y: u32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_mul, checked_mul_u32)
+    }
+
+    fn i256_wrapping_add_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_add, wrapping_add_i32)
+    }
+
+    fn i256_wrapping_sub_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_sub, wrapping_sub_i32)
+    }
+
+    fn i256_wrapping_mul_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(wrap x0, x1, y, wrapping_mul, wrapping_mul_i32)
+    }
+
+    fn i256_wrapping_div_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(wrap x0, x1, y, wrapping_div, wrapping_div_i32)
+        }
+    }
+
+    fn i256_wrapping_rem_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, wrapping_rem, wrapping_rem_i32, |x, y| {
+                x == i256::i256::from_i32(y)
+            })
+        }
+    }
+
+    fn i256_overflowing_add_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_add, overflowing_add_i32)
+    }
+
+    fn i256_overflowing_sub_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_sub, overflowing_sub_i32)
+    }
+
+    fn i256_overflowing_mul_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(over x0, x1, y, overflowing_mul, overflowing_mul_i32)
+    }
+
+    fn i256_overflowing_div_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(over x0, x1, y, overflowing_div, overflowing_div_i32)
+        }
+    }
+
+    fn i256_overflowing_rem_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, overflowing_rem, overflowing_rem_i32, |x: (i256::i256, bool), y: (i32, bool)| {
+                x.0 == i256::i256::from(y.0) && x.1 == y.1
+            })
+        }
+    }
+
+    fn i256_checked_add_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_add, checked_add_i32)
+    }
+
+    fn i256_checked_sub_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_sub, checked_sub_i32)
+    }
+
+    fn i256_checked_mul_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        signed_limb_op_equal!(check x0, x1, y, checked_mul, checked_mul_i32)
+    }
+
+    fn i256_checked_div_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(check x0, x1, y, checked_div, checked_div_i32)
+        }
+    }
+
+    fn i256_checked_rem_i32_quickcheck(x0: u128, x1: i128, y: i32) -> bool {
+        if y == 0 || (y != -1 && x0 == 0 && x1 == i128::MIN) {
+            true
+        } else {
+            signed_limb_op_equal!(x0, x1, y, checked_rem, checked_rem_i32, |x: Option<i256::i256>, y: Option<i32>| {
+                x.map(|v| v.to_le_bytes()) == y.map(|v| i256::i256::from(v).to_le_bytes())
+            })
+        }
+    }
 }
 
 #[test]

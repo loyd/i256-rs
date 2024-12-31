@@ -176,7 +176,88 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Add [`i32`] to the big integer.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn add_i32(self, n: i32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_add_i32(n)
+            } else {
+                match self.checked_add_i32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to add with overflow"),
+                }
+            }
+        }
+
+        /// Subtract [`i32`] from the big integer.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn sub_i32(self, n: i32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_sub_i32(n)
+            } else {
+                match self.checked_sub_i32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to subtract with overflow"),
+                }
+            }
+        }
+
+        /// Multiply our big integer by [`i32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn mul_i32(self, n: i32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_mul_i32(n)
+            } else {
+                match self.checked_mul_i32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to multiply with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`i32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_rem_i32(self, n: i32) -> (Self, i32) {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_div_rem_i32(n)
+            } else {
+                match self.checked_div_rem_i32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to divide with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient of our big integer divided by [`i32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_i32(self, n: i32) -> Self {
+            self.div_rem_i32(n).0
+        }
+
+        /// Get the remainder of our big integer divided by [`i32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn rem_i32(self, n: i32) -> i32 {
+            self.div_rem_i32(n).1
+        }
 
         // U64
 
@@ -468,7 +549,107 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Add [`u32`] to the big integer, wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_add_u32(self, n: u32) -> Self {
+            self.wrapping_add_ulimb(n as $crate::ULimb)
+        }
+
+        /// Add [`i32`] to the big integer, wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_add_i32(self, n: i32) -> Self {
+            self.wrapping_add_ilimb(n as $crate::ILimb)
+        }
+
+        /// Subtract [`u32`] from the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_sub_u32(self, n: u32) -> Self {
+            self.wrapping_sub_ulimb(n as $crate::ULimb)
+        }
+
+        /// Subtract [`i32`] from the big integer, wrapping on
+        /// overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_sub_i32(self, n: i32) -> Self {
+            self.wrapping_sub_ilimb(n as $crate::ILimb)
+        }
+
+        /// Multiply our big integer by [`u32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_mul_u32(self, n: u32) -> Self {
+            self.wrapping_mul_ulimb(n as $crate::ULimb)
+        }
+
+        /// Multiply our big integer by [`i32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn wrapping_mul_i32(self, n: i32) -> Self {
+            self.wrapping_mul_ilimb(n as $crate::ILimb)
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`u32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        /// This always wraps, which can never happen in practice. This
+        /// has to use the floor division since we can never have a non-
+        /// negative rem.
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_rem_u32(self, n: u32) -> (Self, u32) {
+            let (quo, rem) = self.wrapping_div_rem_ulimb(n as $crate::ULimb);
+            (quo, rem as u32)
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`i32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        /// This always wraps, which can never happen in practice.
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_rem_i32(self, n: i32) -> (Self, i32) {
+            let (quo, rem) = self.wrapping_div_rem_ilimb(n as $crate::ILimb);
+            (quo, rem as i32)
+        }
+
+        /// Get the quotient of our big integer divided
+        /// by [`i32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_i32(self, n: i32) -> Self {
+            self.wrapping_div_rem_i32(n).0
+        }
+
+        /// Get the remainder of our big integer divided
+        /// by [`i32`], wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_rem_i32(self, n: i32) -> i32 {
+            self.wrapping_div_rem_i32(n).1
+        }
 
         // U64
 
@@ -706,7 +887,100 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Add [`u32`] to the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_add_u32(self, n: u32) -> (Self, bool) {
+            self.overflowing_add_ulimb(n as $crate::ULimb)
+        }
+
+        /// Add [`i32`] to the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_add_i32(self, n: i32) -> (Self, bool) {
+            self.overflowing_add_ilimb(n as $crate::ILimb)
+        }
+
+        /// Subtract [`u32`] from the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_sub_u32(self, n: u32) -> (Self, bool) {
+            self.overflowing_sub_ulimb(n as $crate::ULimb)
+        }
+
+        /// Subtract [`i32`] from the big integer, returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_sub_i32(self, n: i32) -> (Self, bool) {
+            self.overflowing_sub_ilimb(n as $crate::ILimb)
+        }
+
+        /// Multiply our big integer by [`u32`], returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_mul_u32(self, n: u32) -> (Self, bool) {
+            self.overflowing_mul_ulimb(n as $crate::ULimb)
+        }
+
+        /// Multiply our big integer by [`i32`], returning the value
+        /// and if overflow occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn overflowing_mul_i32(self, n: i32) -> (Self, bool) {
+            self.overflowing_mul_ilimb(n as $crate::ILimb)
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`i32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_div_rem_i32(self, n: i32) -> ((Self, i32), bool) {
+            let (quorem, overflowed) = self.overflowing_div_rem_ilimb(n as $crate::ILimb);
+            ((quorem.0, quorem.1 as i32), overflowed)
+        }
+
+        /// Get the quotient of our big integer divided
+        /// by [`i32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_div_i32(self, n: i32) -> (Self, bool) {
+            self.overflowing_div_ilimb(n as $crate::ILimb)
+        }
+
+        /// Get the remainder of our big integer divided
+        /// by [`i32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_rem_i32(self, n: i32) -> (i32, bool) {
+            let (quo, rem) = self.overflowing_rem_ilimb(n as $crate::ILimb);
+            (quo as i32, rem)
+        }
 
         // U64
 
@@ -878,7 +1152,63 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Add [`i32`] to the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_add_i32(self, n: i32) -> Option<Self> {
+            self.checked_add_ilimb(n as $crate::ILimb)
+        }
+
+        /// Subtract [`i32`] from the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_sub_i32(self, n: i32) -> Option<Self> {
+            self.checked_sub_ilimb(n as $crate::ILimb)
+        }
+
+        /// Multiply our big integer by [`i32`], returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_mul_i32(self, n: i32) -> Option<Self> {
+            self.checked_mul_ilimb(n as $crate::ILimb)
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`i32`], returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_div_rem_i32(self, n: i32) -> Option<(Self, i32)> {
+            let (quo, rem) = self.checked_div_rem_ilimb(n as $crate::ILimb)?;
+            Some((quo, rem as i32))
+        }
+
+        /// Get the quotient of our big integer divided by a signed
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_div_i32(self, n: i32) -> Option<Self> {
+            Some(self.checked_div_rem_i32(n)?.0)
+        }
+
+        /// Get the remainder of our big integer divided by a signed
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_rem_i32(self, n: i32) -> Option<i32> {
+            Some(self.checked_div_rem_i32(n)?.1)
+        }
 
         // U64
 

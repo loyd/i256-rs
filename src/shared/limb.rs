@@ -240,7 +240,25 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Get the quotient of our big integer divided by [`u32`],
+        /// wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_div_u32(self, n: u32) -> Self {
+            self.wrapping_div_rem_u32(n).0
+        }
+
+        /// Get the remainder of our big integer divided by [`u32`],
+        /// wrapping on overflow.
+        ///
+        #[doc = $crate::shared::docs::wide_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn wrapping_rem_u32(self, n: u32) -> u32 {
+            self.wrapping_div_rem_u32(n).1
+        }
 
         // U64
 
@@ -326,7 +344,39 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`u32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline]
+        pub fn overflowing_div_rem_u32(self, n: u32) -> ((Self, u32), bool) {
+            (self.wrapping_div_rem_u32(n), false)
+        }
+
+        /// Get the quotient of our big integer divided
+        /// by [`u32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_div_u32(self, n: u32) -> (Self, bool) {
+            let (value, overflowed) = self.overflowing_div_rem_u32(n);
+            (value.0, overflowed)
+        }
+
+        /// Get the remainder of our big integer divided
+        /// by [`u32`], returning the value and if overflow
+        /// occurred.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn overflowing_rem_u32(self, n: u32) -> (u32, bool) {
+            let (value, overflowed) = self.overflowing_div_rem_u32(n);
+            (value.1, overflowed)
+        }
 
         // U64
 
@@ -494,7 +544,80 @@ macro_rules! define {
 
         // U32
 
-        // TODO: Add
+        /// Add [`u32`] to the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_add_u32(self, n: u32) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_add_u32(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Subtract [`u32`] from the big integer, returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_sub_u32(self, n: u32) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_sub_u32(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Multiply our big integer by [`u32`], returning None on overflow.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn checked_mul_u32(self, n: u32) -> Option<Self> {
+            let (value, overflowed) = self.overflowing_mul_u32(n);
+            if overflowed {
+                None
+            } else {
+                Some(value)
+            }
+        }
+
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline]
+        pub fn checked_div_rem_u32(self, n: u32) -> Option<(Self, u32)> {
+            if n == 0 {
+                None
+            } else {
+                Some(self.wrapping_div_rem_u32(n))
+            }
+        }
+
+        /// Get the quotient of our big integer divided by an unsigned
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_div_u32(self, n: u32) -> Option<Self> {
+            Some(self.checked_div_rem_u32(n)?.0)
+        }
+
+        /// Get the remainder of our big integer divided by a signed
+        /// limb, returning None on overflow or division by 0.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn checked_rem_u32(self, n: u32) -> Option<u32> {
+            Some(self.checked_div_rem_u32(n)?.1)
+        }
 
         // U64
 
