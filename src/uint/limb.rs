@@ -5,6 +5,10 @@ macro_rules! define {
         $crate::shared::limb::define!();
     };
 
+    (fixed) => {
+        $crate::shared::limb::define!(fixed);
+    };
+
     (@wrapping) => {
         $crate::shared::limb::define!(@wrapping);
 
@@ -168,6 +172,10 @@ macro_rules! define {
             let div = Self::from_le_limbs(div);
             (div, rem)
         }
+    };
+
+    (@wrapping-fixed) => {
+        $crate::shared::limb::define!(@wrapping-fixed);
 
         // U32
 
@@ -333,6 +341,10 @@ macro_rules! define {
             let (limbs, overflowed) = $crate::math::mul::overflowing_wide(&self.to_ne_limbs(), n);
             (Self::from_ne_limbs(limbs), overflowed)
         }
+    };
+
+    (@overflowing-fixed) => {
+        $crate::shared::limb::define!(@overflowing-fixed);
 
         // U32
 
@@ -379,11 +391,24 @@ macro_rules! define {
         $crate::shared::limb::define!(@checked);
     };
 
+    (@checked-fixed) => {
+        $crate::shared::limb::define!(@checked-fixed);
+    };
+
     (@all) => {
         $crate::uint::limb::define!();
         $crate::uint::limb::define!(@wrapping);
         $crate::uint::limb::define!(@overflowing);
         $crate::uint::limb::define!(@checked);
+
+        #[cfg(feature = "stdint")]
+        $crate::uint::limb::define!(fixed);
+        #[cfg(feature = "stdint")]
+        $crate::uint::limb::define!(@wrapping-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::uint::limb::define!(@overflowing-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::uint::limb::define!(@checked-fixed);
     };
 }
 

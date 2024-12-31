@@ -173,6 +173,10 @@ macro_rules! define {
         pub fn rem_iwide(self, n: $crate::IWide) -> $crate::IWide {
             self.div_rem_iwide(n).1
         }
+    };
+
+    (fixed) => {
+        $crate::shared::limb::define!(fixed);
 
         // U32
 
@@ -546,6 +550,10 @@ macro_rules! define {
         pub fn wrapping_rem_iwide(self, n: $crate::IWide) -> $crate::IWide {
             self.wrapping_div_rem_iwide(n).1
         }
+    };
+
+    (@wrapping-fixed) => {
+        $crate::shared::limb::define!(@wrapping-fixed);
 
         // U32
 
@@ -884,6 +892,10 @@ macro_rules! define {
             let (value, overflowed) = self.overflowing_div_rem_iwide(n);
             (value.1, overflowed)
         }
+    };
+
+    (@overflowing-fixed) => {
+        $crate::shared::limb::define!(@overflowing-fixed);
 
         // U32
 
@@ -1149,6 +1161,10 @@ macro_rules! define {
         pub fn checked_rem_iwide(self, n: $crate::IWide) -> Option<$crate::IWide> {
             Some(self.checked_div_rem_iwide(n)?.1)
         }
+    };
+
+    (@checked-fixed) => {
+        $crate::shared::limb::define!(@checked-fixed);
 
         // U32
 
@@ -1224,6 +1240,15 @@ macro_rules! define {
         $crate::int::limb::define!(@wrapping);
         $crate::int::limb::define!(@overflowing);
         $crate::int::limb::define!(@checked);
+
+        #[cfg(feature = "stdint")]
+        $crate::int::limb::define!(fixed);
+        #[cfg(feature = "stdint")]
+        $crate::int::limb::define!(@wrapping-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::int::limb::define!(@overflowing-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::int::limb::define!(@checked-fixed);
     };
 }
 

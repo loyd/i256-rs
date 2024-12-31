@@ -16,6 +16,7 @@ This crate is optimized for small variants of big integers, but a few additional
 - `i384`: Add the 384-bit I384 and U384 types.
 - `i512`: Add the 512-bit I512 and U512 types.
 - `i1024`: Add the 1024-bit I1024 and U1024 types.
+- `stdint`: Support operations with fixed-width integer types. The `ULimb`, `UWide`, and other scalars defined may vary in size for optimal performance on the target architecture (64-bit multiplies, for example, are more expensive on 32-bit architectures): enabling this API adds in overloads for `u32`, `u64`, and `u128`, guaranteeing API stability across all platforms.
 
 If you need larger integers, [`crypto-bigint`] has high-performance addition, subtraction, and multiplication. With integers with a large number of bits, it uses Karatsuba multiplication, which is significantly asymptotically faster.
 

@@ -24,14 +24,16 @@ exclude = [
 ]
 
 [features]
-default = ["std"]
+default = ["std", "stdint"]
 std = []
-i384 = []
+# enable the standard, fixed-width integer APIs for scalar operations.
+stdint = []
 # Enable the `U384` and `I384` types.
-i512 = []
+i384 = []
 # Enable the `U512` and `I512` types.
-i1024 = []
+i512 = []
 # Enable the `U1024` and `I1024` types.
+i1024 = []
 
 # Internal only features.
 # Enable the lint checks.
@@ -59,5 +61,5 @@ debug-assertions = false
 lto = true
 
 [package.metadata.docs.rs]
-features = ["i384", "i512", "i1024"]
+features = ["i384", "i512", "i1024", "stdint"]
 rustdoc-args = ["--cfg", "docsrs"]

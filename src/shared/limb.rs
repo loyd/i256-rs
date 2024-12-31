@@ -179,10 +179,98 @@ macro_rules! define {
         pub fn rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
             self.div_rem_uwide(n).1
         }
+    };
+
+    (fixed) => {
 
         // U32
 
-        // TODO: Add
+        /// Add [`u32`] to the big integer.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(addition)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn add_u32(self, n: u32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_add_u32(n)
+            } else {
+                match self.checked_add_u32(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to add with overflow"),
+                }
+            }
+        }
+
+        /// Subtract [`u32`] from the big integer.
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(subtraction)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn sub_u32(self, n: u32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_sub_u32(n)
+            } else {
+                match self.checked_sub_u32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to subtract with overflow"),
+                }
+            }
+        }
+
+        /// Multiply our big integer by [`u32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(multiplication)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub const fn mul_u32(self, n: u32) -> Self {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_mul_u32(n)
+            } else {
+                match self.checked_mul_u32(n) {
+                    Some(v) => v,
+                    None => core::panic!("attempt to multiply with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient and remainder of our big integer divided
+        /// by [`u32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        ///
+        /// # Panics
+        ///
+        /// This panics if the divisor is 0.
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_rem_u32(self, n: u32) -> (Self, u32) {
+            if cfg!(not(have_overflow_checks)) {
+                self.wrapping_div_rem_u32(n)
+            } else {
+                match self.checked_div_rem_u32(n) {
+                    Some(v) => v,
+                    _ => core::panic!("attempt to divide with overflow"),
+                }
+            }
+        }
+
+        /// Get the quotient of our big integer divided by [`u32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn div_u32(self, n: u32) -> Self {
+            self.div_rem_u32(n).0
+        }
+
+        /// Get the remainder of our big integer divided by [`u32`].
+        ///
+        #[doc = $crate::shared::docs::limb_doc!(division)]
+        #[inline(always)]
+        #[must_use = $crate::shared::docs::must_use_copy_doc!()]
+        pub fn rem_u32(self, n: u32) -> u32 {
+            self.div_rem_u32(n).1
+        }
 
         // U64
 
@@ -237,6 +325,9 @@ macro_rules! define {
         pub fn wrapping_rem_uwide(self, n: $crate::UWide) -> $crate::UWide {
             self.wrapping_div_rem_uwide(n).1
         }
+    };
+
+    (@wrapping-fixed) => {
 
         // U32
 
@@ -341,7 +432,9 @@ macro_rules! define {
             let (value, overflowed) = self.overflowing_div_rem_uwide(n);
             (value.1, overflowed)
         }
+    };
 
+    (@overflowing-fixed) => {
         // U32
 
         /// Get the quotient and remainder of our big integer divided
@@ -541,7 +634,9 @@ macro_rules! define {
         pub fn checked_rem_uwide(self, n: $crate::UWide) -> Option<$crate::UWide> {
             Some(self.checked_div_rem_uwide(n)?.1)
         }
+    };
 
+    (@checked-fixed) => {
         // U32
 
         /// Add [`u32`] to the big integer, returning None on overflow.
@@ -633,6 +728,15 @@ macro_rules! define {
         $crate::shared::limb::define!(@wrapping);
         $crate::shared::limb::define!(@overflowing);
         $crate::shared::limb::define!(@checked);
+
+        #[cfg(feature = "stdint")]
+        $crate::shared::limb::define!(fixed);
+        #[cfg(feature = "stdint")]
+        $crate::shared::limb::define!(@wrapping-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::shared::limb::define!(@overflowing-fixed);
+        #[cfg(feature = "stdint")]
+        $crate::shared::limb::define!(@checked-fixed);
     };
 }
 
