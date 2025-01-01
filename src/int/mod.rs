@@ -40,8 +40,6 @@ pub(crate) mod wrapping;
 /// crate::int::define!(
 ///     name => i256,
 ///     unsigned_t => crate::u256,
-///     unsigned_wide_t => u128,
-///     signed_wide_t => i128,
 ///     bits => 256,
 /// );
 /// ```
@@ -49,8 +47,6 @@ macro_rules! define {
     (
         name => $name:ident,
         unsigned_t => $u_t:ty,
-        unsigned_wide_t => $wide_u_t:ty,
-        signed_wide_t => $wide_s_t:ty,
         bits => $bits:expr  $(,)?
     ) => {
         $crate::shared::int_struct_define!(
@@ -62,30 +58,75 @@ macro_rules! define {
         impl $name {
             $crate::int::constants::define!(
                 bits => $bits,
-                wide_type => $wide_s_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
             );
-            $crate::int::bitops::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::shared::endian::define!(type => $u_t, wide_type => $wide_s_t);
+            $crate::int::bitops::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::shared::endian::define!(
+                type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
             $crate::shared::ord::define!(
-                low_type => $wide_u_t,
-                high_type => $wide_s_t,
+                low_type => $crate::UWide,
+                high_type => $crate::IWide,
             );
             $crate::int::casts::define!(
                 unsigned_type => $u_t,
                 bits => $bits,
-                wide_type => $wide_s_t,
+                wide_type => $crate::IWide,
                 kind => signed,
             );
-            $crate::shared::extensions::define!(high_type => $crate::ILimb);
-            $crate::int::ops::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::shared::bigint::define!(wide_type => $wide_s_t);
-            $crate::int::wrapping::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::int::overflowing::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::int::saturating::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::int::checked::define!(unsigned_type => $u_t, wide_type => $wide_s_t);
-            $crate::int::strict::define!(unsigned_type => $u_t);
-            $crate::int::unchecked::define!(unsigned_type => $u_t);
-            $crate::shared::unbounded::define!(type => $u_t, wide_type => $wide_s_t);
+            $crate::shared::extensions::define!(
+                high_type => $crate::ILimb,
+            );
+            $crate::int::ops::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::shared::bigint::define!(
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::wrapping::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::overflowing::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::saturating::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::checked::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::strict::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::int::unchecked::define!(
+                unsigned_type => $u_t,
+                wide_type => $crate::IWide,
+                see_type => i64,
+            );
+            $crate::shared::unbounded::define!(
+                type => $u_t,
+                wide_type => $crate::IWide,
+            );
             $crate::int::limb::define!(@all);
 
             $crate::parse::define!(true);

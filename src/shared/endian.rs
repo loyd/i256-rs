@@ -2,7 +2,11 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// The number of bytes in the type.
         const BYTES: usize = Self::BITS as usize / 8;
         const U32_LEN: usize = Self::BYTES / 4;
@@ -15,7 +19,7 @@ macro_rules! define {
         /// This optimizes very nicely, with efficient `bswap` or `rol`
         /// implementations for each.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, swap_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, swap_bytes)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn swap_bytes(&self) -> Self {
@@ -34,7 +38,7 @@ macro_rules! define {
         /// bit becomes the most significant bit, second least-significant bit
         /// becomes second most-significant bit, etc.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, reverse_bits)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, reverse_bits)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn reverse_bits(&self) -> Self {
@@ -54,7 +58,7 @@ macro_rules! define {
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_be)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, from_be)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be(x: Self) -> Self {
@@ -70,7 +74,7 @@ macro_rules! define {
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_le)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, from_le)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le(x: Self) -> Self {
@@ -86,7 +90,7 @@ macro_rules! define {
         /// On big endian this is a no-op. On little endian the bytes are
         /// swapped.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_be)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, to_be)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be(self) -> Self {
@@ -102,7 +106,7 @@ macro_rules! define {
         /// On little endian this is a no-op. On big endian the bytes are
         /// swapped.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_le)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, to_le)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le(self) -> Self {
@@ -116,7 +120,7 @@ macro_rules! define {
         /// Returns the memory representation of this integer as a byte array in
         /// big-endian (network) byte order.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_be_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, to_be_bytes)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_be_bytes(self) -> [u8; Self::BYTES] {
@@ -126,7 +130,7 @@ macro_rules! define {
         /// Returns the memory representation of this integer as a byte array in
         /// little-endian byte order.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_le_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, to_le_bytes)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn to_le_bytes(self) -> [u8; Self::BYTES] {
@@ -140,7 +144,7 @@ macro_rules! define {
         /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
         /// instead.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, to_ne_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, to_ne_bytes)]
         ///
         /// [`to_be_bytes`]: Self::to_be_bytes
         /// [`to_le_bytes`]: Self::to_le_bytes
@@ -156,7 +160,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a byte array in big endian.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_be_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, from_be_bytes)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_be_bytes(bytes: [u8; Self::BYTES]) -> Self {
@@ -166,7 +170,7 @@ macro_rules! define {
         /// Creates a native endian integer value from its representation
         /// as a byte array in little endian.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_le_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, from_le_bytes)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn from_le_bytes(bytes: [u8; Self::BYTES]) -> Self {
@@ -180,7 +184,7 @@ macro_rules! define {
         /// likely wants to use [`from_be_bytes`] or [`from_le_bytes`], as
         /// appropriate instead.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, from_ne_bytes)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, from_ne_bytes)]
         ///
         /// [`from_be_bytes`]: Self::from_be_bytes
         /// [`from_le_bytes`]: Self::from_le_bytes

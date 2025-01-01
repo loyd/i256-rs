@@ -118,8 +118,6 @@ pub use types::{ILimb, IWide, ULimb, UWide};
 /// crate::define!(
 ///     unsigned => u256,
 ///     signed => i256,
-///     unsigned_wide => u128,
-///     signed_wide => i128,
 ///     bits => 256,
 /// );
 /// ```
@@ -129,22 +127,16 @@ macro_rules! define {
     (
         unsigned => $unsigned:ident,
         signed => $signed:ident,
-        unsigned_wide => $unsigned_wide:ty,
-        signed_wide => $signed_wide:ty,
         bits => $bits:literal,
     ) => {
         crate::int::define!(
             name => $signed,
             unsigned_t => $unsigned,
-            unsigned_wide_t => $unsigned_wide,
-            signed_wide_t => $signed_wide,
             bits => $bits,
         );
         crate::uint::define!(
             name => $unsigned,
             signed_t => $signed,
-            signed_wide_t => $signed_wide,
-            unsigned_wide_t => $unsigned_wide,
             bits => $bits,
         );
     };
@@ -153,32 +145,24 @@ macro_rules! define {
 define!(
     unsigned => U256,
     signed => I256,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 256,
 );
 #[cfg(feature = "i384")]
 define!(
     unsigned => U384,
     signed => I384,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 384,
 );
 #[cfg(feature = "i512")]
 define!(
     unsigned => U512,
     signed => I512,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 512,
 );
 #[cfg(feature = "i1024")]
 define!(
     unsigned => U1024,
     signed => I1024,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 1024,
 );
 

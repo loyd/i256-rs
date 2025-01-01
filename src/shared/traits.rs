@@ -10,7 +10,7 @@ macro_rules! define {
     ($(
         type => $t:ty,
         impl => $trait:ident $(:: $ns:ident)*,
-        op => $op:ident,
+        op => $op:ident $(,)?
     )*) => ($(
         impl $trait $(::$ns)* <&$t> for $t {
             type Output = <Self as $trait $(::$ns)* >::Output;
@@ -28,7 +28,7 @@ macro_rules! define {
         impl => $trait:ident $(:: $ns1:ident)*,
         op => $op:ident,
         assign => $assign:ident $(:: $ns2:ident)*,
-        assign_op => $op_assign:ident,
+        assign_op => $op_assign:ident $(,)?
     )*) => ($(
         impl $trait $(::$ns1)* <&$t> for $t {
             type Output = <Self as $trait $(::$ns1)* >::Output;

@@ -75,6 +75,7 @@ macro_rules! unsigned_define {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_full<const M: usize, const N: usize>(
             x: &[$t; M],
@@ -119,12 +120,14 @@ macro_rules! unsigned_define {
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_limb<const N: usize>(x: &[$t; N], y: $t) -> [$t; N] {
             $wrapping_full(&x, &[y])
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_wide<const N: usize>(x: &[$t; N], y: $w) -> [$t; N] {
             let mut rhs = [0; 2];
@@ -146,6 +149,7 @@ macro_rules! unsigned_define {
         /// Returns the low and high bits, in that order.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_full<const M: usize, const N: usize>(
             x: &[$t; M],
@@ -203,12 +207,14 @@ macro_rules! unsigned_define {
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_limb<const N: usize>(x: &[$t; N], y: $t) -> ([$t; N], bool) {
             $overflowing_full(&x, &[y])
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_wide<const N: usize>(x: &[$t; N], y: $w) -> ([$t; N], bool) {
             let mut rhs = [0; 2];
@@ -299,7 +305,8 @@ macro_rules! signed_define {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $wrapping_full<const M: usize, const N: usize>(
             x: &[$u; M],
             y: &[$u; N],
@@ -335,12 +342,14 @@ macro_rules! signed_define {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             $wrapping_unsigned(&x, &[y])
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_uwide<const N: usize>(x: &[$u; N], y: $uw) -> [$u; N] {
             let mut rhs = [0; 2];
@@ -375,6 +384,7 @@ macro_rules! signed_define {
         /// All the other optimization caveats are as described above.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
             // NOTE: This does not work like above, but there is a trick.
@@ -386,6 +396,7 @@ macro_rules! signed_define {
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $wrapping_iwide<const N: usize>(x: &[$u; N], y: $sw) -> [$u; N] {
             // NOTE: This does not work like above, but there is a trick.
@@ -417,7 +428,8 @@ macro_rules! signed_define {
         /// The analysis here is practically identical to that of `wrapping_full`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $overflowing_full<const M: usize, const N: usize>(
             x: &[$u; M],
             y: &[$u; N],
@@ -481,6 +493,7 @@ macro_rules! signed_define {
         /// The analysis here is practically identical to that of `wrapping_ulimb`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             let mut rhs = [0; N];
@@ -489,6 +502,7 @@ macro_rules! signed_define {
         }
 
         /// Const implementation of `wrapping_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_uwide<const N: usize>(x: &[$u; N], y: $uw) -> ([$u; N], bool) {
             let mut rhs = [0; N];
@@ -520,6 +534,7 @@ macro_rules! signed_define {
         /// The analysis here is practically identical to that of `wrapping_ilimb`.
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
@@ -529,6 +544,7 @@ macro_rules! signed_define {
         }
 
         /// Const implementation of `overflowing_mul` for internal algorithm use.
+        #[must_use]
         #[inline(always)]
         pub const fn $overflowing_iwide<const N: usize>(x: &[$u; N], y: $sw) -> ([$u; N], bool) {
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);

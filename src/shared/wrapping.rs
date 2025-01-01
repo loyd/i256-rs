@@ -2,11 +2,15 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Wrapping (modular) exponentiation. Computes `self.pow(exp)`,
         /// wrapping around at the boundary of the type.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, wrapping_pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_pow)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_pow(self, mut exp: u32) -> Self {

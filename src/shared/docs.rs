@@ -152,7 +152,11 @@ pub(crate) use wide_doc;
 
 #[rustfmt::skip]
 macro_rules! as_cast_doc {
-    ($bits:literal, $kind:ident, $to:expr) => {
+    (
+        $bits:literal,
+        $kind:ident,
+        $to:expr $(,)?
+    ) => {
         concat!("Convert the ", stringify!($bits), "-bit ", stringify!($kind), " integer to ", $to, ", as if by an `as` cast.")
     };
 }
@@ -161,7 +165,11 @@ pub(crate) use as_cast_doc;
 
 #[rustfmt::skip]
 macro_rules! from_cast_doc {
-    ($bits:literal, $kind:ident, $to:expr) => {
+    (
+        $bits:literal,
+        $kind:ident,
+        $to:expr $(,)?
+    ) => {
         concat!("Create the ", stringify!($bits), "-bit ", stringify!($kind), " integer from ", $to, ", as if by an `as` cast.")
     };
 }

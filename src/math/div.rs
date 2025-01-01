@@ -41,6 +41,7 @@ use crate::types::{ULimb, UWide};
 ///
 /// Panics if divisor is zero.
 #[inline]
+#[must_use]
 pub fn full<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
@@ -69,6 +70,7 @@ pub fn full<const M: usize, const N: usize>(
 /// due to the creation of the temporary divisor it
 /// can be significantly slower.
 #[inline]
+#[must_use]
 pub fn wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; M], UWide) {
     // NOTE: It's way better to keep this optimization outside the comparison.
     if M >= 2 && is_zero(numerator, 2) {
@@ -97,6 +99,7 @@ pub fn wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; 
 
 /// Implementation like above, except considering we might have 4 values.
 #[inline]
+#[must_use]
 #[cfg(feature = "stdint")]
 #[allow(clippy::assertions_on_constants)]
 pub fn from_u128<const M: usize>(numerator: &[ULimb; M], divisor: u128) -> ([ULimb; M], u128) {
@@ -127,6 +130,7 @@ pub fn from_u128<const M: usize>(numerator: &[ULimb; M], divisor: u128) -> ([ULi
 
 /// Division of numerator by a u64 divisor
 #[inline]
+#[must_use]
 pub fn limb<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
     // quick path optinmization for small values
     if M >= 2 && is_zero(numerator, 2) {

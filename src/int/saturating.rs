@@ -2,13 +2,21 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::saturating::define!(type => $u_t, wide_type => $wide_t);
+    (
+        unsigned_type => $u_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::saturating::define!(
+            type => $u_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Saturating integer addition. Computes `self + rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_add)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add(self, rhs: Self) -> Self {
@@ -22,7 +30,7 @@ macro_rules! define {
         /// Saturating addition with an unsigned integer. Computes `self + rhs`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_add_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_add_unsigned)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_add_unsigned(self, rhs: $u_t) -> Self {
@@ -37,7 +45,7 @@ macro_rules! define {
         /// Saturating integer subtraction. Computes `self - rhs`, saturating at the
         /// numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_sub)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_sub(self, rhs: Self) -> Self {
@@ -51,7 +59,7 @@ macro_rules! define {
         /// Saturating subtraction with an unsigned integer. Computes `self - rhs`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_sub_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_sub_unsigned)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_sub_unsigned(self, rhs: $u_t) -> Self {
@@ -66,7 +74,7 @@ macro_rules! define {
         /// Saturating integer negation. Computes `-self`, returning `MAX` if `self
         /// == MIN` instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_neg)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_neg)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_neg(self) -> Self {
@@ -76,7 +84,7 @@ macro_rules! define {
         /// Saturating absolute value. Computes `self.abs()`, returning `MAX` if
         /// `self == MIN` instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_abs)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_abs)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_abs(self) -> Self {
@@ -89,7 +97,7 @@ macro_rules! define {
         /// Saturating integer multiplication. Computes `self * rhs`, saturating at
         /// the numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_mul)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_mul(self, rhs: Self) -> Self {
@@ -110,7 +118,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_div)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_div)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         #[inline(always)]
         pub fn saturating_div(self, rhs: Self) -> Self {
@@ -123,7 +131,7 @@ macro_rules! define {
         /// Saturating integer exponentiation. Computes `self.pow(exp)`,
         /// saturating at the numeric bounds instead of overflowing.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, saturating_pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, saturating_pow)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn saturating_pow(self, exp: u32) -> Self {

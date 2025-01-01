@@ -2,13 +2,21 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::wrapping::define!(type => $s_t, wide_type => $wide_t);
+    (
+        signed_type => $s_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::wrapping::define!(
+            type => $s_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Wrapping (modular) addition. Computes `self + rhs`,
         /// wrapping around at the boundary of the type.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_add)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add(self, rhs: Self) -> Self {
@@ -19,7 +27,7 @@ macro_rules! define {
         /// Wrapping (modular) addition with a signed integer. Computes
         /// `self + rhs`, wrapping around at the boundary of the type.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_add_signed)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_add_signed)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_add_signed(self, rhs: $s_t) -> Self {
@@ -29,11 +37,13 @@ macro_rules! define {
         /// Wrapping (modular) subtraction. Computes `self - rhs`,
         /// wrapping around at the boundary of the type.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_sub)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_sub(self, rhs: Self) -> Self {
-            let result = $crate::math::sub::wrapping_unsigned(&self.to_ne_limbs(), &rhs.to_ne_limbs());
+            let lhs = self.to_ne_limbs();
+            let rhs = rhs.to_ne_limbs();
+            let result = $crate::math::sub::wrapping_unsigned(&lhs, &rhs);
             Self::from_ne_limbs(result)
         }
 
@@ -65,7 +75,7 @@ macro_rules! define {
         /// because of branching in nearly every case, it has better performance
         /// and optimizes nicely for small multiplications.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_mul)]
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         #[inline(always)]
@@ -235,7 +245,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_div)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_div)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div(self, rhs: Self) -> Self {
@@ -252,7 +262,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_div_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_div_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_div_euclid(self, rhs: Self) -> Self {
@@ -268,7 +278,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_rem)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_rem)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_rem(self, rhs: Self) -> Self {
@@ -286,7 +296,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_rem_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn wrapping_rem_euclid(self, rhs: Self) -> Self {
@@ -303,7 +313,7 @@ macro_rules! define {
         /// Any larger values are equivalent to `MAX + 1 - (val - MAX - 1)` where
         /// `MAX` is the corresponding signed type's maximum.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_neg)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_neg)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_neg(self) -> Self {
@@ -314,7 +324,7 @@ macro_rules! define {
         /// the next power of two is greater than the type's maximum value,
         /// the return value is wrapped to `0`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, wrapping_next_power_of_two)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, wrapping_next_power_of_two)]
         #[inline]
         pub const fn wrapping_next_power_of_two(self) -> Self {
             self.one_less_than_next_power_of_two().wrapping_add(Self::from_u8(1))

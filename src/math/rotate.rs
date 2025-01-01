@@ -55,8 +55,8 @@ macro_rules! define {
         ///
         /// [`shld`]: https://www.felixcloutier.com/x86/shld
         /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $left<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
             assert!(N >= 2, "must have at least 2 limbs");
             // 0bXYFFFF -> 0bFFFFXY
@@ -130,8 +130,8 @@ macro_rules! define {
         ///
         /// [`shld`]: https://www.felixcloutier.com/x86/shld
         /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $right<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
             assert!(N >= 2, "must have at least 2 limbs");
             // See rotate_left for the description

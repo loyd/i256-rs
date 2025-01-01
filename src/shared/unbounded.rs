@@ -2,7 +2,10 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty $(,)?
+    ) => {
         /// Unbounded shift left. Computes `self << rhs`, without bounding the value
         /// of `rhs`.
         ///

@@ -46,6 +46,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             let mut index = 0;
             let mut result = [0; N];
@@ -92,6 +93,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_full<const N: usize>(
             x: &[$u; N],
             y: &[$u; N],
@@ -136,6 +138,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
 
@@ -185,6 +188,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
 
@@ -205,6 +209,7 @@ macro_rules! unsigned_define {
         /// Const implementation of `wrapping_add` for internal algorithm use.
         // NOTE: This differs significantly from `wrapping_full`.
         #[inline]
+        #[must_use]
         pub const fn $wrapping_mn<const M: usize, const N: usize>(
             x: &[$u; M],
             y: &[$u; N],
@@ -235,6 +240,7 @@ macro_rules! unsigned_define {
         /// Const implementation of `overflowing_add` for internal algorithm use.
         // NOTE: This differs significantly from `overflowing_full`.
         #[inline]
+        #[must_use]
         pub const fn $overflowing_mn<const M: usize, const N: usize>(
             x: &[$u; M],
             y: &[$u; N],
@@ -263,6 +269,7 @@ macro_rules! unsigned_define {
 
         /// Const implementation of `wrapping_add` a small number to the wider type.
         #[inline]
+        #[must_use]
         pub const fn $wrapping_wide<const N: usize>(x: &[$u; N], y: $w) -> [$u; N] {
             let mut rhs = [0; 2];
             ne_index!(rhs[0] = y as $u);
@@ -272,6 +279,7 @@ macro_rules! unsigned_define {
 
         /// Const implementation of `overflowing_add` a small number to the wider type.
         #[inline]
+        #[must_use]
         pub const fn $overflowing_wide<const N: usize>(x: &[$u; N], y: $w) -> ([$u; N], bool) {
             let mut rhs = [0; 2];
             ne_index!(rhs[0] = y as $u);
@@ -374,6 +382,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
@@ -431,6 +440,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_full<const N: usize>(
             x: &[$u; N],
             y: &[$u; N],
@@ -497,6 +507,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
@@ -547,6 +558,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
@@ -599,6 +611,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
@@ -642,6 +655,7 @@ macro_rules! signed_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
@@ -651,6 +665,8 @@ macro_rules! signed_define {
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
+        #[inline]
+        #[must_use]
         pub const fn $wrapping_uwide<const N: usize>(x: &[$u; N], y: $uw) -> [$u; N] {
             let mut rhs = [0; N];
             ne_index!(rhs[0] = y as $u);
@@ -659,6 +675,8 @@ macro_rules! signed_define {
         }
 
         /// Const implementation to add a small, unsigned number to the wider type.
+        #[inline]
+        #[must_use]
         pub const fn $overflowing_uwide<const N: usize>(x: &[$u; N], y: $uw) -> ([$u; N], bool) {
             let mut rhs = [0; N];
             ne_index!(rhs[0] = y as $u);
@@ -667,6 +685,8 @@ macro_rules! signed_define {
         }
 
         /// Const implementation to add a small, signed number to the wider type.
+        #[inline]
+        #[must_use]
         pub const fn $wrapping_iwide<const N: usize>(x: &[$u; N], y: $sw) -> [$u; N] {
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];
@@ -677,6 +697,8 @@ macro_rules! signed_define {
         }
 
         /// Const implementation to add a small, signed number to the wider type.
+        #[inline]
+        #[must_use]
         pub const fn $overflowing_iwide<const N: usize>(x: &[$u; N], y: $sw) -> ([$u; N], bool) {
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
             let mut rhs = [sign_bit; N];

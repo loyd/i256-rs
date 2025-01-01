@@ -4,7 +4,10 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (wide_type => $wide_t:ty) => {
+    (
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Calculates `self` + `rhs` + `carry` and returns a tuple containing
         /// the sum and the output carry.
         ///
@@ -13,7 +16,7 @@ macro_rules! define {
         /// chaining together multiple additions to create a wider addition, and
         /// can be useful for bignum addition.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, carrying_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, carrying_add)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -32,7 +35,7 @@ macro_rules! define {
         /// subtractions to create a wider subtraction, and can be useful for
         /// bignum subtraction.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, borrowing_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, borrowing_sub)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline]
         #[must_use]

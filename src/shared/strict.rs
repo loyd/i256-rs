@@ -2,13 +2,17 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Strict integer addition. Computes `self + rhs`, panicking
         /// if overflow occurred.
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_add)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -24,7 +28,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_sub)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -40,7 +44,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_mul)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -56,7 +60,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_pow)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -72,7 +76,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_shl)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_shl)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
@@ -88,7 +92,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::strict_doc!(panics)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, strict_shr)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, strict_shr)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
