@@ -144,6 +144,10 @@ quickcheck! {
         }
     }
 
+    fn u256_midpoint_quickcheck(x0: u128, x1: u128, y0: u128, y1: u128) -> bool {
+        unsigned_op_equal!(wrap x0, x1, y0, y1, midpoint)
+    }
+
     fn u256_checked_shl_quickcheck(x0: u128, x1: u128, y: u32) -> bool {
         unsigned_op_equal!(check x0, x1, y, checked_shl)
     }
@@ -515,6 +519,10 @@ quickcheck! {
         } else {
             true
         }
+    }
+
+    fn i256_midpoint_quickcheck(x0: u128, x1: i128, y0: u128, y1: i128) -> bool {
+        signed_op_equal!(wrap x0, x1, y0, y1, midpoint)
     }
 
     fn i256_checked_div_euclid_quickcheck(x0: u128, x1: i128, y0: u128, y1: i128) -> bool {
