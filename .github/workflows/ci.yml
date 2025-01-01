@@ -9,7 +9,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        target: [x86_64, aarch64]
         rust:
           - nightly
           - stable
@@ -59,3 +58,28 @@ jobs:
 
     - name: Doc All Features
       run: RUSTFLAGS="-D warnings" cargo doc --all-features
+
+  features:
+    name: Features
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features: ["limb32", "stdint", "limb32,stdint"]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Check
+      run: cargo check --features=limb32
+
+    - name: Test
+      run: cargo test --features=limb32
+
+    - name: Run Quickcheck Tests
+      run: |
+        cd devel
+        cargo  test --features=limb32
