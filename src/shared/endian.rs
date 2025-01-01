@@ -46,7 +46,7 @@ macro_rules! define {
                 limbs: [0; Self::LIMBS],
             };
             let mut i = 0;
-            while i < 4 {
+            while i < Self::LIMBS {
                 r.limbs[i] = self.limbs[Self::LIMBS - 1 - i].reverse_bits();
                 i += 1;
             }

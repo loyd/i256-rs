@@ -27,7 +27,12 @@ macro_rules! define {
             i -= 1;
             let lhs_i = ne_index!(lhs[i]) as $lo_t;
             let rhs_i = ne_index!(rhs[i]) as $lo_t;
-            is_ord = lhs_i $op2 rhs_i;
+            // NOTE: `<=/>=` OP only should be done in the last loop
+            is_ord = if i == 0 {
+                lhs_i $op2 rhs_i
+            } else {
+                lhs_i $op1 rhs_i
+            };
             is_eq = lhs_i == rhs_i;
         }
         is_ord

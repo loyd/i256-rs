@@ -271,7 +271,6 @@ macro_rules! signed_op_equal {
 macro_rules! unsigned_limb_op_equal {
     ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
         let x = util::to_u256($x0, $x1);
-        println!("TODO: Remove, {x:#?}, {}, {}, y {}, yi256 {}", $x0, $x1, $y, i256::u256::from($y));
         let fres = x.$full(i256::u256::from($y));
         let lres = x.$limb($y);
 
@@ -305,7 +304,6 @@ macro_rules! unsigned_limb_op_equal {
             $full,
             $limb,
             |x: Option<i256::u256>, y: Option<i256::u256>| {
-                println!("TODO: Remove, {x:#?}, {y:#?}, {}, {}, {}", $x0, $x1, $y);
                 x.map(|v| v.to_le_bytes()) == y.map(|v| v.to_le_bytes())
             }
         )

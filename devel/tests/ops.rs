@@ -1421,13 +1421,21 @@ fn saturating_neg_tests() {
     let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let neg = x.saturating_neg();
     assert_eq!(neg.get_wide(0), 0);
-    assert_eq!(neg.get_wide(1), 1);
+    if i256::ULimb::BITS == 32 {
+        assert_eq!(neg.get_wide(2), 1);
+    } else {
+        assert_eq!(neg.get_wide(1), 1);
+    }
 
     let neg = x.checked_neg();
     assert!(neg.is_some());
     let neg = neg.unwrap();
     assert_eq!(neg.get_wide(0), 0);
-    assert_eq!(neg.get_wide(1), 1);
+    if i256::ULimb::BITS == 32 {
+        assert_eq!(neg.get_wide(2), 1);
+    } else {
+        assert_eq!(neg.get_wide(1), 1);
+    }
 }
 
 #[test]
@@ -1440,7 +1448,11 @@ fn saturating_abs_tests() {
     let x = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
     let abs = x.saturating_abs();
     assert_eq!(abs.get_wide(0), 0);
-    assert_eq!(abs.get_wide(1), 1);
+    if i256::ULimb::BITS == 32 {
+        assert_eq!(abs.get_wide(2), 1);
+    } else {
+        assert_eq!(abs.get_wide(1), 1);
+    }
 
     let x = util::to_i256(u128::MAX, u128::MAX as i128);
     let abs = x.saturating_abs();
@@ -1454,6 +1466,31 @@ fn abs_tests() {
     let abs = x.abs();
     assert_eq!(abs.get_wide(0), 0);
     assert_eq!(abs.get_wide(1), 0);
+
+    let x = util::to_i256(0, i128::MIN);
+    assert!(x.checked_abs().is_none());
+
+    let x = util::to_i256(u128::MAX, u128::MAX as i128);
+    assert!(x.checked_abs().is_some());
+    let abs = x.checked_abs().unwrap();
+    assert_eq!(abs.get_wide(0), 1);
+    assert_eq!(abs.get_wide(1), 0);
+}
+
+#[test]
+fn abs_diff_tests() {
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
+    let y = i256::i256::from_le_u64([0, 0, u64::MAX, u64::MAX]);
+    let abs = x.abs_diff(y);
+
+    // Same values, so the issue is in the `wrapping_sub` implementation of the
+    // unsigned version
+    assert_eq!(abs.get_wide(0), 0);
+    if i256::ULimb::BITS == 32 {
+        assert_eq!(abs.get_wide(2), 1);
+    } else {
+        assert_eq!(abs.get_wide(1), 1);
+    }
 
     let x = util::to_i256(0, i128::MIN);
     assert!(x.checked_abs().is_none());
@@ -1540,4 +1577,32 @@ fn widening_mul_tests() {
     assert_eq!(lo.to_le_u64(), [0, 0, 1, 0]);
     assert_eq!(hi.to_le_u64(), [0, 0, 0, 0]);
     assert_eq!(hi, x.high_mul(y));
+}
+
+#[test]
+#[cfg(feature = "stdint")]
+fn i256_wrapping_add_i64_tests() {
+    let x = i256::i256::from_le_u64([0, 0, 0, 0]);
+    let y = 2147483648i64;
+    let result = x.wrapping_add_i64(y);
+    assert_eq!(result, i256::i256::from_le_u64([2147483648, 0, 0, 0]));
+}
+
+#[test]
+fn u256_rotate_right_tests() {
+    let x = i256::u256::from_le_u64([0, 0, 1, 0]);
+    let y = 1u32;
+    let result = x.rotate_right(y);
+    assert_eq!(result.to_le_u64(), [0, 9223372036854775808, 0, 0]);
+}
+
+#[test]
+fn u256_wrapping_next_power_of_two_tests() {
+    let x = i256::u256::from_le_u64([0, 2, 0, 0]);
+    let result = x.wrapping_next_power_of_two();
+    assert_eq!(result.to_le_u64(), [0, 2, 0, 0]);
+
+    let x = i256::u256::from_le_u64([0, 3, 0, 0]);
+    let result = x.wrapping_next_power_of_two();
+    assert_eq!(result.to_le_u64(), [0, 4, 0, 0]);
 }
