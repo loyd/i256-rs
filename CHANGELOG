@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] 2025-01-01
+
 ## Added
 
 - `*_u32`, `*_u64`, and `*_u128` methods for direct API interactions with fixed with integral types, at the potential cost of performance on some architectures.
@@ -19,8 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 
 - Restored the `*_uwide` and `*_iwide` API methods.
+- Support for 32-bit limbs.
+- Improved performance for certain operations.
 
-## [0.1.12] 2024-12-30
+## [0.1.2] 2024-12-30
 
 ## Added
 
