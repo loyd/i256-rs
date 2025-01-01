@@ -2,13 +2,21 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::checked::define!(type => $u_t, wide_type => $wide_t);
+    (
+        unsigned_type => $u_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::checked::define!(
+            type => $u_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Checked addition with an unsigned integer. Computes `self + rhs`,
         /// returning `None` if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_add_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_add_unsigned)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_add_unsigned(self, rhs: $u_t) -> Option<Self> {
@@ -23,7 +31,7 @@ macro_rules! define {
         /// Checked subtraction with an unsigned integer. Computes `self - rhs`,
         /// returning `None` if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_sub_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_sub_unsigned)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_sub_unsigned(self, rhs: $u_t) -> Option<Self> {
@@ -37,7 +45,7 @@ macro_rules! define {
 
         /// Checked negation. Computes `-self`, returning `None` if `self == MIN`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_neg)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_neg)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_neg(self) -> Option<Self> {
@@ -52,7 +60,7 @@ macro_rules! define {
         /// Checked absolute value. Computes `self.abs()`, returning `None` if
         /// `self == MIN`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_abs)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_abs)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_abs(self) -> Option<Self> {
@@ -72,7 +80,7 @@ macro_rules! define {
         /// `checked_ilog2` can produce results more efficiently for base 2, and
         /// `checked_ilog10` can produce results more efficiently for base 10.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_ilog)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_ilog)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_ilog(self, base: Self) -> Option<u32> {
@@ -109,7 +117,7 @@ macro_rules! define {
         /// multiple of `rhs`. Returns `None` if `rhs` is zero or the operation
         /// would result in overflow.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, checked_next_multiple_of)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_next_multiple_of)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {

@@ -2,14 +2,18 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Raises self to the power of `exp`, using exponentiation by squaring,
         /// returning the value.
         ///
         /// Returns a tuple of the exponentiation along with a bool indicating
         /// whether an overflow happened.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, overflowing_pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_pow)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_pow(self, mut exp: u32) -> (Self, bool) {

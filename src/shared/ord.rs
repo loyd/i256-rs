@@ -27,7 +27,12 @@ macro_rules! define {
             i -= 1;
             let lhs_i = ne_index!(lhs[i]) as $lo_t;
             let rhs_i = ne_index!(rhs[i]) as $lo_t;
-            is_ord = lhs_i $op2 rhs_i;
+            // NOTE: `<=/>=` OP only should be done in the last loop
+            is_ord = if i == 0 {
+                lhs_i $op2 rhs_i
+            } else {
+                lhs_i $op1 rhs_i
+            };
             is_eq = lhs_i == rhs_i;
         }
         is_ord
@@ -37,7 +42,7 @@ macro_rules! define {
         low_type => $lo_t:ty,
         high_type => $hi_t:ty $(,)?
     ) => {
-        /// Non-short circuiting const implementation of `Eq`.
+        /// Non-short circuiting const implementation of [`Eq`].
         #[inline(always)]
         const fn eq_branchless(self, rhs: Self) -> bool {
             let lhs = self.to_ne_wide();
@@ -52,7 +57,7 @@ macro_rules! define {
             is_eq
         }
 
-        /// Short-circuiting const implementation of `Eq`.
+        /// Short-circuiting const implementation of [`Eq`].
         #[inline(always)]
         pub const fn eq_branched(self, rhs: Self) -> bool {
             let lhs = self.to_ne_wide();
@@ -66,7 +71,7 @@ macro_rules! define {
             is_eq
         }
 
-        /// Non-short circuiting const implementation of `Eq`.
+        /// Non-short circuiting const implementation of [`Eq`].
         #[inline(always)]
         pub const fn eq_const(self, rhs: Self) -> bool {
             if Self::BITS < 4096 {
@@ -80,8 +85,9 @@ macro_rules! define {
         // This can always be implemented in terms of the highest wide bit, then the
         // rest as low.
 
-        /// Non-short circuiting const implementation of `PartialOrd::lt`.
+        /// Non-short circuiting const implementation of [`PartialOrd::lt`].
         #[inline(always)]
+        #[must_use]
         pub const fn lt_const(self, rhs: Self) -> bool {
             $crate::shared::ord::define!(
                 @ord
@@ -94,7 +100,8 @@ macro_rules! define {
             )
         }
 
-        /// Non-short circuiting const implementation of `PartialOrd::le`.
+        /// Non-short circuiting const implementation of [`PartialOrd::le`].
+        #[must_use]
         #[inline(always)]
         pub const fn le_const(self, rhs: Self) -> bool {
             $crate::shared::ord::define!(
@@ -108,19 +115,19 @@ macro_rules! define {
             )
         }
 
-        /// Non-short circuiting const implementation of `PartialOrd::gt`.
+        /// Non-short circuiting const implementation of [`PartialOrd::gt`].
         #[inline(always)]
         pub const fn gt_const(self, rhs: Self) -> bool {
             !self.le_const(rhs)
         }
 
-        /// Non-short circuiting const implementation of `PartialOrd::ge`.
+        /// Non-short circuiting const implementation of [`PartialOrd::ge`].
         #[inline(always)]
         pub const fn ge_const(self, rhs: Self) -> bool {
             !self.lt_const(rhs)
         }
 
-        /// Non-short circuiting const implementation of `PartialOrd::cmp`.
+        /// Non-short circuiting const implementation of [`Ord::cmp`].
         #[inline(always)]
         pub const fn cmp_const(self, rhs: Self) -> core::cmp::Ordering {
             let lhs = self.to_ne_wide();
@@ -156,7 +163,7 @@ macro_rules! define {
 pub(crate) use define;
 
 macro_rules! traits {
-    ($t:ty) => {
+    ($t:ty $(,)?) => {
         impl core::cmp::Ord for $t {
             #[inline(always)]
             fn cmp(&self, other: &Self) -> core::cmp::Ordering {

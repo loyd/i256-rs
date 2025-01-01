@@ -22,6 +22,13 @@
 #![cfg_attr(not(feature = "i512"), doc = "- `i512`: Add the 512-bit `I512` and `U512` types.")]
 #![cfg_attr(feature = "i1024", doc = "- `i1024`: Add the 1024-bit [`I1024`] and [`U1024`] types.")]
 #![cfg_attr(not(feature = "i1024"), doc = "- `i1024`: Add the 1024-bit `I1024` and `U1024` types.")]
+//! - `stdint`: Support operations with fixed-width integer types. The
+//!   [`ULimb`],
+//! [`UWide`], and other scalars defined may vary in size for optimal
+//! performance on the target architecture (64-bit multiplies, for example, are
+//! more expensive on 32-bit architectures): enabling this API adds in overloads
+//! for [`u32`], [`u64`], and [`u128`], guaranteeing API stability across all
+//! platforms.
 //!
 //! If you need larger integers, [`crypto-bigint`] has high-performance
 //! addition, subtraction, and multiplication. With integers with a large
@@ -111,8 +118,6 @@ pub use types::{ILimb, IWide, ULimb, UWide};
 /// crate::define!(
 ///     unsigned => u256,
 ///     signed => i256,
-///     unsigned_wide => u128,
-///     signed_wide => i128,
 ///     bits => 256,
 /// );
 /// ```
@@ -122,22 +127,16 @@ macro_rules! define {
     (
         unsigned => $unsigned:ident,
         signed => $signed:ident,
-        unsigned_wide => $unsigned_wide:ty,
-        signed_wide => $signed_wide:ty,
         bits => $bits:literal,
     ) => {
         crate::int::define!(
             name => $signed,
             unsigned_t => $unsigned,
-            unsigned_wide_t => $unsigned_wide,
-            signed_wide_t => $signed_wide,
             bits => $bits,
         );
         crate::uint::define!(
             name => $unsigned,
             signed_t => $signed,
-            signed_wide_t => $signed_wide,
-            unsigned_wide_t => $unsigned_wide,
             bits => $bits,
         );
     };
@@ -146,32 +145,24 @@ macro_rules! define {
 define!(
     unsigned => U256,
     signed => I256,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 256,
 );
 #[cfg(feature = "i384")]
 define!(
     unsigned => U384,
     signed => I384,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 384,
 );
 #[cfg(feature = "i512")]
 define!(
     unsigned => U512,
     signed => I512,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 512,
 );
 #[cfg(feature = "i1024")]
 define!(
     unsigned => U1024,
     signed => I1024,
-    unsigned_wide => u128,
-    signed_wide => i128,
     bits => 1024,
 );
 

@@ -82,8 +82,8 @@ macro_rules! define {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $left<const N: usize, const SIGNED: bool>(x: [$u; N], shift: u32) -> [$u; N] {
             // NOTE: Signed and unsigned are identical
             assert!(N >= 2, "must have at least 2 limbs");
@@ -207,8 +207,8 @@ macro_rules! define {
         ///     (lo, hi | carry)
         /// }
         /// ```
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $right<const N: usize, const SIGNED: bool>(x: [$u; N], shift: u32) -> [$u; N] {
             assert!(N >= 2, "must have at least 2 limbs");
             const BITS: u32 = <$u>::BITS;

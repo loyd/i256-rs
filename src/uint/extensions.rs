@@ -1,7 +1,9 @@
 //! Custom integer extensions for ergonomics.
 
 macro_rules! define {
-    (high_type => $hi_t:ty) => {
+    (
+        high_type => $hi_t:ty $(,)?
+    ) => {
         $crate::shared::extensions::define!(high_type => $hi_t);
 
         /// Get the lower half of the integer, that is, the bits in `[0, BITS/2)`.

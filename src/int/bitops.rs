@@ -2,11 +2,19 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::bitops::define!(type => $u_t, wide_type => $wide_t);
+    (
+        unsigned_type => $u_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::bitops::define!(
+            type => $u_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         #[inline(always)]
-        #[doc = $crate::shared::bitops::wrapping_shl_doc!($wide_t)]
+        #[doc = $crate::shared::bitops::wrapping_shl_doc!($see_t)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_shl(self, rhs: u32) -> Self {
             let result = $crate::math::shift::left_iwide(self.to_ne_wide(), rhs % Self::BITS);
@@ -14,7 +22,7 @@ macro_rules! define {
         }
 
         #[inline(always)]
-        #[doc = $crate::shared::bitops::wrapping_shr_doc!($wide_t)]
+        #[doc = $crate::shared::bitops::wrapping_shr_doc!($see_t)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn wrapping_shr(self, rhs: u32) -> Self {
             let result = $crate::math::shift::right_iwide(self.to_ne_wide(), rhs % Self::BITS);

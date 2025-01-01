@@ -1,7 +1,7 @@
 //! Custom integer extensions for ergonomics.
 
 macro_rules! define {
-    (high_type => $hi_t:ty) => {
+    (high_type => $hi_t:ty $(,)?) => {
         /// Get if the integer is even.
         #[inline(always)]
         pub const fn is_even(&self) -> bool {

@@ -55,8 +55,8 @@ macro_rules! define {
         ///
         /// [`shld`]: https://www.felixcloutier.com/x86/shld
         /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $left<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
             assert!(N >= 2, "must have at least 2 limbs");
             // 0bXYFFFF -> 0bFFFFXY
@@ -130,59 +130,14 @@ macro_rules! define {
         ///
         /// [`shld`]: https://www.felixcloutier.com/x86/shld
         /// [`shrd`]: https://www.felixcloutier.com/x86/shrd
-        #[inline]
         #[must_use]
+        #[inline(always)]
         pub const fn $right<const N: usize>(x: [$u; N], n: u32) -> [$u; N] {
             assert!(N >= 2, "must have at least 2 limbs");
-            // See rotate_left for the description
             // 0bFFFFXY -> 0bXYFFFF
             const BITS: u32 = <$u>::BITS;
-            let n = n % (N as u32 * BITS);
-            let limb_n = (n >> BITS.trailing_zeros()) as usize;
-            let bits_n = n & (BITS - 1);
-            let inv_n = BITS - bits_n;
-
-            let mut result = [0; N];
-            if N ==  2 {
-                // Simple case, only have to worry about swapping bits, at most swap 1 limb.
-                let (x0, x1) = if limb_n != 0 {
-                    (ne_index!(x[1]), ne_index!(x[0]))
-                } else {
-                    (ne_index!(x[0]), ne_index!(x[1]))
-                };
-                let (r0, r1) = if bits_n == 0 {
-                    (x0, x1)
-                } else {
-                    let hi = (x1 >> bits_n) | (x0 << BITS - bits_n);
-                    let lo = (x0 >> bits_n) | (x1 << BITS - bits_n);
-                    (lo, hi)
-                };
-                ne_index!(result[0] = r0);
-                ne_index!(result[1] = r1);
-            } else if bits_n != 0 {
-                let mut index = 0;
-                let mut carry = 0;
-                while index < N {
-                    let rot_n = (index + limb_n) % N;
-                    let xi = ne_index!(x[rot_n]);
-                    let ri = (xi >> bits_n) | carry;
-                    carry = xi << inv_n;
-                    ne_index!(result[index] = ri);
-                    index += 1;
-                }
-                ne_index!(result[0] = ne_index!(result[0]) | carry);
-            } else {
-                // no bit shift, just limb shifts
-                let mut index = 0;
-                while index < N {
-                    let rot_n = (index + limb_n) % N;
-                    let xi = ne_index!(x[rot_n]);
-                    ne_index!(result[index] = xi);
-                    index += 1;
-                }
-            }
-
-            result
+            let n = n % (BITS * N as u32);
+            $left(x, (BITS * N as u32) - n)
         }
     )*);
 }

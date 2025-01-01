@@ -1,15 +1,21 @@
 //! Const implementations of subtraction.
 
 use super::bigint::*;
-use crate::{ILimb, ULimb};
+use crate::{ILimb, IWide, ULimb, UWide};
 
 macro_rules! unsigned_define {
     (
-        $u:ty,wrapping_full =>
+        type =>
+        $u:ty,wide =>
+        $w:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
         $overflowing_full:ident,wrapping_limb =>
         $wrapping_limb:ident,overflowing_limb =>
-        $overflowing_limb:ident,borrowing =>
+        $overflowing_limb:ident,wrapping_wide =>
+        $wrapping_wide:ident,overflowing_wide =>
+        $overflowing_wide:ident,wrapping_mn =>
+        $wrapping_mn:ident,overflowing_mn =>
+        $overflowing_mn:ident,borrowing =>
         $borrowing:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
@@ -40,6 +46,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             assert!(N >= 2);
 
@@ -88,6 +95,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_full<const N: usize>(
             x: &[$u; N],
             y: &[$u; N],
@@ -98,14 +106,11 @@ macro_rules! unsigned_define {
             let mut result = [0; N];
             let mut c: bool = false;
             let mut vi: $u;
-            while index < N - 1 {
+            while index < N {
                 (vi, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
                 ne_index!(result[index] = vi);
                 index += 1;
             }
-
-            let (vn, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
-            ne_index!(result[index] = vn);
 
             (result, c)
         }
@@ -138,6 +143,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $wrapping_limb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
 
@@ -187,6 +193,7 @@ macro_rules! unsigned_define {
         ///     ret
         /// ```
         #[inline]
+        #[must_use]
         pub const fn $overflowing_limb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
 
@@ -195,53 +202,157 @@ macro_rules! unsigned_define {
             let (mut v, mut c) = ne_index!(x[index]).overflowing_sub(y);
             ne_index!(result[index] = v);
             index += 1;
-            while index < N - 1 {
+            while index < N {
                 (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
                 ne_index!(result[index] = v);
                 index += 1;
             }
 
-            (v, c) = ne_index!(x[index]).overflowing_sub(c as $u);
-            ne_index!(result[index] = v);
+            (result, c)
+        }
+
+        /// Const implementation of `wrapping_sub` for internal algorithm use.
+        // NOTE: This differs significantly from `wrapping_full`.
+        #[inline]
+        #[must_use]
+        pub const fn $wrapping_mn<const M: usize, const N: usize>(
+            x: &[$u; M],
+            y: &[$u; N],
+        ) -> [$u; M] {
+            assert!(N >= 2 && M > N);
+
+            let mut index = 0;
+            let mut result = [0; M];
+            let mut c: bool = false;
+            let mut vi: $u;
+
+            while index < N {
+                (vi, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
+                ne_index!(result[index] = vi);
+                index += 1;
+            }
+
+            while index < M - 1 {
+                (vi, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = vi);
+                index += 1;
+            }
+            ne_index!(result[index] = ne_index!(x[index]).wrapping_sub(c as $u));
+
+            result
+        }
+
+        /// Const implementation of `overflowing_sub` for internal algorithm use.
+        // NOTE: This differs significantly from `overflowing_full`.
+        #[inline]
+        #[must_use]
+        pub const fn $overflowing_mn<const M: usize, const N: usize>(
+            x: &[$u; M],
+            y: &[$u; N],
+        ) -> ([$u; M], bool) {
+            assert!(N >= 2 && M > N);
+
+            let mut index = 0;
+            let mut result = [0; M];
+            let mut c: bool = false;
+            let mut vi: $u;
+
+            while index < N {
+                (vi, c) = $borrowing(ne_index!(x[index]), ne_index!(y[index]), c);
+                ne_index!(result[index] = vi);
+                index += 1;
+            }
+
+            while index < M {
+                (vi, c) = ne_index!(x[index]).overflowing_sub(c as $u);
+                ne_index!(result[index] = vi);
+                index += 1;
+            }
 
             (result, c)
+        }
+
+        /// Const implementation of `wrapping_sub` a small number to the wider type.
+        #[inline]
+        #[must_use]
+        pub const fn $wrapping_wide<const N: usize>(x: &[$u; N], y: $w) -> [$u; N] {
+            let mut rhs = [0; 2];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $wrapping_mn(x, &rhs)
+        }
+
+        /// Const implementation of `overflowing_sub` a small number to the wider type.
+        #[inline]
+        #[must_use]
+        pub const fn $overflowing_wide<const N: usize>(x: &[$u; N], y: $w) -> ([$u; N], bool) {
+            let mut rhs = [0; 2];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $overflowing_mn(x, &rhs)
         }
     };
 }
 
 unsigned_define!(
-    u32,
+    type => u32,
+    wide => u64,
     wrapping_full => wrapping_u32,
     overflowing_full => overflowing_u32,
     wrapping_limb => wrapping_limb_u32,
     overflowing_limb => overflowing_limb_u32,
+    wrapping_wide => wrapping_wide_u32,
+    overflowing_wide => overflowing_wide_u32,
+    wrapping_mn => wrapping_mn_u32,
+    overflowing_mn => overflowing_mn_u32,
     borrowing => borrowing_sub_u32,
 );
 unsigned_define!(
-    u64,
+    type => u64,
+    wide => u128,
     wrapping_full => wrapping_u64,
     overflowing_full => overflowing_u64,
     wrapping_limb => wrapping_limb_u64,
     overflowing_limb => overflowing_limb_u64,
+    wrapping_wide => wrapping_wide_u64,
+    overflowing_wide => overflowing_wide_u64,
+    wrapping_mn => wrapping_mn_u64,
+    overflowing_mn => overflowing_mn_u64,
     borrowing => borrowing_sub_u64,
 );
 
 limb_function!(wrapping_unsigned, wrapping_u64, wrapping_u32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_unsigned, overflowing_u64, overflowing_u32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
+// limb
 limb_function!(wrapping_limb, wrapping_limb_u64, wrapping_limb_u32, &[ULimb; N], ULimb, ret => [ULimb; N]);
 limb_function!(overflowing_limb, overflowing_limb_u64, overflowing_limb_u32, &[ULimb; N], ULimb, ret => ([ULimb; N], bool));
 
+// wide
+limb_function!(wrapping_wide, wrapping_wide_u64, wrapping_wide_u32, &[ULimb; N], UWide, ret => [ULimb; N]);
+limb_function!(overflowing_wide, overflowing_wide_u64, overflowing_wide_u32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
+
+// u64
+limb_function!(wrapping_scalar_u64, wrapping_limb_u64, wrapping_wide_u32, &[ULimb; N], u64, ret => [ULimb; N]);
+limb_function!(overflowing_scalar_u64, overflowing_limb_u64, overflowing_wide_u32, &[ULimb; N], u64, ret => ([ULimb; N], bool));
+
 macro_rules! signed_define {
     (
-        $u:ty,
-        $s:ty,wrapping_full =>
+        unsigned =>
+        $u:ty,signed =>
+        $s:ty,unsigned_wide =>
+        $uw:ty,signed_wide =>
+        $sw:ty,wrapping_full =>
         $wrapping_full:ident,overflowing_full =>
         $overflowing_full:ident,wrapping_ulimb =>
         $wrapping_ulimb:ident,overflowing_ulimb =>
         $overflowing_ulimb:ident,wrapping_ilimb =>
         $wrapping_ilimb:ident,overflowing_ilimb =>
-        $overflowing_ilimb:ident,borrowing =>
+        $overflowing_ilimb:ident,wrapping_uwide =>
+        $wrapping_uwide:ident,overflowing_uwide =>
+        $overflowing_uwide:ident,wrapping_iwide =>
+        $wrapping_iwide:ident,overflowing_iwide =>
+        $overflowing_iwide:ident,borrowing =>
         $borrowing:ident $(,)?
     ) => {
         /// Const implementation of `wrapping_sub` for internal algorithm use.
@@ -271,7 +382,8 @@ macro_rules! signed_define {
         ///     mov     qword ptr [rax + 24], rsi
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $wrapping_full<const N: usize>(x: &[$u; N], y: &[$u; N]) -> [$u; N] {
             assert!(<$u>::BITS == <$s>::BITS);
             assert!(N >= 2);
@@ -325,7 +437,8 @@ macro_rules! signed_define {
         ///     mov     byte ptr [rdi + 32], dl
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $overflowing_full<const N: usize>(
             x: &[$u; N],
             y: &[$u; N],
@@ -392,7 +505,8 @@ macro_rules! signed_define {
         ///     mov     qword ptr [rdi + 24], rsi
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $wrapping_ulimb<const N: usize>(x: &[$u; N], y: $u) -> [$u; N] {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
@@ -443,7 +557,8 @@ macro_rules! signed_define {
         ///     seto    byte ptr [rdi + 32]
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $overflowing_ulimb<const N: usize>(x: &[$u; N], y: $u) -> ([$u; N], bool) {
             assert!(N >= 2);
             assert!(<$u>::BITS == <$s>::BITS);
@@ -496,7 +611,8 @@ macro_rules! signed_define {
         ///     mov     qword ptr [rdi + 24], rcx
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $wrapping_ilimb<const N: usize>(x: &[$u; N], y: $s) -> [$u; N] {
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
@@ -539,7 +655,8 @@ macro_rules! signed_define {
         ///     mov     byte ptr [rax + 32], cl
         ///     ret
         /// ```
-        #[inline]
+        #[must_use]
+        #[inline(always)]
         pub const fn $overflowing_ilimb<const N: usize>(x: &[$u; N], y: $s) -> ([$u; N], bool) {
             // NOTE: We just want to set it as the low bits of `y` and the single high bit.
             let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
@@ -547,39 +664,111 @@ macro_rules! signed_define {
             ne_index!(rhs[0] = y as $u);
             $overflowing_full(x, &rhs)
         }
+
+        /// Const implementation to subtract a small, unsigned number to the wider type.
+        #[must_use]
+        #[inline(always)]
+        pub const fn $wrapping_uwide<const N: usize>(x: &[$u; N], y: $uw) -> [$u; N] {
+            let mut rhs = [0; N];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $wrapping_full(x, &rhs)
+        }
+
+        /// Const implementation to subtract a small, unsigned number to the wider type.
+        #[must_use]
+        #[inline(always)]
+        pub const fn $overflowing_uwide<const N: usize>(x: &[$u; N], y: $uw) -> ([$u; N], bool) {
+            let mut rhs = [0; N];
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $overflowing_full(x, &rhs)
+        }
+
+        /// Const implementation to subtract a small, signed number to the wider type.
+        #[must_use]
+        #[inline(always)]
+        pub const fn $wrapping_iwide<const N: usize>(x: &[$u; N], y: $sw) -> [$u; N] {
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
+            let y = y as $uw;
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $wrapping_full(x, &rhs)
+        }
+
+        /// Const implementation to subtract a small, signed number to the wider type.
+        #[must_use]
+        #[inline(always)]
+        pub const fn $overflowing_iwide<const N: usize>(x: &[$u; N], y: $sw) -> ([$u; N], bool) {
+            let sign_bit = <$u>::MIN.wrapping_sub(y.is_negative() as $u);
+            let mut rhs = [sign_bit; N];
+            let y = y as $uw;
+            ne_index!(rhs[0] = y as $u);
+            ne_index!(rhs[1] = (y >> <$u>::BITS) as $u);
+            $overflowing_full(x, &rhs)
+        }
     };
 }
 
 signed_define!(
-    u32,
-    i32,
+    unsigned => u32,
+    signed => i32,
+    unsigned_wide => u64,
+    signed_wide => i64,
     wrapping_full => wrapping_i32,
     overflowing_full => overflowing_i32,
     wrapping_ulimb => wrapping_ulimb_i32,
     overflowing_ulimb => overflowing_ulimb_i32,
     wrapping_ilimb => wrapping_ilimb_i32,
     overflowing_ilimb => overflowing_ilimb_i32,
+    wrapping_uwide => wrapping_uwide_i32,
+    overflowing_uwide => overflowing_uwide_i32,
+    wrapping_iwide => wrapping_iwide_i32,
+    overflowing_iwide => overflowing_iwide_i32,
     borrowing => borrowing_sub_u32,
 );
 signed_define!(
-    u64,
-    i64,
+    unsigned => u64,
+    signed => i64,
+    unsigned_wide => u128,
+    signed_wide => i128,
     wrapping_full => wrapping_i64,
     overflowing_full => overflowing_i64,
     wrapping_ulimb => wrapping_ulimb_i64,
     overflowing_ulimb => overflowing_ulimb_i64,
     wrapping_ilimb => wrapping_ilimb_i64,
     overflowing_ilimb => overflowing_ilimb_i64,
+    wrapping_uwide => wrapping_uwide_i64,
+    overflowing_uwide => overflowing_uwide_i64,
+    wrapping_iwide => wrapping_iwide_i64,
+    overflowing_iwide => overflowing_iwide_i64,
     borrowing => borrowing_sub_u64,
 );
 
 limb_function!(wrapping_signed, wrapping_i64, wrapping_i32, &[ULimb; N], ret => [ULimb; N]);
 limb_function!(overflowing_signed, overflowing_i64, overflowing_i32, &[ULimb; N], &[ULimb; N], ret => ([ULimb; N], bool));
 
+// limb
 limb_function!(wrapping_ulimb, wrapping_ulimb_i64, wrapping_ulimb_i32, &[ULimb; N], ULimb, ret => [ULimb; N]);
 limb_function!(wrapping_ilimb, wrapping_ilimb_i64, wrapping_ilimb_i32, &[ULimb; N], ILimb, ret => [ULimb; N]);
 limb_function!(overflowing_ulimb, overflowing_ulimb_i64, overflowing_ulimb_i32, &[ULimb; N], ULimb, ret => ([ULimb; N], bool));
 limb_function!(overflowing_ilimb, overflowing_ilimb_i64, overflowing_ilimb_i32, &[ULimb; N], ILimb, ret => ([ULimb; N], bool));
+
+// wide
+limb_function!(wrapping_uwide, wrapping_uwide_i64, wrapping_uwide_i32, &[ULimb; N], UWide, ret => [ULimb; N]);
+limb_function!(wrapping_iwide, wrapping_iwide_i64, wrapping_iwide_i32, &[ULimb; N], IWide, ret => [ULimb; N]);
+limb_function!(overflowing_uwide, overflowing_uwide_i64, overflowing_uwide_i32, &[ULimb; N], UWide, ret => ([ULimb; N], bool));
+limb_function!(overflowing_iwide, overflowing_iwide_i64, overflowing_iwide_i32, &[ULimb; N], IWide, ret => ([ULimb; N], bool));
+
+// u64
+limb_function!(wrapping_uscalar_i64, wrapping_ulimb_i64, wrapping_uwide_i32, &[ULimb; N], u64, ret => [ULimb; N]);
+limb_function!(wrapping_iscalar_i64, wrapping_ilimb_i64, wrapping_iwide_i32, &[ULimb; N], i64, ret => [ULimb; N]);
+limb_function!(overflowing_uscalar_i64, overflowing_ulimb_i64, overflowing_uwide_i32, &[ULimb; N], u64, ret => ([ULimb; N], bool));
+limb_function!(overflowing_iscalar_i64, overflowing_ilimb_i64, overflowing_iwide_i32, &[ULimb; N], i64, ret => ([ULimb; N], bool));
+// u128
+limb_function!(mn wrapping_mn, wrapping_mn_u64, wrapping_mn_u32, &[ULimb; M], &[ULimb; N], ret => [ULimb; M]);
+limb_function!(mn overflowing_mn, overflowing_mn_u64, overflowing_mn_u32, &[ULimb; M], &[ULimb; N], ret => ([ULimb; M], bool));
 
 #[cfg(test)]
 mod tests {

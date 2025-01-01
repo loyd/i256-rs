@@ -1,7 +1,10 @@
 //! Helpers and logic for working with traits.
 
 macro_rules! define {
-    (type => $t:ident,unsigned_type => $u_t:ty) => {
+    (
+        type => $t:ident,
+        unsigned_type => $u_t:ty $(,)?
+    ) => {
         $crate::shared::traits::define!(impl => $t);
         $crate::shared::shift::define! { big => $t, impl => $u_t }
         $crate::shared::shift::define! { reference => $t, impl => $u_t }

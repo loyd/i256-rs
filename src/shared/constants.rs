@@ -3,22 +3,22 @@
 #[rustfmt::skip]
 macro_rules! define {
     (
-        bits =>
-        $bits:expr,wide_type =>
-        $wide_t:ty,low_type =>
-        $lo_t:ty,high_type =>
-        $hi_t:ty $(,)?
+        bits => $bits:expr,
+        wide_type => $wide_t:ty,
+        low_type => $lo_t:ty,
+        high_type => $hi_t:ty,
+        see_type => $see_t:ty $(,)?
     ) => {
         /// The smallest value that can be represented by this integer type.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::MIN`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, MIN)]
         #[allow(deprecated)]
         pub const MIN: Self = Self::min_value();
 
         /// The largest value that can be represented by this integer type
         /// (2<sup>256</sup> - 1).
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::MAX`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, MAX)]
         #[allow(deprecated)]
         pub const MAX: Self = Self::max_value();
 
@@ -31,7 +31,7 @@ macro_rules! define {
         /// assert_eq!(u256::BITS, 256);
         /// ```
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::BITS`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, BITS)]
         pub const BITS: u32 = $bits;
 
         // Internal use only

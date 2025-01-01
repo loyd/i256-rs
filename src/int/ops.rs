@@ -2,7 +2,11 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
+    (
+        unsigned_type => $u_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         #[inline(always)]
         const fn is_div_overflow(self, rhs: Self) -> bool {
             self.eq_const(Self::MIN) & rhs.eq_const(Self::from_i8(-1))
@@ -17,7 +21,7 @@ macro_rules! define {
         /// Returns `true` if `self` is positive and `false` if the number is zero
         /// or negative.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::is_positive`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, is_positive)]
         #[inline(always)]
         pub const fn is_positive(self) -> bool {
             // NOTE: This seems to optimize slightly better than the wide-based one.
@@ -41,7 +45,7 @@ macro_rules! define {
         /// Returns `true` if `self` is negative and `false` if the number is zero
         /// or positive.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::is_negative`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, is_negative)]
         #[inline(always)]
         pub const fn is_negative(self) -> bool {
             // NOTE: Because this is 2's complement, we can optimize like this.
@@ -49,12 +53,16 @@ macro_rules! define {
             high < 0
         }
 
-        $crate::shared::ops::define!(type => $u_t, wide_type => $wide_t);
+        $crate::shared::ops::define!(
+            type => $u_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Computes the absolute value of `self` without any wrapping
         /// or panicking.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::unsigned_abs`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unsigned_abs)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn unsigned_abs(self) -> $u_t {
@@ -76,7 +84,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::div_euclid`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_euclid(self, rhs: Self) -> Self {
@@ -98,7 +106,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, rem_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn rem_euclid(self, rhs: Self) -> Self {
@@ -117,7 +125,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, div_floor)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_floor)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_floor(self, rhs: Self) -> Self {
@@ -142,7 +150,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_signed_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, div_ceil)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_ceil)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_ceil(self, rhs: Self) -> Self {
@@ -167,7 +175,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::overflow_assertions_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, next_multiple_of)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, next_multiple_of)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn next_multiple_of(self, rhs: Self) -> Self {
@@ -218,7 +226,7 @@ macro_rules! define {
         /// This function will panic if `self` is less than or equal to zero,
         /// or if `base` is less than 2.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, ilog)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, ilog)]
         #[inline(always)]
         pub fn ilog(self, base: Self) -> u32 {
             assert!(
@@ -238,7 +246,7 @@ macro_rules! define {
         ///
         /// This function will panic if `self` is less than or equal to zero.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, ilog2)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, ilog2)]
         #[inline(always)]
         pub const fn ilog2(self) -> u32 {
             if let Some(log) = self.checked_ilog2() {
@@ -265,7 +273,7 @@ macro_rules! define {
 
         /// Computes the absolute value of `self`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, abs)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, abs)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs(self) -> Self {
@@ -280,7 +288,7 @@ macro_rules! define {
         /// This function always returns the correct answer without overflow or
         /// panics by returning an unsigned integer.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, abs_diff)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, abs_diff)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs_diff(self, other: Self) -> $u_t {
@@ -297,7 +305,7 @@ macro_rules! define {
         ///  - `1` if the number is positive
         ///  - `-1` if the number is negative
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, signum)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, signum)]
         #[inline(always)]
         pub const fn signum(self) -> Self {
             match self.cmp_const(Self::from_u8(0)) {
@@ -314,7 +322,7 @@ macro_rules! define {
         /// result is always rounded towards negative infinity and that no
         /// overflow will ever occur.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, midpoint)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, midpoint)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn midpoint(self, rhs: Self) -> Self {

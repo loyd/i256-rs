@@ -1,0 +1,70 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Simple",
+            "cargo": {
+                "args": [
+                    "+nightly",
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=i256"
+                ],
+                "filter": {
+                    "name": "i256",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "32-bit Limbs",
+            "cargo": {
+                "args": [
+                    "+nightly",
+                    "test",
+                    "--no-run",
+                    "--features=limb32",
+                    "--lib",
+                    "--package=i256"
+                ],
+                "filter": {
+                    "name": "i256",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "1.59.0 Support",
+            "cargo": {
+                "args": [
+                    "+1.59.0",
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=i256"
+                ],
+                "filter": {
+                    "name": "i256",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

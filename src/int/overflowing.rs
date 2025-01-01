@@ -2,8 +2,16 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (unsigned_type => $u_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::overflowing::define!(type => $u_t, wide_type => $wide_t);
+    (
+        unsigned_type => $u_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::overflowing::define!(
+            type => $u_t,
+            wide_type => $wide_t,
+            see_type => $see_t
+        );
 
         /// Calculates `self` + `rhs`.
         ///
@@ -11,7 +19,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would have
         /// occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_add)]
         #[inline(always)]
         pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
@@ -26,7 +34,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_sub)]
         #[inline(always)]
         pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
@@ -41,7 +49,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_add_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_add_unsigned)]
         #[inline(always)]
         pub const fn overflowing_add_unsigned(self, rhs: $u_t) -> (Self, bool) {
             let rhs = rhs.as_signed();
@@ -55,7 +63,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_sub_unsigned)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_sub_unsigned)]
         #[inline(always)]
         pub const fn overflowing_sub_unsigned(self, rhs: $u_t) -> (Self, bool) {
             let rhs = rhs.as_signed();
@@ -72,7 +80,7 @@ macro_rules! define {
         /// This in worst case 10 `mul`, 20 `add`, and 9 `sub` instructions,
         /// significantly slower than the wrapping variant.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_mul)]
         #[inline(always)]
         pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
             let lhs = self.to_ne_limbs();
@@ -89,7 +97,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_div)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_div)]
         #[inline(always)]
         pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
             if self.is_div_overflow(rhs) {
@@ -107,7 +115,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_div_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_div_euclid)]
         #[inline(always)]
         pub fn overflowing_div_euclid(self, rhs: Self) -> (Self, bool) {
             if self.is_div_overflow(rhs) {
@@ -125,7 +133,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_rem)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_rem)]
         #[inline(always)]
         pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
             if self.is_div_overflow(rhs) {
@@ -143,7 +151,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_rem_euclid)]
         #[inline(always)]
         pub fn overflowing_rem_euclid(self, rhs: Self) -> (Self, bool) {
             if self.is_div_overflow(rhs) {
@@ -161,7 +169,7 @@ macro_rules! define {
         /// minimum value will be returned again and `true` will be returned for an
         /// overflow happening.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_neg)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_neg)]
         #[inline(always)]
         pub const fn overflowing_neg(self) -> (Self, bool) {
             if self.eq_const(Self::MIN) {
@@ -179,7 +187,7 @@ macro_rules! define {
         /// masked (N-1) where N is the number of bits, and this value is then used
         /// to perform the shift.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_shl)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_shl)]
         #[inline(always)]
         pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
             (self.wrapping_shl(rhs), rhs >= Self::BITS)
@@ -193,7 +201,7 @@ macro_rules! define {
         /// masked (N-1) where N is the number of bits, and this value is then used
         /// to perform the shift.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_shr)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_shr)]
         #[inline(always)]
         pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
             (self.wrapping_shr(rhs), rhs >= Self::BITS)
@@ -204,7 +212,7 @@ macro_rules! define {
         /// Returns a tuple of the absolute version of self along with a boolean
         /// indicating whether an overflow happened.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(i128, overflowing_abs)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_abs)]
         #[inline(always)]
         pub const fn overflowing_abs(self) -> (Self, bool) {
             match self.is_negative() {

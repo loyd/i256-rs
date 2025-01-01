@@ -2,11 +2,15 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Checked integer addition. Computes `self + rhs`, returning `None`
         /// if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_add)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_add(self, rhs: Self) -> Option<Self> {
@@ -21,7 +25,7 @@ macro_rules! define {
         /// Checked integer subtraction. Computes `self - rhs`, returning `None`
         /// if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_sub)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
@@ -36,7 +40,7 @@ macro_rules! define {
         /// Checked integer multiplication. Computes `self * rhs`, returning `None`
         /// if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_mul)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
@@ -61,7 +65,7 @@ macro_rules! define {
         /// Checked exponentiation. Computes `self.pow(exp)`, returning `None`
         /// if overflow occurred.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_pow)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_pow(self, base: u32) -> Option<Self> {
@@ -89,7 +93,7 @@ macro_rules! define {
         /// Checked integer division. Computes `self / rhs`, returning `None`
         /// `rhs == 0` or the division results in overflow (signed only).
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_div)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_div)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_div(self, rhs: Self) -> Option<Self> {
@@ -103,7 +107,7 @@ macro_rules! define {
         /// Checked integer division. Computes `self % rhs`, returning `None`
         /// `rhs == 0` or the division results in overflow (signed only).
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_rem)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_rem)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_rem(self, rhs: Self) -> Option<Self> {
@@ -118,7 +122,7 @@ macro_rules! define {
         /// returning `None` if `rhs == 0` or the division results in
         /// overflow (signed only).
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_div_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_div_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_div_euclid(self, rhs: Self) -> Option<Self> {
@@ -133,7 +137,7 @@ macro_rules! define {
         /// returning `None` if `rhs == 0` or the division results in
         /// overflow (signed only).
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_rem_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_rem_euclid(self, rhs: Self) -> Option<Self> {
@@ -147,7 +151,7 @@ macro_rules! define {
         /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is
         /// larger than or equal to the number of bits in `self`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_shl)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_shl)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
@@ -162,7 +166,7 @@ macro_rules! define {
         /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs`
         /// is larger than or equal to the number of bits in `self`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_shr)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_shr)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
@@ -178,7 +182,7 @@ macro_rules! define {
         ///
         /// Returns `None` if the number is negative or zero.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, checked_ilog2)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_ilog2)]
         #[inline(always)]
         pub const fn checked_ilog2(self) -> Option<u32> {
             match self.le_const(Self::from_u8(0)) {

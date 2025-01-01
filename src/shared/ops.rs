@@ -8,10 +8,14 @@
 /// as well as `div_euclid` and `rem_euclid` to be defined.
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Raises self to the power of `exp`, using exponentiation by squaring.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, pow)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, pow)]
         #[inline]
         pub const fn pow(self, exp: u32) -> Self {
             if cfg!(not(have_overflow_checks)) {

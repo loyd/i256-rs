@@ -3,8 +3,16 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::overflowing::define!(type => $s_t, wide_type => $wide_t);
+    (
+        signed_type => $s_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::overflowing::define!(
+            type => $s_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Calculates `self` + `rhs`.
         ///
@@ -12,7 +20,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_add)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
@@ -28,7 +36,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_add_signed)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_add_signed)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_add_signed(self, rhs: $s_t) -> (Self, bool) {
@@ -43,7 +51,7 @@ macro_rules! define {
         /// whether an arithmetic overflow would occur. If an overflow would
         /// have occurred then the wrapped value is returned.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_sub)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
@@ -86,7 +94,7 @@ macro_rules! define {
         ///
         /// The analysis here is practically identical to that of [`wrapping_mul`].
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_mul)]
         ///
         /// [`mulx`]: https://www.felixcloutier.com/x86/mulx
         /// [`wrapping_mul`]: Self::wrapping_mul
@@ -108,7 +116,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_div)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_div)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
@@ -127,7 +135,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_div_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_div_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_div_euclid(self, rhs: Self) -> (Self, bool) {
@@ -143,7 +151,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_rem)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_rem)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
@@ -163,7 +171,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, overflowing_rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, overflowing_rem_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn overflowing_rem_euclid(self, rhs: Self) -> (Self, bool) {

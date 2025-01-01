@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Added
+
+- `*_u32`, `*_u64`, and `*_u128` methods for direct API interactions with fixed with integral types, at the potential cost of performance on some architectures.
+
 ## Changed
 
 - Move `I384`, etc. under the `i384`, `i512`, and `i1024` features.
 - Added many `#[must_use]` attributes for expensive operations which create copies of values.
+
+## Fixed
+
+- Restored the `*_uwide` and `*_iwide` API methods.
 
 ## [0.1.12] 2024-12-30
 

@@ -3,6 +3,7 @@
 use std::mem;
 
 pub use bnum::types::{I256 as Bi256, U256 as Bu256};
+pub use i256::ULimb;
 
 pub fn to_ubnum(x: u128, y: u128) -> Bu256 {
     let buf = [x.to_le_bytes(), y.to_le_bytes()];
@@ -19,12 +20,24 @@ pub fn to_ibnum(x: u128, y: i128) -> Bi256 {
 }
 
 pub fn to_u256(x: u128, y: u128) -> i256::u256 {
-    i256::u256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
+    if ULimb::BITS == 64 {
+        i256::u256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
+    } else {
+        i256::u256::from_le_u32([
+            x as u32,
+            (x >> 32) as u32,
+            (x >> 64) as u32,
+            (x >> 96) as u32,
+            y as u32,
+            (y >> 32) as u32,
+            (y >> 64) as u32,
+            (y >> 96) as u32,
+        ])
+    }
 }
 
 pub fn to_i256(x: u128, y: i128) -> i256::i256 {
-    let y = y as u128;
-    i256::i256::from_le_u64([x as u64, (x >> 64) as u64, y as u64, (y >> 64) as u64])
+    to_u256(x, y as u128).as_signed()
 }
 
 macro_rules! unsigned_op_equal {
@@ -258,7 +271,7 @@ macro_rules! signed_op_equal {
 macro_rules! unsigned_limb_op_equal {
     ($x0:ident, $x1:ident, $y:ident, $full:ident, $limb:ident, $cmp:expr) => {{
         let x = util::to_u256($x0, $x1);
-        let fres = x.$full(i256::u256::from_ulimb($y));
+        let fres = x.$full(i256::u256::from($y));
         let lres = x.$limb($y);
 
         $cmp(fres, lres)

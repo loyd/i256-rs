@@ -2,7 +2,11 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
+    (
+        signed_type => $s_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         #[inline(always)]
         const fn is_div_overflow(self, rhs: Self) -> bool {
             _ = rhs;
@@ -15,7 +19,11 @@ macro_rules! define {
             rhs.eq_const(Self::from_u8(0))
         }
 
-        $crate::shared::ops::define!(type => $s_t, wide_type => u128);
+        $crate::shared::ops::define!(
+            type => $s_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Performs Euclidean division.
         ///
@@ -25,7 +33,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, div_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_euclid(self, rhs: Self) -> Self {
@@ -47,7 +55,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, rem_euclid)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, rem_euclid)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn rem_euclid(self, rhs: Self) -> Self {
@@ -68,7 +76,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, div_floor)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_floor)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_floor(self, rhs: Self) -> Self {
@@ -80,7 +88,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, div_ceil)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, div_ceil)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn div_ceil(self, rhs: Self) -> Self {
@@ -104,7 +112,7 @@ macro_rules! define {
         ///
         /// This function will panic if `self` is zero, or if `base` is less than 2.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, ilog)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, ilog)]
         #[inline(always)]
         pub fn ilog(self, base: Self) -> u32 {
             if let Some(log) = self.checked_ilog(base) {
@@ -118,7 +126,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::div_by_zero_doc!(self)]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, ilog2)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, ilog2)]
         #[inline(always)]
         pub const fn ilog2(self) -> u32 {
             if let Some(log) = self.checked_ilog2() {
@@ -152,7 +160,7 @@ macro_rules! define {
 
         /// Computes the absolute difference between `self` and `other`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!(u128, abs_diff)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, abs_diff)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn abs_diff(self, other: Self) -> Self {

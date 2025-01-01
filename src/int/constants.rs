@@ -4,18 +4,20 @@
 macro_rules! define {
     (
         bits => $bits:expr,
-        wide_type => $wide_t:ty $(,)?
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
     ) => {
         $crate::shared::constants::define!(
             bits => $bits,
             wide_type => $wide_t,
             low_type => $crate::ULimb,
             high_type => $crate::ILimb,
+            see_type => $see_t,
         );
 
         #[deprecated]
         #[inline(always)]
-        #[doc = $crate::shared::constants::min_value_doc!($wide_t)]
+        #[doc = $crate::shared::constants::min_value_doc!($see_t)]
         pub const fn min_value() -> Self {
             let mut limbs = [0; Self::LIMBS];
             ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MIN as $crate::ULimb);
@@ -24,7 +26,7 @@ macro_rules! define {
 
         #[deprecated]
         #[inline(always)]
-        #[doc = $crate::shared::constants::max_value_doc!($wide_t)]
+        #[doc = $crate::shared::constants::max_value_doc!($see_t)]
         pub const fn max_value() -> Self {
             let mut limbs = [$crate::ULimb::MAX; Self::LIMBS];
             ne_index!(limbs[Self::LIMBS - 1] = $crate::ILimb::MAX as $crate::ULimb);

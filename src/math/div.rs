@@ -41,6 +41,7 @@ use crate::types::{ULimb, UWide};
 ///
 /// Panics if divisor is zero.
 #[inline]
+#[must_use]
 pub fn full<const M: usize, const N: usize>(
     numerator: &[ULimb; M],
     divisor: &[ULimb; N],
@@ -69,6 +70,7 @@ pub fn full<const M: usize, const N: usize>(
 /// due to the creation of the temporary divisor it
 /// can be significantly slower.
 #[inline]
+#[must_use]
 pub fn wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; M], UWide) {
     // NOTE: It's way better to keep this optimization outside the comparison.
     if M >= 2 && is_zero(numerator, 2) {
@@ -95,8 +97,40 @@ pub fn wide<const M: usize>(numerator: &[ULimb; M], divisor: UWide) -> ([ULimb; 
     (quo, rem)
 }
 
+/// Implementation like above, except considering we might have 4 values.
+#[inline]
+#[must_use]
+#[cfg(feature = "stdint")]
+#[allow(clippy::assertions_on_constants)]
+pub fn from_u128<const M: usize>(numerator: &[ULimb; M], divisor: u128) -> ([ULimb; M], u128) {
+    assert!(ULimb::BITS == 32);
+
+    // NOTE: It's way better to keep this optimization outside the comparison.
+    if M >= 2 && is_zero(numerator, 2) {
+        // Can do as a scalar operation, simple.
+        if numerator[0] == 0 && numerator[1] == 0 {
+            return (scalar1(0), 0);
+        } else {
+            let numerator = u128_scalar(numerator);
+            let (quo, rem) = (numerator / divisor, numerator % divisor);
+            return (scalar_u128(quo), rem);
+        }
+    }
+
+    let y = scalar_u128::<M>(divisor);
+    let (quo, rem) = match cmp(numerator, &y) {
+        Ordering::Less => ([0; M], truncate(*numerator)),
+        Ordering::Equal => return (scalar1(1), 0),
+        Ordering::Greater => full_gt(numerator, &y),
+    };
+    let rem = u128_scalar(&rem);
+
+    (quo, rem)
+}
+
 /// Division of numerator by a u64 divisor
 #[inline]
+#[must_use]
 pub fn limb<const M: usize>(numerator: &[ULimb; M], divisor: ULimb) -> ([ULimb; M], ULimb) {
     // quick path optinmization for small values
     if M >= 2 && is_zero(numerator, 2) {
@@ -212,6 +246,38 @@ pub const fn scalar2<const N: usize>(value: UWide) -> [ULimb; N] {
     r[0] = value as ULimb;
     r[1] = (value >> ULimb::BITS) as ULimb;
     r
+}
+
+/// Construct an array from a u128 value. Only used for 32-bit ISAs.
+#[inline(always)]
+#[cfg(feature = "stdint")]
+#[allow(clippy::assertions_on_constants)]
+pub const fn scalar_u128<const N: usize>(value: u128) -> [ULimb; N] {
+    assert!(N >= 4);
+    assert!(ULimb::BITS == 32);
+
+    let mut r = [0; N];
+    r[0] = value as ULimb;
+    r[1] = (value >> 32) as ULimb;
+    r[2] = (value >> 64) as ULimb;
+    r[3] = (value >> 96) as ULimb;
+    r
+}
+
+/// Construct an array from a u128 value. Only used for 32-bit ISAs.
+#[inline(always)]
+#[cfg(feature = "stdint")]
+#[allow(clippy::assertions_on_constants)]
+pub const fn u128_scalar<const N: usize>(value: &[ULimb; N]) -> u128 {
+    assert!(N >= 4);
+    assert!(ULimb::BITS == 32);
+
+    let x0 = value[0] as u128;
+    let x1 = (value[1] as u128) << 32;
+    let x2 = (value[2] as u128) << 64;
+    let x3 = (value[3] as u128) << 96;
+
+    x0 | x1 | x2 | x3
 }
 
 /// Division of numerator by a u64 divisor

@@ -177,7 +177,12 @@ macro_rules! define {
             const BITS: u32 = $crate::ULimb::BITS;
             assert!(BITS == 32 || BITS == 64);
             if BITS == 32 {
-                Self::from_i32(value as i32)
+                let sign_bit = $crate::ULimb::MIN.wrapping_sub(value.is_negative() as $crate::ULimb);
+                let mut limbs = [sign_bit; Self::LIMBS];
+                let value = value as $crate::UWide;
+                ne_index!(limbs[0] = value as $crate::ULimb);
+                ne_index!(limbs[1] = (value >> 32) as $crate::ULimb);
+                Self::from_ne_limbs(limbs)
             } else {
                 let sign_bit = $crate::ULimb::MIN.wrapping_sub(value.is_negative() as $crate::ULimb);
                 let mut limbs = [sign_bit; Self::LIMBS];

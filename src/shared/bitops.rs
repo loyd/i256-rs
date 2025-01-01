@@ -5,10 +5,14 @@
 /// See the bench on `bit_algos` for some of the choices.
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Returns the number of ones in the binary representation of `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::count_ones`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, count_ones)]
         #[inline(always)]
         pub const fn count_ones(self) -> u32 {
             // NOTE: Rust vectorizes this nicely on x86_64.
@@ -23,7 +27,7 @@ macro_rules! define {
 
         /// Returns the number of zeros in the binary representation of `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::count_zeros`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, count_zeros)]
         #[inline(always)]
         pub const fn count_zeros(self) -> u32 {
             self.not_const().count_ones()
@@ -53,7 +57,7 @@ macro_rules! define {
         /// assert_eq!(max.leading_zeros(), 1);
         /// ```
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::leading_zeros`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, leading_zeros)]
         #[inline]
         pub const fn leading_zeros(self) -> u32 {
             let mut count = 0;
@@ -68,7 +72,7 @@ macro_rules! define {
         /// Returns the number of trailing zeros in the binary representation of
         /// `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::trailing_zeros`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, trailing_zeros)]
         #[inline]
         pub const fn trailing_zeros(self) -> u32 {
             let mut count = 0;
@@ -83,7 +87,7 @@ macro_rules! define {
         /// Returns the number of leading ones in the binary representation of
         /// `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::leading_ones`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, leading_ones)]
         #[inline(always)]
         pub const fn leading_ones(self) -> u32 {
             self.not_const().leading_zeros()
@@ -92,7 +96,7 @@ macro_rules! define {
         /// Returns the number of trailing ones in the binary representation of
         /// `self`.
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::trailing_ones`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, trailing_ones)]
         #[inline(always)]
         pub const fn trailing_ones(self) -> u32 {
             self.not_const().trailing_zeros()
@@ -160,7 +164,7 @@ macro_rules! define {
         ///
         /// Please note this isn't the same operation as the `<<` shifting operator!
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_left`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, rotate_left)]
         #[inline(always)]
         pub const fn rotate_left(self, n: u32) -> Self {
             let result = $crate::math::rotate::left_wide(self.to_ne_wide(), n);
@@ -173,7 +177,7 @@ macro_rules! define {
         ///
         /// Please note this isn't the same operation as the `>>` shifting operator!
         ///
-        #[doc = concat!("See [`", stringify!($wide_t), "::rotate_right`].")]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, rotate_right)]
         #[inline(always)]
         pub const fn rotate_right(self, n: u32) -> Self {
             let result = $crate::math::rotate::right_wide(self.to_ne_wide(), n);

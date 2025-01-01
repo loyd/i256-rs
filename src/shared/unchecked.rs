@@ -5,7 +5,11 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (type => $t:ty,wide_type => $wide_t:ty) => {
+    (
+        type => $t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
         /// Unchecked integer addition. Computes `self + rhs`, assuming overflow
         /// cannot occur.
         ///
@@ -17,7 +21,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::unchecked_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, unchecked_add)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unchecked_add)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         ///
         /// [`checked_add`]: Self::checked_add
@@ -44,7 +48,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::unchecked_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, unchecked_sub)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unchecked_sub)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         ///
         /// [`checked_sub`]: Self::checked_sub
@@ -71,7 +75,7 @@ macro_rules! define {
         ///
         #[doc = $crate::shared::docs::unchecked_doc!()]
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, unchecked_mul)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unchecked_mul)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         ///
         /// [`wrapping_mul`]: Self::wrapping_mul
@@ -96,7 +100,7 @@ macro_rules! define {
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shl`] would return `None`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, unchecked_shl)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unchecked_shl)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         ///
         /// [`checked_shl`]: Self::checked_shl
@@ -119,7 +123,7 @@ macro_rules! define {
         /// or equal to the number of bits in `self`,
         /// i.e. when [`checked_shr`] would return `None`.
         ///
-        #[doc = $crate::shared::docs::primitive_doc!($wide_t, unchecked_shr)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, unchecked_shr)]
         #[doc = $crate::shared::docs::nightly_doc!()]
         ///
         /// [`checked_shr`]: Self::checked_shr

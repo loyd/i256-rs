@@ -2,12 +2,20 @@
 
 #[rustfmt::skip]
 macro_rules! define {
-    (signed_type => $s_t:ty, wide_type => $wide_t:ty) => {
-        $crate::shared::checked::define!(type => $s_t, wide_type => $wide_t);
+    (
+        signed_type => $s_t:ty,
+        wide_type => $wide_t:ty,
+        see_type => $see_t:ty $(,)?
+    ) => {
+        $crate::shared::checked::define!(
+            type => $s_t,
+            wide_type => $wide_t,
+            see_type => $see_t,
+        );
 
         /// Checked addition with a signed integer. Computes `self + rhs`,
         /// returning `None` if overflow occurred.
-        #[doc = $crate::shared::docs::primitive_doc!(u128, checked_add_signed)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_add_signed)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_add_signed(self, rhs: $s_t) -> Option<Self> {
@@ -23,7 +31,7 @@ macro_rules! define {
         /// 0`.
         ///
         /// Note that negating any positive integer will overflow.
-        #[doc = $crate::shared::docs::primitive_doc!(u128, checked_neg)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_neg)]
         #[inline(always)]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_neg(self) -> Option<Self> {
@@ -42,7 +50,7 @@ macro_rules! define {
         /// This method might not be optimized owing to implementation details;
         /// `checked_ilog2` can produce results more efficiently for base 2, and
         /// `checked_ilog10` can produce results more efficiently for base 10.
-        #[doc = $crate::shared::docs::primitive_doc!(u128, checked_ilog)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_ilog)]
         #[inline(always)]
         pub fn checked_ilog(self, base: Self) -> Option<u32> {
             let zero = Self::from_u8(0);
@@ -105,7 +113,7 @@ macro_rules! define {
         /// Calculates the smallest value greater than or equal to `self` that
         /// is a multiple of `rhs`. Returns `None` if `rhs` is zero or the
         /// operation would result in overflow.
-        #[doc = $crate::shared::docs::primitive_doc!(u128, checked_next_multiple_of)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_next_multiple_of)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
@@ -135,7 +143,7 @@ macro_rules! define {
         /// Returns the smallest power of two greater than or equal to `self`. If
         /// the next power of two is greater than the type's maximum value,
         /// `None` is returned, otherwise the power of two is wrapped in `Some`.
-        #[doc = $crate::shared::docs::primitive_doc!(u128, checked_next_power_of_two)]
+        #[doc = $crate::shared::docs::primitive_doc!($see_t, checked_next_power_of_two)]
         #[inline]
         #[must_use = $crate::shared::docs::must_use_copy_doc!()]
         pub const fn checked_next_power_of_two(self) -> Option<Self> {
